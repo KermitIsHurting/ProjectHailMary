@@ -1,0 +1,664 @@
+[0.000000] (-) TimerEvent: {}
+[0.000220] (cuas_msgs) JobQueued: {'identifier': 'cuas_msgs', 'dependencies': OrderedDict()}
+[0.000456] (cuas_fusion) JobQueued: {'identifier': 'cuas_fusion', 'dependencies': OrderedDict([('cuas_msgs', '/home/zork/ProjectHailMarry/install/cuas_msgs')])}
+[0.000897] (cuas_msgs) JobStarted: {'identifier': 'cuas_msgs'}
+[0.012697] (cuas_msgs) JobProgress: {'identifier': 'cuas_msgs', 'progress': 'cmake'}
+[0.014171] (cuas_msgs) Command: {'cmd': ['/usr/bin/cmake', '/home/zork/ProjectHailMarry/msgs/cuas_msgs', '-DCATKIN_INSTALL_INTO_PREFIX_ROOT=0', '-DCMAKE_INSTALL_PREFIX=/home/zork/ProjectHailMarry/install/cuas_msgs'], 'cwd': '/home/zork/ProjectHailMarry/build/cuas_msgs', 'env': OrderedDict([('TERM_SESSION_ID', 'be82551c-4cc6-411f-bc51-4ad0690774c7'), ('LESSOPEN', '| /usr/bin/lesspipe %s'), ('USER', 'zork'), ('SSH_CLIENT', '10.0.1.103 54990 22'), ('XDG_SESSION_TYPE', 'tty'), ('SHLVL', '0'), ('LD_LIBRARY_PATH', '/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/aarch64-linux-gnu:/opt/ros/humble/lib:/usr/local/cuda-12.6/lib64:'), ('MOTD_SHOWN', 'pam'), ('HOME', '/home/zork'), ('OLDPWD', '/home/zork/ProjectHailMarry'), ('SSH_TTY', '/dev/pts/1'), ('TERMINAL_EMULATOR', 'JetBrains-JediTerm'), ('ROS_PYTHON_VERSION', '3'), ('DBUS_SESSION_BUS_ADDRESS', 'unix:path=/run/user/1000/bus'), ('REMOTE_DEV_SERVER_IS_NATIVE_LAUNCHER', '1'), ('ROS_DISTRO', 'humble'), ('LOGNAME', 'zork'), ('_', '/usr/bin/colcon'), ('ROS_VERSION', '2'), ('XDG_SESSION_CLASS', 'user'), ('REMOTE_DEV_LAUNCHER_NAME_FOR_USAGE', 'remote-dev-server.sh'), ('TERM', 'xterm-256color'), ('XDG_SESSION_ID', '8'), ('ROS_LOCALHOST_ONLY', '0'), ('PATH', '/opt/ros/humble/bin:/home/zork/.local/bin:/usr/local/cuda-12.6/bin:/home/zork/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin'), ('XDG_RUNTIME_DIR', '/run/user/1000'), ('LANG', 'en_US.UTF-8'), ('LS_COLORS', 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:'), ('SSH_AUTH_SOCK', '/tmp/saf500d4270-bcff-4fc0-b2dd-824910284990'), ('AMENT_PREFIX_PATH', '/opt/ros/humble'), ('SHELL', '/bin/bash'), ('LESSCLOSE', '/usr/bin/lesspipe %s %s'), ('PWD', '/home/zork/ProjectHailMarry/build/cuas_msgs'), ('IDEA_RESTART_VIA_EXIT_CODE', '88'), ('SSH_CONNECTION', '10.0.1.103 54990 10.0.1.19 22'), ('XDG_DATA_DIRS', '/usr/share/gnome:/usr/local/share:/usr/share:/var/lib/snapd/desktop'), ('PYTHONPATH', '/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages'), ('COLCON', '1')]), 'shell': False}
+[0.036846] (cuas_msgs) StdoutLine: {'line': b'-- Found ament_cmake: 1.3.14 (/opt/ros/humble/share/ament_cmake/cmake)\n'}
+[0.099510] (-) TimerEvent: {}
+[0.199871] (-) TimerEvent: {}
+[0.300779] (-) TimerEvent: {}
+[0.307580] (cuas_msgs) StdoutLine: {'line': b'-- Found rosidl_default_generators: 1.2.1 (/opt/ros/humble/share/rosidl_default_generators/cmake)\n'}
+[0.310019] (cuas_msgs) StdoutLine: {'line': b'-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c\n'}
+[0.314791] (cuas_msgs) StdoutLine: {'line': b'-- Found rosidl_adapter: 3.1.8 (/opt/ros/humble/share/rosidl_adapter/cmake)\n'}
+[0.381745] (cuas_msgs) StdoutLine: {'line': b'-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp\n'}
+[0.400698] (-) TimerEvent: {}
+[0.501002] (-) TimerEvent: {}
+[0.601375] (-) TimerEvent: {}
+[0.701780] (-) TimerEvent: {}
+[0.802211] (-) TimerEvent: {}
+[0.902570] (-) TimerEvent: {}
+[0.986560] (cuas_msgs) StdoutLine: {'line': b'-- Found ament_cmake_ros: 0.10.0 (/opt/ros/humble/share/ament_cmake_ros/cmake)\n'}
+[1.002743] (-) TimerEvent: {}
+[1.103246] (-) TimerEvent: {}
+[1.203871] (-) TimerEvent: {}
+[1.304717] (-) TimerEvent: {}
+[1.405962] (-) TimerEvent: {}
+[1.442901] (cuas_msgs) StdoutLine: {'line': b'-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c\n'}
+[1.506083] (-) TimerEvent: {}
+[1.607031] (-) TimerEvent: {}
+[1.707968] (-) TimerEvent: {}
+[1.808519] (-) TimerEvent: {}
+[1.909396] (-) TimerEvent: {}
+[2.010266] (-) TimerEvent: {}
+[2.040405] (cuas_msgs) StdoutLine: {'line': b'-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp\n'}
+[2.101559] (cuas_msgs) StdoutLine: {'line': b'-- Found PythonInterp: /usr/bin/python3 (found suitable version "3.10.12", minimum required is "3.6") \n'}
+[2.105258] (cuas_msgs) StdoutLine: {'line': b'-- Found python_cmake_module: 0.10.0 (/opt/ros/humble/share/python_cmake_module/cmake)\n'}
+[2.110408] (-) TimerEvent: {}
+[2.179424] (cuas_msgs) StdoutLine: {'line': b'-- Found PythonLibs: /usr/lib/aarch64-linux-gnu/libpython3.10.so (found suitable version "3.10.12", minimum required is "3.5") \n'}
+[2.180925] (cuas_msgs) StdoutLine: {'line': b'-- Using PYTHON_EXECUTABLE: /usr/bin/python3\n'}
+[2.181274] (cuas_msgs) StdoutLine: {'line': b'-- Using PYTHON_INCLUDE_DIRS: /usr/include/python3.10\n'}
+[2.181575] (cuas_msgs) StdoutLine: {'line': b'-- Using PYTHON_LIBRARIES: /usr/lib/aarch64-linux-gnu/libpython3.10.so\n'}
+[2.210549] (-) TimerEvent: {}
+[2.231956] (cuas_msgs) StdoutLine: {'line': b'-- Found PythonExtra: .so  \n'}
+[2.311017] (-) TimerEvent: {}
+[2.411652] (-) TimerEvent: {}
+[2.504062] (cuas_msgs) StdoutLine: {'line': b'-- Configuring done\n'}
+[2.511855] (-) TimerEvent: {}
+[2.594148] (cuas_msgs) StdoutLine: {'line': b'-- Generating done\n'}
+[2.599135] (cuas_msgs) StderrLine: {'line': b'CMake Warning:\n'}
+[2.599622] (cuas_msgs) StderrLine: {'line': b'  Manually-specified variables were not used by the project:\n'}
+[2.599959] (cuas_msgs) StderrLine: {'line': b'\n'}
+[2.600227] (cuas_msgs) StderrLine: {'line': b'    CATKIN_INSTALL_INTO_PREFIX_ROOT\n'}
+[2.600483] (cuas_msgs) StderrLine: {'line': b'\n'}
+[2.600724] (cuas_msgs) StderrLine: {'line': b'\n'}
+[2.612008] (-) TimerEvent: {}
+[2.616697] (cuas_msgs) StdoutLine: {'line': b'-- Build files have been written to: /home/zork/ProjectHailMarry/build/cuas_msgs\n'}
+[2.632827] (cuas_msgs) CommandEnded: {'returncode': 0}
+[2.634295] (cuas_msgs) JobProgress: {'identifier': 'cuas_msgs', 'progress': 'build'}
+[2.636099] (cuas_msgs) Command: {'cmd': ['/usr/bin/cmake', '--build', '/home/zork/ProjectHailMarry/build/cuas_msgs', '--', '-j6', '-l6'], 'cwd': '/home/zork/ProjectHailMarry/build/cuas_msgs', 'env': OrderedDict([('TERM_SESSION_ID', 'be82551c-4cc6-411f-bc51-4ad0690774c7'), ('LESSOPEN', '| /usr/bin/lesspipe %s'), ('USER', 'zork'), ('SSH_CLIENT', '10.0.1.103 54990 22'), ('XDG_SESSION_TYPE', 'tty'), ('SHLVL', '0'), ('LD_LIBRARY_PATH', '/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/aarch64-linux-gnu:/opt/ros/humble/lib:/usr/local/cuda-12.6/lib64:'), ('MOTD_SHOWN', 'pam'), ('HOME', '/home/zork'), ('OLDPWD', '/home/zork/ProjectHailMarry'), ('SSH_TTY', '/dev/pts/1'), ('TERMINAL_EMULATOR', 'JetBrains-JediTerm'), ('ROS_PYTHON_VERSION', '3'), ('DBUS_SESSION_BUS_ADDRESS', 'unix:path=/run/user/1000/bus'), ('REMOTE_DEV_SERVER_IS_NATIVE_LAUNCHER', '1'), ('ROS_DISTRO', 'humble'), ('LOGNAME', 'zork'), ('_', '/usr/bin/colcon'), ('ROS_VERSION', '2'), ('XDG_SESSION_CLASS', 'user'), ('REMOTE_DEV_LAUNCHER_NAME_FOR_USAGE', 'remote-dev-server.sh'), ('TERM', 'xterm-256color'), ('XDG_SESSION_ID', '8'), ('ROS_LOCALHOST_ONLY', '0'), ('PATH', '/opt/ros/humble/bin:/home/zork/.local/bin:/usr/local/cuda-12.6/bin:/home/zork/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin'), ('XDG_RUNTIME_DIR', '/run/user/1000'), ('LANG', 'en_US.UTF-8'), ('LS_COLORS', 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:'), ('SSH_AUTH_SOCK', '/tmp/saf500d4270-bcff-4fc0-b2dd-824910284990'), ('AMENT_PREFIX_PATH', '/opt/ros/humble'), ('SHELL', '/bin/bash'), ('LESSCLOSE', '/usr/bin/lesspipe %s %s'), ('PWD', '/home/zork/ProjectHailMarry/build/cuas_msgs'), ('IDEA_RESTART_VIA_EXIT_CODE', '88'), ('SSH_CONNECTION', '10.0.1.103 54990 10.0.1.19 22'), ('XDG_DATA_DIRS', '/usr/share/gnome:/usr/local/share:/usr/share:/var/lib/snapd/desktop'), ('PYTHONPATH', '/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages'), ('COLCON', '1')]), 'shell': False}
+[2.712309] (-) TimerEvent: {}
+[2.729727] (cuas_msgs) StdoutLine: {'line': b'[  1%] Generating C code for ROS interfaces\n'}
+[2.751414] (cuas_msgs) StdoutLine: {'line': b'[  4%] Generating C++ code for ROS interfaces\n'}
+[2.751831] (cuas_msgs) StdoutLine: {'line': b'[  4%] Generating Rust code for ROS interfaces\n'}
+[2.769527] (cuas_msgs) StdoutLine: {'line': b'[  4%] Built target ament_cmake_python_copy_cuas_msgs\n'}
+[2.812421] (-) TimerEvent: {}
+[2.912768] (-) TimerEvent: {}
+[3.013120] (-) TimerEvent: {}
+[3.113489] (-) TimerEvent: {}
+[3.213825] (-) TimerEvent: {}
+[3.217742] (cuas_msgs) StdoutLine: {'line': b'running egg_info\n'}
+[3.222009] (cuas_msgs) StdoutLine: {'line': b'creating cuas_msgs.egg-info\n'}
+[3.222425] (cuas_msgs) StdoutLine: {'line': b'writing cuas_msgs.egg-info/PKG-INFO\n'}
+[3.222575] (cuas_msgs) StdoutLine: {'line': b'writing dependency_links to cuas_msgs.egg-info/dependency_links.txt\n'}
+[3.222700] (cuas_msgs) StdoutLine: {'line': b'writing top-level names to cuas_msgs.egg-info/top_level.txt\n'}
+[3.222817] (cuas_msgs) StdoutLine: {'line': b"writing manifest file 'cuas_msgs.egg-info/SOURCES.txt'\n"}
+[3.226736] (cuas_msgs) StdoutLine: {'line': b"reading manifest file 'cuas_msgs.egg-info/SOURCES.txt'\n"}
+[3.227489] (cuas_msgs) StdoutLine: {'line': b"writing manifest file 'cuas_msgs.egg-info/SOURCES.txt'\n"}
+[3.238235] (cuas_msgs) StdoutLine: {'line': b'[  4%] Built target cuas_msgs__rs\n'}
+[3.297284] (cuas_msgs) StdoutLine: {'line': b'[  4%] Built target ament_cmake_python_build_cuas_msgs_egg\n'}
+[3.313943] (-) TimerEvent: {}
+[3.414214] (-) TimerEvent: {}
+[3.514616] (-) TimerEvent: {}
+[3.615044] (-) TimerEvent: {}
+[3.668644] (cuas_msgs) StdoutLine: {'line': b'[  4%] Built target cuas_msgs__cpp\n'}
+[3.701930] (cuas_msgs) StdoutLine: {'line': b'[  8%] Generating C++ introspection for ROS interfaces\n'}
+[3.702360] (cuas_msgs) StdoutLine: {'line': b'[  8%] Generating C++ type support dispatch for ROS interfaces\n'}
+[3.702513] (cuas_msgs) StdoutLine: {'line': b'[  8%] Generating C++ type support for eProsima Fast-RTPS\n'}
+[3.715197] (-) TimerEvent: {}
+[3.739702] (cuas_msgs) StdoutLine: {'line': b'[ 11%] Building C object CMakeFiles/cuas_msgs__rosidl_generator_c.dir/rosidl_generator_c/cuas_msgs/msg/detail/radar_frame__functions.c.o\n'}
+[3.740185] (cuas_msgs) StdoutLine: {'line': b'[ 11%] Building C object CMakeFiles/cuas_msgs__rosidl_generator_c.dir/rosidl_generator_c/cuas_msgs/msg/detail/fused_detection__functions.c.o\n'}
+[3.740329] (cuas_msgs) StdoutLine: {'line': b'[ 12%] Building C object CMakeFiles/cuas_msgs__rosidl_generator_c.dir/rosidl_generator_c/cuas_msgs/msg/detail/radar_detection__functions.c.o\n'}
+[3.815350] (-) TimerEvent: {}
+[3.862661] (cuas_msgs) StdoutLine: {'line': b'[ 13%] Building C object CMakeFiles/cuas_msgs__rosidl_generator_c.dir/rosidl_generator_c/cuas_msgs/msg/detail/track__functions.c.o\n'}
+[3.865839] (cuas_msgs) StdoutLine: {'line': b'[ 15%] Building C object CMakeFiles/cuas_msgs__rosidl_generator_c.dir/rosidl_generator_c/cuas_msgs/msg/detail/track_array__functions.c.o\n'}
+[3.873879] (cuas_msgs) StdoutLine: {'line': b'[ 16%] Building C object CMakeFiles/cuas_msgs__rosidl_generator_c.dir/rosidl_generator_c/cuas_msgs/msg/detail/threat_report__functions.c.o\n'}
+[3.915562] (-) TimerEvent: {}
+[3.968447] (cuas_msgs) StdoutLine: {'line': b'[ 18%] Linking C shared library libcuas_msgs__rosidl_generator_c.so\n'}
+[4.015709] (-) TimerEvent: {}
+[4.035347] (cuas_msgs) StdoutLine: {'line': b'[ 18%] Built target cuas_msgs__rosidl_generator_c\n'}
+[4.054377] (cuas_msgs) StdoutLine: {'line': b'[ 19%] Generating C type support dispatch for ROS interfaces\n'}
+[4.055096] (cuas_msgs) StdoutLine: {'line': b'[ 20%] Generating C type support for eProsima Fast-RTPS\n'}
+[4.056543] (cuas_msgs) StdoutLine: {'line': b'[ 22%] Generating C introspection for ROS interfaces\n'}
+[4.115916] (-) TimerEvent: {}
+[4.216274] (-) TimerEvent: {}
+[4.328292] (-) TimerEvent: {}
+[4.338901] (cuas_msgs) StdoutLine: {'line': b'[ 23%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/cuas_msgs/msg/radar_detection__type_support.cpp.o\n'}
+[4.428452] (-) TimerEvent: {}
+[4.528763] (-) TimerEvent: {}
+[4.583666] (cuas_msgs) StdoutLine: {'line': b'[ 26%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/cuas_msgs/msg/detail/radar_detection__type_support.cpp.o\n'}
+[4.584384] (cuas_msgs) StdoutLine: {'line': b'[ 26%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/cuas_msgs/msg/detail/dds_fastrtps/radar_detection__type_support.cpp.o\n'}
+[4.628921] (-) TimerEvent: {}
+[4.722191] (cuas_msgs) StdoutLine: {'line': b'[ 27%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/cuas_msgs/msg/radar_detection__type_support.cpp.o\n'}
+[4.729126] (-) TimerEvent: {}
+[4.781930] (cuas_msgs) StdoutLine: {'line': b'[ 29%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/cuas_msgs/msg/radar_frame__type_support.cpp.o\n'}
+[4.829339] (-) TimerEvent: {}
+[4.839544] (cuas_msgs) StdoutLine: {'line': b'[ 30%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/cuas_msgs/msg/fused_detection__type_support.cpp.o\n'}
+[4.908824] (cuas_msgs) StdoutLine: {'line': b'[ 31%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/cuas_msgs/msg/track__type_support.cpp.o\n'}
+[4.929538] (-) TimerEvent: {}
+[4.961199] (cuas_msgs) StdoutLine: {'line': b'[ 33%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/cuas_msgs/msg/detail/radar_detection__type_support_c.cpp.o\n'}
+[4.965642] (cuas_msgs) StdoutLine: {'line': b'[ 34%] Building C object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/cuas_msgs/msg/detail/radar_detection__type_support.c.o\n'}
+[4.976339] (cuas_msgs) StdoutLine: {'line': b'[ 36%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/cuas_msgs/msg/track_array__type_support.cpp.o\n'}
+[4.997000] (cuas_msgs) StdoutLine: {'line': b'[ 37%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/cuas_msgs/msg/radar_frame__type_support.cpp.o\n'}
+[5.029731] (-) TimerEvent: {}
+[5.034549] (cuas_msgs) StdoutLine: {'line': b'[ 38%] Building C object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/cuas_msgs/msg/detail/radar_frame__type_support.c.o\n'}
+[5.035393] (cuas_msgs) StdoutLine: {'line': b'[ 40%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/cuas_msgs/msg/threat_report__type_support.cpp.o\n'}
+[5.092487] (cuas_msgs) StdoutLine: {'line': b'[ 41%] Linking CXX shared library libcuas_msgs__rosidl_typesupport_c.so\n'}
+[5.109293] (cuas_msgs) StdoutLine: {'line': b'[ 43%] Building C object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/cuas_msgs/msg/detail/fused_detection__type_support.c.o\n'}
+[5.129941] (-) TimerEvent: {}
+[5.181244] (cuas_msgs) StdoutLine: {'line': b'[ 43%] Built target cuas_msgs__rosidl_typesupport_c\n'}
+[5.200768] (cuas_msgs) StdoutLine: {'line': b'[ 44%] Building C object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/cuas_msgs/msg/detail/track__type_support.c.o\n'}
+[5.203366] (cuas_msgs) StdoutLine: {'line': b'[ 45%] Building C object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/cuas_msgs/msg/detail/track_array__type_support.c.o\n'}
+[5.230117] (-) TimerEvent: {}
+[5.277614] (cuas_msgs) StdoutLine: {'line': b'[ 48%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/cuas_msgs/msg/detail/radar_frame__type_support_c.cpp.o\n'}
+[5.278414] (cuas_msgs) StdoutLine: {'line': b'[ 48%] Building C object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/cuas_msgs/msg/detail/threat_report__type_support.c.o\n'}
+[5.330345] (-) TimerEvent: {}
+[5.350157] (cuas_msgs) StdoutLine: {'line': b'[ 50%] Linking C shared library libcuas_msgs__rosidl_typesupport_introspection_c.so\n'}
+[5.400220] (cuas_msgs) StdoutLine: {'line': b'[ 51%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/cuas_msgs/msg/detail/radar_frame__type_support.cpp.o\n'}
+[5.413092] (cuas_msgs) StdoutLine: {'line': b'[ 52%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/cuas_msgs/msg/detail/dds_fastrtps/radar_frame__type_support.cpp.o\n'}
+[5.430519] (-) TimerEvent: {}
+[5.432287] (cuas_msgs) StdoutLine: {'line': b'[ 52%] Built target cuas_msgs__rosidl_typesupport_introspection_c\n'}
+[5.481712] (cuas_msgs) StdoutLine: {'line': b'[ 54%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/cuas_msgs/msg/detail/dds_fastrtps/fused_detection__type_support.cpp.o\n'}
+[5.530733] (-) TimerEvent: {}
+[5.548934] (cuas_msgs) StdoutLine: {'line': b'[ 55%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/cuas_msgs/msg/fused_detection__type_support.cpp.o\n'}
+[5.630936] (-) TimerEvent: {}
+[5.664952] (cuas_msgs) StdoutLine: {'line': b'[ 56%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/cuas_msgs/msg/detail/fused_detection__type_support_c.cpp.o\n'}
+[5.731147] (-) TimerEvent: {}
+[5.831598] (-) TimerEvent: {}
+[5.932066] (-) TimerEvent: {}
+[5.937885] (cuas_msgs) StdoutLine: {'line': b'[ 58%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/cuas_msgs/msg/detail/track__type_support_c.cpp.o\n'}
+[6.032248] (-) TimerEvent: {}
+[6.130975] (cuas_msgs) StdoutLine: {'line': b'[ 59%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/cuas_msgs/msg/track__type_support.cpp.o\n'}
+[6.132356] (-) TimerEvent: {}
+[6.187716] (cuas_msgs) StdoutLine: {'line': b'[ 61%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/cuas_msgs/msg/detail/fused_detection__type_support.cpp.o\n'}
+[6.210585] (cuas_msgs) StdoutLine: {'line': b'[ 62%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/cuas_msgs/msg/detail/dds_fastrtps/track__type_support.cpp.o\n'}
+[6.232562] (-) TimerEvent: {}
+[6.311496] (cuas_msgs) StdoutLine: {'line': b'[ 63%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/cuas_msgs/msg/detail/dds_fastrtps/track_array__type_support.cpp.o\n'}
+[6.332756] (-) TimerEvent: {}
+[6.407554] (cuas_msgs) StdoutLine: {'line': b'[ 65%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/cuas_msgs/msg/detail/track_array__type_support_c.cpp.o\n'}
+[6.432944] (-) TimerEvent: {}
+[6.533411] (-) TimerEvent: {}
+[6.581263] (cuas_msgs) StdoutLine: {'line': b'[ 66%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/cuas_msgs/msg/detail/threat_report__type_support_c.cpp.o\n'}
+[6.633621] (-) TimerEvent: {}
+[6.720993] (cuas_msgs) StdoutLine: {'line': b'[ 68%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/cuas_msgs/msg/track_array__type_support.cpp.o\n'}
+[6.733847] (-) TimerEvent: {}
+[6.834325] (-) TimerEvent: {}
+[6.934818] (-) TimerEvent: {}
+[6.959542] (cuas_msgs) StdoutLine: {'line': b'[ 69%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/cuas_msgs/msg/detail/track__type_support.cpp.o\n'}
+[7.014780] (cuas_msgs) StdoutLine: {'line': b'[ 70%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/cuas_msgs/msg/detail/dds_fastrtps/threat_report__type_support.cpp.o\n'}
+[7.035026] (-) TimerEvent: {}
+[7.135442] (-) TimerEvent: {}
+[7.143062] (cuas_msgs) StdoutLine: {'line': b'[ 72%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/cuas_msgs/msg/detail/track_array__type_support.cpp.o\n'}
+[7.149968] (cuas_msgs) StdoutLine: {'line': b'[ 73%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/cuas_msgs/msg/detail/threat_report__type_support.cpp.o\n'}
+[7.235652] (-) TimerEvent: {}
+[7.239523] (cuas_msgs) StdoutLine: {'line': b'[ 75%] Linking CXX shared library libcuas_msgs__rosidl_typesupport_fastrtps_c.so\n'}
+[7.278090] (cuas_msgs) StdoutLine: {'line': b'[ 76%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/cuas_msgs/msg/threat_report__type_support.cpp.o\n'}
+[7.335890] (-) TimerEvent: {}
+[7.404989] (cuas_msgs) StdoutLine: {'line': b'[ 76%] Built target cuas_msgs__rosidl_typesupport_fastrtps_c\n'}
+[7.436065] (-) TimerEvent: {}
+[7.536478] (-) TimerEvent: {}
+[7.636910] (-) TimerEvent: {}
+[7.737349] (-) TimerEvent: {}
+[7.793962] (cuas_msgs) StdoutLine: {'line': b'[ 77%] Linking CXX shared library libcuas_msgs__rosidl_typesupport_cpp.so\n'}
+[7.821307] (cuas_msgs) StdoutLine: {'line': b'[ 79%] Linking CXX shared library libcuas_msgs__rosidl_typesupport_fastrtps_cpp.so\n'}
+[7.837524] (-) TimerEvent: {}
+[7.870303] (cuas_msgs) StdoutLine: {'line': b'[ 79%] Built target cuas_msgs__rosidl_typesupport_cpp\n'}
+[7.937706] (-) TimerEvent: {}
+[7.941440] (cuas_msgs) StdoutLine: {'line': b'[ 80%] Linking CXX shared library libcuas_msgs__rosidl_typesupport_introspection_cpp.so\n'}
+[7.991938] (cuas_msgs) StdoutLine: {'line': b'[ 80%] Built target cuas_msgs__rosidl_typesupport_fastrtps_cpp\n'}
+[8.025890] (cuas_msgs) StdoutLine: {'line': b'[ 80%] Built target cuas_msgs__rosidl_typesupport_introspection_cpp\n'}
+[8.037826] (-) TimerEvent: {}
+[8.073278] (cuas_msgs) StdoutLine: {'line': b'[ 80%] Built target cuas_msgs\n'}
+[8.125593] (cuas_msgs) StdoutLine: {'line': b'[ 81%] Generating Python code for ROS interfaces\n'}
+[8.137977] (-) TimerEvent: {}
+[8.238286] (-) TimerEvent: {}
+[8.338683] (-) TimerEvent: {}
+[8.439120] (-) TimerEvent: {}
+[8.539568] (-) TimerEvent: {}
+[8.640031] (-) TimerEvent: {}
+[8.740408] (-) TimerEvent: {}
+[8.840737] (-) TimerEvent: {}
+[8.941050] (-) TimerEvent: {}
+[9.041395] (-) TimerEvent: {}
+[9.141795] (-) TimerEvent: {}
+[9.242326] (-) TimerEvent: {}
+[9.243808] (cuas_msgs) StdoutLine: {'line': b'[ 81%] Built target cuas_msgs__py\n'}
+[9.290521] (cuas_msgs) StdoutLine: {'line': b'[ 90%] Building C object CMakeFiles/cuas_msgs__rosidl_generator_py.dir/rosidl_generator_py/cuas_msgs/msg/_track_array_s.c.o\n'}
+[9.290924] (cuas_msgs) StdoutLine: {'line': b'[ 90%] Building C object CMakeFiles/cuas_msgs__rosidl_generator_py.dir/rosidl_generator_py/cuas_msgs/msg/_threat_report_s.c.o\n'}
+[9.291064] (cuas_msgs) StdoutLine: {'line': b'[ 90%] Building C object CMakeFiles/cuas_msgs__rosidl_generator_py.dir/rosidl_generator_py/cuas_msgs/msg/_track_s.c.o\n'}
+[9.291211] (cuas_msgs) StdoutLine: {'line': b'[ 90%] Building C object CMakeFiles/cuas_msgs__rosidl_generator_py.dir/rosidl_generator_py/cuas_msgs/msg/_radar_detection_s.c.o\n'}
+[9.291336] (cuas_msgs) StdoutLine: {'line': b'[ 90%] Building C object CMakeFiles/cuas_msgs__rosidl_generator_py.dir/rosidl_generator_py/cuas_msgs/msg/_fused_detection_s.c.o\n'}
+[9.291455] (cuas_msgs) StdoutLine: {'line': b'[ 90%] Building C object CMakeFiles/cuas_msgs__rosidl_generator_py.dir/rosidl_generator_py/cuas_msgs/msg/_radar_frame_s.c.o\n'}
+[9.342463] (-) TimerEvent: {}
+[9.442865] (-) TimerEvent: {}
+[9.543419] (-) TimerEvent: {}
+[9.558464] (cuas_msgs) StdoutLine: {'line': b'[ 91%] Linking C shared library rosidl_generator_py/cuas_msgs/libcuas_msgs__rosidl_generator_py.so\n'}
+[9.643492] (-) TimerEvent: {}
+[9.660303] (cuas_msgs) StdoutLine: {'line': b'[ 91%] Built target cuas_msgs__rosidl_generator_py\n'}
+[9.704050] (cuas_msgs) StdoutLine: {'line': b'[ 95%] Building C object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_c__pyext.dir/rosidl_generator_py/cuas_msgs/_cuas_msgs_s.ep.rosidl_typesupport_introspection_c.c.o\n'}
+[9.704524] (cuas_msgs) StdoutLine: {'line': b'[ 95%] Building C object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_c__pyext.dir/rosidl_generator_py/cuas_msgs/_cuas_msgs_s.ep.rosidl_typesupport_fastrtps_c.c.o\n'}
+[9.704723] (cuas_msgs) StdoutLine: {'line': b'[ 95%] Building C object CMakeFiles/cuas_msgs__rosidl_typesupport_c__pyext.dir/rosidl_generator_py/cuas_msgs/_cuas_msgs_s.ep.rosidl_typesupport_c.c.o\n'}
+[9.743680] (-) TimerEvent: {}
+[9.844087] (-) TimerEvent: {}
+[9.902590] (cuas_msgs) StdoutLine: {'line': b'[ 98%] Linking C shared library rosidl_generator_py/cuas_msgs/cuas_msgs_s__rosidl_typesupport_introspection_c.cpython-310-aarch64-linux-gnu.so\n'}
+[9.903023] (cuas_msgs) StdoutLine: {'line': b'[ 98%] Linking C shared library rosidl_generator_py/cuas_msgs/cuas_msgs_s__rosidl_typesupport_fastrtps_c.cpython-310-aarch64-linux-gnu.so\n'}
+[9.908682] (cuas_msgs) StdoutLine: {'line': b'[100%] Linking C shared library rosidl_generator_py/cuas_msgs/cuas_msgs_s__rosidl_typesupport_c.cpython-310-aarch64-linux-gnu.so\n'}
+[9.944267] (-) TimerEvent: {}
+[9.972773] (cuas_msgs) StdoutLine: {'line': b'[100%] Built target cuas_msgs__rosidl_typesupport_c__pyext\n'}
+[9.973262] (cuas_msgs) StdoutLine: {'line': b'[100%] Built target cuas_msgs__rosidl_typesupport_introspection_c__pyext\n'}
+[9.973435] (cuas_msgs) StdoutLine: {'line': b'[100%] Built target cuas_msgs__rosidl_typesupport_fastrtps_c__pyext\n'}
+[10.006749] (cuas_msgs) CommandEnded: {'returncode': 0}
+[10.008966] (cuas_msgs) JobProgress: {'identifier': 'cuas_msgs', 'progress': 'install'}
+[10.034031] (cuas_msgs) Command: {'cmd': ['/usr/bin/cmake', '--install', '/home/zork/ProjectHailMarry/build/cuas_msgs'], 'cwd': '/home/zork/ProjectHailMarry/build/cuas_msgs', 'env': OrderedDict([('TERM_SESSION_ID', 'be82551c-4cc6-411f-bc51-4ad0690774c7'), ('LESSOPEN', '| /usr/bin/lesspipe %s'), ('USER', 'zork'), ('SSH_CLIENT', '10.0.1.103 54990 22'), ('XDG_SESSION_TYPE', 'tty'), ('SHLVL', '0'), ('LD_LIBRARY_PATH', '/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/aarch64-linux-gnu:/opt/ros/humble/lib:/usr/local/cuda-12.6/lib64:'), ('MOTD_SHOWN', 'pam'), ('HOME', '/home/zork'), ('OLDPWD', '/home/zork/ProjectHailMarry'), ('SSH_TTY', '/dev/pts/1'), ('TERMINAL_EMULATOR', 'JetBrains-JediTerm'), ('ROS_PYTHON_VERSION', '3'), ('DBUS_SESSION_BUS_ADDRESS', 'unix:path=/run/user/1000/bus'), ('REMOTE_DEV_SERVER_IS_NATIVE_LAUNCHER', '1'), ('ROS_DISTRO', 'humble'), ('LOGNAME', 'zork'), ('_', '/usr/bin/colcon'), ('ROS_VERSION', '2'), ('XDG_SESSION_CLASS', 'user'), ('REMOTE_DEV_LAUNCHER_NAME_FOR_USAGE', 'remote-dev-server.sh'), ('TERM', 'xterm-256color'), ('XDG_SESSION_ID', '8'), ('ROS_LOCALHOST_ONLY', '0'), ('PATH', '/opt/ros/humble/bin:/home/zork/.local/bin:/usr/local/cuda-12.6/bin:/home/zork/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin'), ('XDG_RUNTIME_DIR', '/run/user/1000'), ('LANG', 'en_US.UTF-8'), ('LS_COLORS', 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:'), ('SSH_AUTH_SOCK', '/tmp/saf500d4270-bcff-4fc0-b2dd-824910284990'), ('AMENT_PREFIX_PATH', '/opt/ros/humble'), ('SHELL', '/bin/bash'), ('LESSCLOSE', '/usr/bin/lesspipe %s %s'), ('PWD', '/home/zork/ProjectHailMarry/build/cuas_msgs'), ('IDEA_RESTART_VIA_EXIT_CODE', '88'), ('SSH_CONNECTION', '10.0.1.103 54990 10.0.1.19 22'), ('XDG_DATA_DIRS', '/usr/share/gnome:/usr/local/share:/usr/share:/var/lib/snapd/desktop'), ('PYTHONPATH', '/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages'), ('COLCON', '1')]), 'shell': False}
+[10.044371] (-) TimerEvent: {}
+[10.054693] (cuas_msgs) StdoutLine: {'line': b'-- Install configuration: ""\n'}
+[10.055542] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/ament_index/resource_index/rosidl_interfaces/cuas_msgs\n'}
+[10.056138] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs\n'}
+[10.056385] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg\n'}
+[10.056608] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/track.h\n'}
+[10.056913] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/rosidl_generator_c__visibility_control.h\n'}
+[10.057126] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/radar_detection.h\n'}
+[10.057332] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail\n'}
+[10.057463] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__functions.c\n'}
+[10.057837] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__functions.h\n'}
+[10.058062] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__struct.h\n'}
+[10.058275] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__functions.c\n'}
+[10.058484] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__struct.h\n'}
+[10.058686] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__functions.c\n'}
+[10.058887] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__type_support.h\n'}
+[10.059085] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__functions.h\n'}
+[10.059306] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__type_support.h\n'}
+[10.059429] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__type_support.h\n'}
+[10.059549] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__struct.h\n'}
+[10.059767] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__functions.c\n'}
+[10.060003] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__struct.h\n'}
+[10.060206] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__functions.c\n'}
+[10.060406] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__type_support.h\n'}
+[10.060608] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__functions.h\n'}
+[10.060805] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__struct.h\n'}
+[10.061003] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__type_support.h\n'}
+[10.061205] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__type_support.h\n'}
+[10.061398] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__functions.c\n'}
+[10.061593] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__functions.h\n'}
+[10.061816] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__functions.h\n'}
+[10.062014] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__struct.h\n'}
+[10.062210] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__functions.h\n'}
+[10.062404] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/radar_frame.h\n'}
+[10.062596] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/track_array.h\n'}
+[10.062792] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/fused_detection.h\n'}
+[10.063017] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/threat_report.h\n'}
+[10.063226] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/environment/library_path.sh\n'}
+[10.063353] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/environment/library_path.dsv\n'}
+[10.063620] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_generator_c.so\n'}
+[10.064376] (cuas_msgs) StdoutLine: {'line': b'-- Set runtime path of "/home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_generator_c.so" to ""\n'}
+[10.064754] (cuas_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs\n'}
+[10.065054] (cuas_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg\n'}
+[10.065274] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/rosidl_typesupport_fastrtps_c__visibility_control.h\n'}
+[10.065493] (cuas_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail\n'}
+[10.065706] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__rosidl_typesupport_fastrtps_c.h\n'}
+[10.065914] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__rosidl_typesupport_fastrtps_c.h\n'}
+[10.066124] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__rosidl_typesupport_fastrtps_c.h\n'}
+[10.066335] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__rosidl_typesupport_fastrtps_c.h\n'}
+[10.066479] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__rosidl_typesupport_fastrtps_c.h\n'}
+[10.066621] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__rosidl_typesupport_fastrtps_c.h\n'}
+[10.066745] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_typesupport_fastrtps_c.so\n'}
+[10.067060] (cuas_msgs) StdoutLine: {'line': b'-- Set runtime path of "/home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_typesupport_fastrtps_c.so" to ""\n'}
+[10.067407] (cuas_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs\n'}
+[10.067615] (cuas_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg\n'}
+[10.067836] (cuas_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail\n'}
+[10.068044] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__rosidl_typesupport_introspection_c.h\n'}
+[10.068243] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__type_support.c\n'}
+[10.068445] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__type_support.c\n'}
+[10.068638] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__rosidl_typesupport_introspection_c.h\n'}
+[10.068831] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__type_support.c\n'}
+[10.069023] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__rosidl_typesupport_introspection_c.h\n'}
+[10.069214] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__rosidl_typesupport_introspection_c.h\n'}
+[10.069336] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__rosidl_typesupport_introspection_c.h\n'}
+[10.069530] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__type_support.c\n'}
+[10.069724] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__type_support.c\n'}
+[10.069912] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__type_support.c\n'}
+[10.070032] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__rosidl_typesupport_introspection_c.h\n'}
+[10.070166] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/rosidl_typesupport_introspection_c__visibility_control.h\n'}
+[10.070296] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_typesupport_introspection_c.so\n'}
+[10.070669] (cuas_msgs) StdoutLine: {'line': b'-- Set runtime path of "/home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_typesupport_introspection_c.so" to ""\n'}
+[10.070798] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_typesupport_c.so\n'}
+[10.071080] (cuas_msgs) StdoutLine: {'line': b'-- Set runtime path of "/home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_typesupport_c.so" to ""\n'}
+[10.071410] (cuas_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs\n'}
+[10.071684] (cuas_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg\n'}
+[10.071936] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/threat_report.hpp\n'}
+[10.072052] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/fused_detection.hpp\n'}
+[10.072164] (cuas_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail\n'}
+[10.072445] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__traits.hpp\n'}
+[10.072651] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__struct.hpp\n'}
+[10.072838] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__type_support.hpp\n'}
+[10.073024] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__struct.hpp\n'}
+[10.073208] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__type_support.hpp\n'}
+[10.073388] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__type_support.hpp\n'}
+[10.073571] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__struct.hpp\n'}
+[10.073750] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__type_support.hpp\n'}
+[10.073931] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__traits.hpp\n'}
+[10.074112] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__builder.hpp\n'}
+[10.074296] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__builder.hpp\n'}
+[10.074484] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__type_support.hpp\n'}
+[10.074672] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__traits.hpp\n'}
+[10.075145] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__builder.hpp\n'}
+[10.075477] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__traits.hpp\n'}
+[10.075676] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__struct.hpp\n'}
+[10.075963] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__traits.hpp\n'}
+[10.076155] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__builder.hpp\n'}
+[10.076346] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__type_support.hpp\n'}
+[10.076558] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__struct.hpp\n'}
+[10.076749] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__builder.hpp\n'}
+[10.076936] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__struct.hpp\n'}
+[10.077123] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__traits.hpp\n'}
+[10.077325] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__builder.hpp\n'}
+[10.077688] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/track.hpp\n'}
+[10.077880] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/track_array.hpp\n'}
+[10.078062] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/radar_frame.hpp\n'}
+[10.078245] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/radar_detection.hpp\n'}
+[10.078431] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/rosidl_generator_cpp__visibility_control.hpp\n'}
+[10.078616] (cuas_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs\n'}
+[10.078799] (cuas_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg\n'}
+[10.078916] (cuas_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail\n'}
+[10.079111] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/dds_fastrtps\n'}
+[10.079301] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__rosidl_typesupport_fastrtps_cpp.hpp\n'}
+[10.079416] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__rosidl_typesupport_fastrtps_cpp.hpp\n'}
+[10.079531] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__rosidl_typesupport_fastrtps_cpp.hpp\n'}
+[10.079640] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__rosidl_typesupport_fastrtps_cpp.hpp\n'}
+[10.079828] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__rosidl_typesupport_fastrtps_cpp.hpp\n'}
+[10.080185] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__rosidl_typesupport_fastrtps_cpp.hpp\n'}
+[10.080373] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/rosidl_typesupport_fastrtps_cpp__visibility_control.h\n'}
+[10.080554] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_typesupport_fastrtps_cpp.so\n'}
+[10.080732] (cuas_msgs) StdoutLine: {'line': b'-- Set runtime path of "/home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_typesupport_fastrtps_cpp.so" to ""\n'}
+[10.080926] (cuas_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs\n'}
+[10.081109] (cuas_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg\n'}
+[10.081288] (cuas_msgs) StdoutLine: {'line': b'-- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail\n'}
+[10.081464] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__type_support.cpp\n'}
+[10.081640] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__rosidl_typesupport_introspection_cpp.hpp\n'}
+[10.081817] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__type_support.cpp\n'}
+[10.081995] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__rosidl_typesupport_introspection_cpp.hpp\n'}
+[10.082171] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__type_support.cpp\n'}
+[10.082277] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__type_support.cpp\n'}
+[10.082455] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__type_support.cpp\n'}
+[10.082563] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__type_support.cpp\n'}
+[10.082666] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__rosidl_typesupport_introspection_cpp.hpp\n'}
+[10.082770] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__rosidl_typesupport_introspection_cpp.hpp\n'}
+[10.083010] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__rosidl_typesupport_introspection_cpp.hpp\n'}
+[10.083141] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__rosidl_typesupport_introspection_cpp.hpp\n'}
+[10.083247] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_typesupport_introspection_cpp.so\n'}
+[10.083351] (cuas_msgs) StdoutLine: {'line': b'-- Set runtime path of "/home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_typesupport_introspection_cpp.so" to ""\n'}
+[10.083588] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_typesupport_cpp.so\n'}
+[10.083712] (cuas_msgs) StdoutLine: {'line': b'-- Set runtime path of "/home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_typesupport_cpp.so" to ""\n'}
+[10.083914] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/environment/pythonpath.sh\n'}
+[10.084025] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/environment/pythonpath.dsv\n'}
+[10.084218] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs-0.1.0-py3.10.egg-info\n'}
+[10.084471] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs-0.1.0-py3.10.egg-info/SOURCES.txt\n'}
+[10.084679] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs-0.1.0-py3.10.egg-info/PKG-INFO\n'}
+[10.084865] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs-0.1.0-py3.10.egg-info/top_level.txt\n'}
+[10.085052] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs-0.1.0-py3.10.egg-info/dependency_links.txt\n'}
+[10.085241] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs\n'}
+[10.085427] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/_cuas_msgs_s.ep.rosidl_typesupport_introspection_c.c\n'}
+[10.085619] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/_cuas_msgs_s.ep.rosidl_typesupport_fastrtps_c.c\n'}
+[10.085850] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/libcuas_msgs__rosidl_generator_py.so\n'}
+[10.086081] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg\n'}
+[10.086268] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_track_array_s.c\n'}
+[10.086453] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_track_s.c\n'}
+[10.086634] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/__init__.py\n'}
+[10.086816] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_threat_report_s.c\n'}
+[10.086997] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_fused_detection_s.c\n'}
+[10.087178] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_radar_detection.py\n'}
+[10.087359] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_radar_frame.py\n'}
+[10.087536] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_threat_report.py\n'}
+[10.087708] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_radar_detection_s.c\n'}
+[10.087903] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_fused_detection.py\n'}
+[10.088091] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_track_array.py\n'}
+[10.088270] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_track.py\n'}
+[10.088445] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_radar_frame_s.c\n'}
+[10.088624] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/cuas_msgs_s__rosidl_typesupport_introspection_c.cpython-310-aarch64-linux-gnu.so\n'}
+[10.088828] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/__init__.py\n'}
+[10.089008] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/cuas_msgs_s__rosidl_typesupport_c.cpython-310-aarch64-linux-gnu.so\n'}
+[10.089198] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/cuas_msgs_s__rosidl_typesupport_fastrtps_c.cpython-310-aarch64-linux-gnu.so\n'}
+[10.089388] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/_cuas_msgs_s.ep.rosidl_typesupport_c.c\n'}
+[10.144523] (-) TimerEvent: {}
+[10.163446] (cuas_msgs) StdoutLine: {'line': b"Listing '/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs'...\n"}
+[10.163880] (cuas_msgs) StdoutLine: {'line': b"Compiling '/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/__init__.py'...\n"}
+[10.164044] (cuas_msgs) StdoutLine: {'line': b"Listing '/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg'...\n"}
+[10.164178] (cuas_msgs) StdoutLine: {'line': b"Compiling '/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/__init__.py'...\n"}
+[10.164300] (cuas_msgs) StdoutLine: {'line': b"Compiling '/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_fused_detection.py'...\n"}
+[10.164417] (cuas_msgs) StdoutLine: {'line': b"Compiling '/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_radar_detection.py'...\n"}
+[10.164530] (cuas_msgs) StdoutLine: {'line': b"Compiling '/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_radar_frame.py'...\n"}
+[10.164642] (cuas_msgs) StdoutLine: {'line': b"Compiling '/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_threat_report.py'...\n"}
+[10.164749] (cuas_msgs) StdoutLine: {'line': b"Compiling '/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_track.py'...\n"}
+[10.164857] (cuas_msgs) StdoutLine: {'line': b"Compiling '/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_track_array.py'...\n"}
+[10.174578] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/cuas_msgs_s__rosidl_typesupport_fastrtps_c.cpython-310-aarch64-linux-gnu.so\n'}
+[10.175040] (cuas_msgs) StdoutLine: {'line': b'-- Set runtime path of "/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/cuas_msgs_s__rosidl_typesupport_fastrtps_c.cpython-310-aarch64-linux-gnu.so" to ""\n'}
+[10.175356] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/cuas_msgs_s__rosidl_typesupport_introspection_c.cpython-310-aarch64-linux-gnu.so\n'}
+[10.176014] (cuas_msgs) StdoutLine: {'line': b'-- Set runtime path of "/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/cuas_msgs_s__rosidl_typesupport_introspection_c.cpython-310-aarch64-linux-gnu.so" to ""\n'}
+[10.176378] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/cuas_msgs_s__rosidl_typesupport_c.cpython-310-aarch64-linux-gnu.so\n'}
+[10.176962] (cuas_msgs) StdoutLine: {'line': b'-- Set runtime path of "/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/cuas_msgs_s__rosidl_typesupport_c.cpython-310-aarch64-linux-gnu.so" to ""\n'}
+[10.177241] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_generator_py.so\n'}
+[10.177788] (cuas_msgs) StdoutLine: {'line': b'-- Set runtime path of "/home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_generator_py.so" to ""\n'}
+[10.178049] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/ament_index/resource_index/rust_packages/cuas_msgs\n'}
+[10.178311] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/rust\n'}
+[10.178619] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/rust/src\n'}
+[10.178850] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/rust/src/msg\n'}
+[10.179071] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/rust/src/msg/rmw.rs\n'}
+[10.179290] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/rust/src/lib.rs\n'}
+[10.179510] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/rust/src/msg.rs\n'}
+[10.179726] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/rust/Cargo.toml\n'}
+[10.179880] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/rust/build.rs\n'}
+[10.180115] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/msg/RadarDetection.idl\n'}
+[10.180346] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/msg/RadarFrame.idl\n'}
+[10.180567] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/msg/FusedDetection.idl\n'}
+[10.180795] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/msg/Track.idl\n'}
+[10.181037] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/msg/TrackArray.idl\n'}
+[10.181387] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/msg/ThreatReport.idl\n'}
+[10.181650] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/msg/RadarDetection.msg\n'}
+[10.181881] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/msg/RadarFrame.msg\n'}
+[10.182109] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/msg/FusedDetection.msg\n'}
+[10.182340] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/msg/Track.msg\n'}
+[10.182590] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/msg/TrackArray.msg\n'}
+[10.182825] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/msg/ThreatReport.msg\n'}
+[10.183174] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/ament_index/resource_index/package_run_dependencies/cuas_msgs\n'}
+[10.183539] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/ament_index/resource_index/parent_prefix_path/cuas_msgs\n'}
+[10.183883] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/environment/ament_prefix_path.sh\n'}
+[10.184186] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/environment/ament_prefix_path.dsv\n'}
+[10.184472] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/environment/path.sh\n'}
+[10.184759] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/environment/path.dsv\n'}
+[10.185143] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/local_setup.bash\n'}
+[10.185451] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/local_setup.sh\n'}
+[10.185696] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/local_setup.zsh\n'}
+[10.185953] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/local_setup.dsv\n'}
+[10.186205] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/package.dsv\n'}
+[10.186612] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/ament_index/resource_index/packages/cuas_msgs\n'}
+[10.187005] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/export_cuas_msgs__rosidl_generator_cExport.cmake\n'}
+[10.187326] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/export_cuas_msgs__rosidl_generator_cExport-noconfig.cmake\n'}
+[10.187720] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/export_cuas_msgs__rosidl_typesupport_fastrtps_cExport.cmake\n'}
+[10.188082] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/export_cuas_msgs__rosidl_typesupport_fastrtps_cExport-noconfig.cmake\n'}
+[10.188393] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/cuas_msgs__rosidl_typesupport_introspection_cExport.cmake\n'}
+[10.188693] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/cuas_msgs__rosidl_typesupport_introspection_cExport-noconfig.cmake\n'}
+[10.189006] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/cuas_msgs__rosidl_typesupport_cExport.cmake\n'}
+[10.189309] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/cuas_msgs__rosidl_typesupport_cExport-noconfig.cmake\n'}
+[10.189615] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/export_cuas_msgs__rosidl_generator_cppExport.cmake\n'}
+[10.189947] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/export_cuas_msgs__rosidl_typesupport_fastrtps_cppExport.cmake\n'}
+[10.190265] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/export_cuas_msgs__rosidl_typesupport_fastrtps_cppExport-noconfig.cmake\n'}
+[10.190592] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/cuas_msgs__rosidl_typesupport_introspection_cppExport.cmake\n'}
+[10.190892] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/cuas_msgs__rosidl_typesupport_introspection_cppExport-noconfig.cmake\n'}
+[10.191205] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/cuas_msgs__rosidl_typesupport_cppExport.cmake\n'}
+[10.191510] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/cuas_msgs__rosidl_typesupport_cppExport-noconfig.cmake\n'}
+[10.191853] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/export_cuas_msgs__rosidl_generator_pyExport.cmake\n'}
+[10.192153] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/export_cuas_msgs__rosidl_generator_pyExport-noconfig.cmake\n'}
+[10.192443] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/rosidl_cmake-extras.cmake\n'}
+[10.192720] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/ament_cmake_export_include_directories-extras.cmake\n'}
+[10.193030] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/ament_cmake_export_libraries-extras.cmake\n'}
+[10.193346] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/ament_cmake_export_targets-extras.cmake\n'}
+[10.193608] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/rosidl_cmake_export_typesupport_targets-extras.cmake\n'}
+[10.193872] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/ament_cmake_export_dependencies-extras.cmake\n'}
+[10.194167] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/rosidl_cmake_export_typesupport_libraries-extras.cmake\n'}
+[10.194445] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/cuas_msgsConfig.cmake\n'}
+[10.194680] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/cuas_msgsConfig-version.cmake\n'}
+[10.194940] (cuas_msgs) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/package.xml\n'}
+[10.201555] (cuas_msgs) CommandEnded: {'returncode': 0}
+[10.244691] (-) TimerEvent: {}
+[10.279314] (cuas_msgs) JobEnded: {'identifier': 'cuas_msgs', 'rc': 0}
+[10.283226] (cuas_fusion) JobStarted: {'identifier': 'cuas_fusion'}
+[10.297163] (cuas_fusion) JobProgress: {'identifier': 'cuas_fusion', 'progress': 'cmake'}
+[10.298866] (cuas_fusion) Command: {'cmd': ['/usr/bin/cmake', '/home/zork/ProjectHailMarry/src/cuas_fusion', '-DCATKIN_INSTALL_INTO_PREFIX_ROOT=0', '-DCMAKE_INSTALL_PREFIX=/home/zork/ProjectHailMarry/install/cuas_fusion'], 'cwd': '/home/zork/ProjectHailMarry/build/cuas_fusion', 'env': OrderedDict([('TERM_SESSION_ID', 'be82551c-4cc6-411f-bc51-4ad0690774c7'), ('LESSOPEN', '| /usr/bin/lesspipe %s'), ('USER', 'zork'), ('SSH_CLIENT', '10.0.1.103 54990 22'), ('XDG_SESSION_TYPE', 'tty'), ('ROS_PACKAGE_PATH', '/home/zork/ProjectHailMarry/install/cuas_msgs/share'), ('SHLVL', '0'), ('LD_LIBRARY_PATH', '/home/zork/ProjectHailMarry/install/cuas_msgs/lib:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/aarch64-linux-gnu:/opt/ros/humble/lib:/usr/local/cuda-12.6/lib64'), ('MOTD_SHOWN', 'pam'), ('HOME', '/home/zork'), ('OLDPWD', '/home/zork/ProjectHailMarry'), ('SSH_TTY', '/dev/pts/1'), ('TERMINAL_EMULATOR', 'JetBrains-JediTerm'), ('ROS_PYTHON_VERSION', '3'), ('DBUS_SESSION_BUS_ADDRESS', 'unix:path=/run/user/1000/bus'), ('REMOTE_DEV_SERVER_IS_NATIVE_LAUNCHER', '1'), ('ROS_DISTRO', 'humble'), ('LOGNAME', 'zork'), ('_', '/usr/bin/colcon'), ('ROS_VERSION', '2'), ('XDG_SESSION_CLASS', 'user'), ('PKG_CONFIG_PATH', '/home/zork/ProjectHailMarry/install/cuas_msgs/lib/aarch64-linux-gnu/pkgconfig:/home/zork/ProjectHailMarry/install/cuas_msgs/lib/pkgconfig'), ('REMOTE_DEV_LAUNCHER_NAME_FOR_USAGE', 'remote-dev-server.sh'), ('TERM', 'xterm-256color'), ('XDG_SESSION_ID', '8'), ('ROS_LOCALHOST_ONLY', '0'), ('PATH', '/opt/ros/humble/bin:/home/zork/.local/bin:/usr/local/cuda-12.6/bin:/home/zork/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin'), ('XDG_RUNTIME_DIR', '/run/user/1000'), ('LANG', 'en_US.UTF-8'), ('LS_COLORS', 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:'), ('SSH_AUTH_SOCK', '/tmp/saf500d4270-bcff-4fc0-b2dd-824910284990'), ('AMENT_PREFIX_PATH', '/opt/ros/humble'), ('SHELL', '/bin/bash'), ('LESSCLOSE', '/usr/bin/lesspipe %s %s'), ('PWD', '/home/zork/ProjectHailMarry/build/cuas_fusion'), ('IDEA_RESTART_VIA_EXIT_CODE', '88'), ('SSH_CONNECTION', '10.0.1.103 54990 10.0.1.19 22'), ('XDG_DATA_DIRS', '/usr/share/gnome:/usr/local/share:/usr/share:/var/lib/snapd/desktop'), ('PYTHONPATH', '/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages'), ('COLCON', '1'), ('CMAKE_PREFIX_PATH', '/home/zork/ProjectHailMarry/install/cuas_msgs')]), 'shell': False}
+[10.333046] (cuas_fusion) StdoutLine: {'line': b'-- Found ament_cmake: 1.3.14 (/opt/ros/humble/share/ament_cmake/cmake)\n'}
+[10.344825] (-) TimerEvent: {}
+[10.445162] (-) TimerEvent: {}
+[10.545638] (-) TimerEvent: {}
+[10.646207] (-) TimerEvent: {}
+[10.649705] (cuas_fusion) StdoutLine: {'line': b'-- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter \n'}
+[10.746332] (-) TimerEvent: {}
+[10.843353] (cuas_fusion) StdoutLine: {'line': b'-- Found rclcpp: 16.0.19 (/opt/ros/humble/share/rclcpp/cmake)\n'}
+[10.846434] (-) TimerEvent: {}
+[10.924597] (cuas_fusion) StdoutLine: {'line': b'-- Found rosidl_generator_c: 3.1.8 (/opt/ros/humble/share/rosidl_generator_c/cmake)\n'}
+[10.931474] (cuas_fusion) StdoutLine: {'line': b'-- Found rosidl_adapter: 3.1.8 (/opt/ros/humble/share/rosidl_adapter/cmake)\n'}
+[10.945528] (cuas_fusion) StdoutLine: {'line': b'-- Found rosidl_generator_cpp: 3.1.8 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)\n'}
+[10.946517] (-) TimerEvent: {}
+[10.964466] (cuas_fusion) StdoutLine: {'line': b'-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c\n'}
+[10.989884] (cuas_fusion) StdoutLine: {'line': b'-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp\n'}
+[11.046719] (-) TimerEvent: {}
+[11.060743] (cuas_fusion) StdoutLine: {'line': b'-- Found rmw_implementation_cmake: 6.1.2 (/opt/ros/humble/share/rmw_implementation_cmake/cmake)\n'}
+[11.064545] (cuas_fusion) StdoutLine: {'line': b'-- Found rmw_fastrtps_cpp: 6.2.10 (/opt/ros/humble/share/rmw_fastrtps_cpp/cmake)\n'}
+[11.146891] (-) TimerEvent: {}
+[11.201334] (cuas_fusion) StdoutLine: {'line': b'-- Found OpenSSL: /usr/lib/aarch64-linux-gnu/libcrypto.so (found version "3.0.2")  \n'}
+[11.247172] (-) TimerEvent: {}
+[11.276095] (cuas_fusion) StdoutLine: {'line': b'-- Found FastRTPS: /opt/ros/humble/include  \n'}
+[11.347318] (-) TimerEvent: {}
+[11.350256] (cuas_fusion) StdoutLine: {'line': b"-- Using RMW implementation 'rmw_fastrtps_cpp' as default\n"}
+[11.363864] (cuas_fusion) StdoutLine: {'line': b'-- Looking for pthread.h\n'}
+[11.447490] (-) TimerEvent: {}
+[11.504626] (cuas_fusion) StdoutLine: {'line': b'-- Looking for pthread.h - found\n'}
+[11.505205] (cuas_fusion) StdoutLine: {'line': b'-- Performing Test CMAKE_HAVE_LIBC_PTHREAD\n'}
+[11.547677] (-) TimerEvent: {}
+[11.648220] (-) TimerEvent: {}
+[11.668346] (cuas_fusion) StdoutLine: {'line': b'-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success\n'}
+[11.670535] (cuas_fusion) StdoutLine: {'line': b'-- Found Threads: TRUE  \n'}
+[11.748444] (-) TimerEvent: {}
+[11.794277] (cuas_fusion) StdoutLine: {'line': b'-- Found sensor_msgs: 4.9.1 (/opt/ros/humble/share/sensor_msgs/cmake)\n'}
+[11.842948] (cuas_fusion) StdoutLine: {'line': b'-- Found cuas_msgs: 0.1.0 (/home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake)\n'}
+[11.848477] (-) TimerEvent: {}
+[11.948693] (-) TimerEvent: {}
+[11.984468] (cuas_fusion) StdoutLine: {'line': b'-- Configuring done\n'}
+[12.003930] (cuas_fusion) StdoutLine: {'line': b'-- Generating done\n'}
+[12.006062] (cuas_fusion) StderrLine: {'line': b'CMake Warning:\n'}
+[12.006311] (cuas_fusion) StderrLine: {'line': b'  Manually-specified variables were not used by the project:\n'}
+[12.006448] (cuas_fusion) StderrLine: {'line': b'\n'}
+[12.006571] (cuas_fusion) StderrLine: {'line': b'    CATKIN_INSTALL_INTO_PREFIX_ROOT\n'}
+[12.006689] (cuas_fusion) StderrLine: {'line': b'\n'}
+[12.006802] (cuas_fusion) StderrLine: {'line': b'\n'}
+[12.010954] (cuas_fusion) StdoutLine: {'line': b'-- Build files have been written to: /home/zork/ProjectHailMarry/build/cuas_fusion\n'}
+[12.028724] (cuas_fusion) CommandEnded: {'returncode': 0}
+[12.029917] (cuas_fusion) JobProgress: {'identifier': 'cuas_fusion', 'progress': 'build'}
+[12.030900] (cuas_fusion) Command: {'cmd': ['/usr/bin/cmake', '--build', '/home/zork/ProjectHailMarry/build/cuas_fusion', '--', '-j6', '-l6'], 'cwd': '/home/zork/ProjectHailMarry/build/cuas_fusion', 'env': OrderedDict([('TERM_SESSION_ID', 'be82551c-4cc6-411f-bc51-4ad0690774c7'), ('LESSOPEN', '| /usr/bin/lesspipe %s'), ('USER', 'zork'), ('SSH_CLIENT', '10.0.1.103 54990 22'), ('XDG_SESSION_TYPE', 'tty'), ('ROS_PACKAGE_PATH', '/home/zork/ProjectHailMarry/install/cuas_msgs/share'), ('SHLVL', '0'), ('LD_LIBRARY_PATH', '/home/zork/ProjectHailMarry/install/cuas_msgs/lib:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/aarch64-linux-gnu:/opt/ros/humble/lib:/usr/local/cuda-12.6/lib64'), ('MOTD_SHOWN', 'pam'), ('HOME', '/home/zork'), ('OLDPWD', '/home/zork/ProjectHailMarry'), ('SSH_TTY', '/dev/pts/1'), ('TERMINAL_EMULATOR', 'JetBrains-JediTerm'), ('ROS_PYTHON_VERSION', '3'), ('DBUS_SESSION_BUS_ADDRESS', 'unix:path=/run/user/1000/bus'), ('REMOTE_DEV_SERVER_IS_NATIVE_LAUNCHER', '1'), ('ROS_DISTRO', 'humble'), ('LOGNAME', 'zork'), ('_', '/usr/bin/colcon'), ('ROS_VERSION', '2'), ('XDG_SESSION_CLASS', 'user'), ('PKG_CONFIG_PATH', '/home/zork/ProjectHailMarry/install/cuas_msgs/lib/aarch64-linux-gnu/pkgconfig:/home/zork/ProjectHailMarry/install/cuas_msgs/lib/pkgconfig'), ('REMOTE_DEV_LAUNCHER_NAME_FOR_USAGE', 'remote-dev-server.sh'), ('TERM', 'xterm-256color'), ('XDG_SESSION_ID', '8'), ('ROS_LOCALHOST_ONLY', '0'), ('PATH', '/opt/ros/humble/bin:/home/zork/.local/bin:/usr/local/cuda-12.6/bin:/home/zork/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin'), ('XDG_RUNTIME_DIR', '/run/user/1000'), ('LANG', 'en_US.UTF-8'), ('LS_COLORS', 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:'), ('SSH_AUTH_SOCK', '/tmp/saf500d4270-bcff-4fc0-b2dd-824910284990'), ('AMENT_PREFIX_PATH', '/opt/ros/humble'), ('SHELL', '/bin/bash'), ('LESSCLOSE', '/usr/bin/lesspipe %s %s'), ('PWD', '/home/zork/ProjectHailMarry/build/cuas_fusion'), ('IDEA_RESTART_VIA_EXIT_CODE', '88'), ('SSH_CONNECTION', '10.0.1.103 54990 10.0.1.19 22'), ('XDG_DATA_DIRS', '/usr/share/gnome:/usr/local/share:/usr/share:/var/lib/snapd/desktop'), ('PYTHONPATH', '/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages'), ('COLCON', '1'), ('CMAKE_PREFIX_PATH', '/home/zork/ProjectHailMarry/install/cuas_msgs')]), 'shell': False}
+[12.048868] (-) TimerEvent: {}
+[12.141796] (cuas_fusion) StdoutLine: {'line': b'[ 50%] Building CXX object CMakeFiles/radar_parser_node.dir/src/drivers/radar_parser_node.cpp.o\n'}
+[12.149005] (-) TimerEvent: {}
+[12.249355] (-) TimerEvent: {}
+[12.349720] (-) TimerEvent: {}
+[12.450103] (-) TimerEvent: {}
+[12.550498] (-) TimerEvent: {}
+[12.650892] (-) TimerEvent: {}
+[12.751323] (-) TimerEvent: {}
+[12.851746] (-) TimerEvent: {}
+[12.952188] (-) TimerEvent: {}
+[13.052611] (-) TimerEvent: {}
+[13.153023] (-) TimerEvent: {}
+[13.253434] (-) TimerEvent: {}
+[13.353858] (-) TimerEvent: {}
+[13.454268] (-) TimerEvent: {}
+[13.554679] (-) TimerEvent: {}
+[13.655102] (-) TimerEvent: {}
+[13.755505] (-) TimerEvent: {}
+[13.855916] (-) TimerEvent: {}
+[13.956322] (-) TimerEvent: {}
+[14.056743] (-) TimerEvent: {}
+[14.157156] (-) TimerEvent: {}
+[14.257569] (-) TimerEvent: {}
+[14.357980] (-) TimerEvent: {}
+[14.458397] (-) TimerEvent: {}
+[14.558811] (-) TimerEvent: {}
+[14.659219] (-) TimerEvent: {}
+[14.759630] (-) TimerEvent: {}
+[14.860063] (-) TimerEvent: {}
+[14.960481] (-) TimerEvent: {}
+[15.060892] (-) TimerEvent: {}
+[15.161311] (-) TimerEvent: {}
+[15.261724] (-) TimerEvent: {}
+[15.362138] (-) TimerEvent: {}
+[15.462553] (-) TimerEvent: {}
+[15.562959] (-) TimerEvent: {}
+[15.663372] (-) TimerEvent: {}
+[15.763809] (-) TimerEvent: {}
+[15.864215] (-) TimerEvent: {}
+[15.964630] (-) TimerEvent: {}
+[16.065040] (-) TimerEvent: {}
+[16.165449] (-) TimerEvent: {}
+[16.265861] (-) TimerEvent: {}
+[16.366277] (-) TimerEvent: {}
+[16.466701] (-) TimerEvent: {}
+[16.567124] (-) TimerEvent: {}
+[16.667563] (-) TimerEvent: {}
+[16.768015] (-) TimerEvent: {}
+[16.868443] (-) TimerEvent: {}
+[16.968865] (-) TimerEvent: {}
+[17.069293] (-) TimerEvent: {}
+[17.169730] (-) TimerEvent: {}
+[17.270159] (-) TimerEvent: {}
+[17.370590] (-) TimerEvent: {}
+[17.471021] (-) TimerEvent: {}
+[17.571450] (-) TimerEvent: {}
+[17.671928] (-) TimerEvent: {}
+[17.772351] (-) TimerEvent: {}
+[17.872776] (-) TimerEvent: {}
+[17.973209] (-) TimerEvent: {}
+[18.073666] (-) TimerEvent: {}
+[18.174091] (-) TimerEvent: {}
+[18.274511] (-) TimerEvent: {}
+[18.374937] (-) TimerEvent: {}
+[18.475386] (-) TimerEvent: {}
+[18.575821] (-) TimerEvent: {}
+[18.676263] (-) TimerEvent: {}
+[18.776688] (-) TimerEvent: {}
+[18.877109] (-) TimerEvent: {}
+[18.977543] (-) TimerEvent: {}
+[19.077932] (-) TimerEvent: {}
+[19.178314] (-) TimerEvent: {}
+[19.278690] (-) TimerEvent: {}
+[19.379071] (-) TimerEvent: {}
+[19.479457] (-) TimerEvent: {}
+[19.579859] (-) TimerEvent: {}
+[19.680235] (-) TimerEvent: {}
+[19.780614] (-) TimerEvent: {}
+[19.880997] (-) TimerEvent: {}
+[19.981378] (-) TimerEvent: {}
+[20.081756] (-) TimerEvent: {}
+[20.182138] (-) TimerEvent: {}
+[20.282510] (-) TimerEvent: {}
+[20.382840] (-) TimerEvent: {}
+[20.483231] (-) TimerEvent: {}
+[20.583615] (-) TimerEvent: {}
+[20.684016] (-) TimerEvent: {}
+[20.784419] (-) TimerEvent: {}
+[20.884830] (-) TimerEvent: {}
+[20.975141] (cuas_fusion) StdoutLine: {'line': b'[100%] Linking CXX executable radar_parser_node\n'}
+[20.985044] (-) TimerEvent: {}
+[21.085532] (-) TimerEvent: {}
+[21.185943] (-) TimerEvent: {}
+[21.286360] (-) TimerEvent: {}
+[21.352275] (cuas_fusion) StdoutLine: {'line': b'[100%] Built target radar_parser_node\n'}
+[21.381503] (cuas_fusion) CommandEnded: {'returncode': 0}
+[21.385403] (cuas_fusion) JobProgress: {'identifier': 'cuas_fusion', 'progress': 'install'}
+[21.386356] (cuas_fusion) Command: {'cmd': ['/usr/bin/cmake', '--install', '/home/zork/ProjectHailMarry/build/cuas_fusion'], 'cwd': '/home/zork/ProjectHailMarry/build/cuas_fusion', 'env': OrderedDict([('TERM_SESSION_ID', 'be82551c-4cc6-411f-bc51-4ad0690774c7'), ('LESSOPEN', '| /usr/bin/lesspipe %s'), ('USER', 'zork'), ('SSH_CLIENT', '10.0.1.103 54990 22'), ('XDG_SESSION_TYPE', 'tty'), ('ROS_PACKAGE_PATH', '/home/zork/ProjectHailMarry/install/cuas_msgs/share'), ('SHLVL', '0'), ('LD_LIBRARY_PATH', '/home/zork/ProjectHailMarry/install/cuas_msgs/lib:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/aarch64-linux-gnu:/opt/ros/humble/lib:/usr/local/cuda-12.6/lib64'), ('MOTD_SHOWN', 'pam'), ('HOME', '/home/zork'), ('OLDPWD', '/home/zork/ProjectHailMarry'), ('SSH_TTY', '/dev/pts/1'), ('TERMINAL_EMULATOR', 'JetBrains-JediTerm'), ('ROS_PYTHON_VERSION', '3'), ('DBUS_SESSION_BUS_ADDRESS', 'unix:path=/run/user/1000/bus'), ('REMOTE_DEV_SERVER_IS_NATIVE_LAUNCHER', '1'), ('ROS_DISTRO', 'humble'), ('LOGNAME', 'zork'), ('_', '/usr/bin/colcon'), ('ROS_VERSION', '2'), ('XDG_SESSION_CLASS', 'user'), ('PKG_CONFIG_PATH', '/home/zork/ProjectHailMarry/install/cuas_msgs/lib/aarch64-linux-gnu/pkgconfig:/home/zork/ProjectHailMarry/install/cuas_msgs/lib/pkgconfig'), ('REMOTE_DEV_LAUNCHER_NAME_FOR_USAGE', 'remote-dev-server.sh'), ('TERM', 'xterm-256color'), ('XDG_SESSION_ID', '8'), ('ROS_LOCALHOST_ONLY', '0'), ('PATH', '/opt/ros/humble/bin:/home/zork/.local/bin:/usr/local/cuda-12.6/bin:/home/zork/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin'), ('XDG_RUNTIME_DIR', '/run/user/1000'), ('LANG', 'en_US.UTF-8'), ('LS_COLORS', 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:'), ('SSH_AUTH_SOCK', '/tmp/saf500d4270-bcff-4fc0-b2dd-824910284990'), ('AMENT_PREFIX_PATH', '/opt/ros/humble'), ('SHELL', '/bin/bash'), ('LESSCLOSE', '/usr/bin/lesspipe %s %s'), ('PWD', '/home/zork/ProjectHailMarry/build/cuas_fusion'), ('IDEA_RESTART_VIA_EXIT_CODE', '88'), ('SSH_CONNECTION', '10.0.1.103 54990 10.0.1.19 22'), ('XDG_DATA_DIRS', '/usr/share/gnome:/usr/local/share:/usr/share:/var/lib/snapd/desktop'), ('PYTHONPATH', '/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages'), ('COLCON', '1'), ('CMAKE_PREFIX_PATH', '/home/zork/ProjectHailMarry/install/cuas_msgs')]), 'shell': False}
+[21.389334] (-) TimerEvent: {}
+[21.409631] (cuas_fusion) StdoutLine: {'line': b'-- Install configuration: ""\n'}
+[21.416594] (cuas_fusion) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_fusion/lib/cuas_fusion/radar_parser_node\n'}
+[21.420811] (cuas_fusion) StdoutLine: {'line': b'-- Set runtime path of "/home/zork/ProjectHailMarry/install/cuas_fusion/lib/cuas_fusion/radar_parser_node" to ""\n'}
+[21.421360] (cuas_fusion) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_fusion/share/cuas_fusion/config\n'}
+[21.421592] (cuas_fusion) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_fusion/share/cuas_fusion/config/system_params.yaml\n'}
+[21.421732] (cuas_fusion) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_fusion/share/cuas_fusion/config/camera_calibration.yaml\n'}
+[21.421858] (cuas_fusion) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_fusion/share/cuas_fusion/config/radar_profile.cfg\n'}
+[21.422237] (cuas_fusion) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_fusion/share/cuas_fusion/launch\n'}
+[21.422442] (cuas_fusion) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_fusion/share/cuas_fusion/launch/full_system.launch.py\n'}
+[21.422638] (cuas_fusion) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_fusion/share/cuas_fusion/launch/radar_only.launch.py\n'}
+[21.422820] (cuas_fusion) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_fusion/share/cuas_fusion/launch/replay.launch.py\n'}
+[21.423175] (cuas_fusion) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_fusion/share/ament_index/resource_index/package_run_dependencies/cuas_fusion\n'}
+[21.423581] (cuas_fusion) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_fusion/share/ament_index/resource_index/parent_prefix_path/cuas_fusion\n'}
+[21.423977] (cuas_fusion) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_fusion/share/cuas_fusion/environment/ament_prefix_path.sh\n'}
+[21.424349] (cuas_fusion) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_fusion/share/cuas_fusion/environment/ament_prefix_path.dsv\n'}
+[21.424569] (cuas_fusion) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_fusion/share/cuas_fusion/environment/path.sh\n'}
+[21.424773] (cuas_fusion) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_fusion/share/cuas_fusion/environment/path.dsv\n'}
+[21.424995] (cuas_fusion) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_fusion/share/cuas_fusion/local_setup.bash\n'}
+[21.425182] (cuas_fusion) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_fusion/share/cuas_fusion/local_setup.sh\n'}
+[21.425362] (cuas_fusion) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_fusion/share/cuas_fusion/local_setup.zsh\n'}
+[21.425568] (cuas_fusion) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_fusion/share/cuas_fusion/local_setup.dsv\n'}
+[21.425770] (cuas_fusion) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_fusion/share/cuas_fusion/package.dsv\n'}
+[21.426098] (cuas_fusion) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_fusion/share/ament_index/resource_index/packages/cuas_fusion\n'}
+[21.426428] (cuas_fusion) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_fusion/share/cuas_fusion/cmake/cuas_fusionConfig.cmake\n'}
+[21.426633] (cuas_fusion) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_fusion/share/cuas_fusion/cmake/cuas_fusionConfig-version.cmake\n'}
+[21.426840] (cuas_fusion) StdoutLine: {'line': b'-- Installing: /home/zork/ProjectHailMarry/install/cuas_fusion/share/cuas_fusion/package.xml\n'}
+[21.430103] (cuas_fusion) CommandEnded: {'returncode': 0}
+[21.464286] (cuas_fusion) JobEnded: {'identifier': 'cuas_fusion', 'rc': 0}
+[21.466427] (-) EventReactorShutdown: {}

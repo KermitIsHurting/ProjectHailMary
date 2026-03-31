@@ -1,0 +1,32 @@
+[0.013s] Invoking command in '/home/zork/ProjectHailMarry/build/cuas_msgs': /usr/bin/cmake /home/zork/ProjectHailMarry/msgs/cuas_msgs -DCMAKE_INSTALL_PREFIX=/home/zork/ProjectHailMarry/install/cuas_msgs
+[0.037s] CMake Warning (dev) in CMakeLists.txt:
+[0.038s]   No project() command is present.  The top-level CMakeLists.txt file must
+[0.038s]   contain a literal, direct call to the project() command.  Add a line of
+[0.038s]   code such as
+[0.038s] 
+[0.038s]     project(ProjectName)
+[0.038s] 
+[0.038s]   near the top of the file, but after cmake_minimum_required().
+[0.039s] 
+[0.039s]   CMake is pretending there is a "project(Project)" command on the first
+[0.039s]   line.
+[0.039s] This warning is for project developers.  Use -Wno-dev to suppress it.
+[0.039s] 
+[0.526s] -- The C compiler identification is GNU 11.4.0
+[0.969s] -- The CXX compiler identification is GNU 11.4.0
+[0.997s] -- Detecting C compiler ABI info
+[1.152s] -- Detecting C compiler ABI info - done
+[1.178s] -- Check for working C compiler: /usr/bin/cc - skipped
+[1.179s] -- Detecting C compile features
+[1.179s] -- Detecting C compile features - done
+[1.193s] -- Detecting CXX compiler ABI info
+[1.360s] -- Detecting CXX compiler ABI info - done
+[1.391s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[1.393s] -- Detecting CXX compile features
+[1.395s] -- Detecting CXX compile features - done
+[1.398s] -- Configuring done
+[1.403s] -- Generating done
+[1.407s] -- Build files have been written to: /home/zork/ProjectHailMarry/build/cuas_msgs
+[1.433s] Invoked command in '/home/zork/ProjectHailMarry/build/cuas_msgs' returned '0': /usr/bin/cmake /home/zork/ProjectHailMarry/msgs/cuas_msgs -DCMAKE_INSTALL_PREFIX=/home/zork/ProjectHailMarry/install/cuas_msgs
+[1.434s] Invoking command in '/home/zork/ProjectHailMarry/build/cuas_msgs': /usr/bin/cmake --build /home/zork/ProjectHailMarry/build/cuas_msgs -- -j6 -l6
+[1.553s] Invoked command in '/home/zork/ProjectHailMarry/build/cuas_msgs' returned '0': /usr/bin/cmake --build /home/zork/ProjectHailMarry/build/cuas_msgs -- -j6 -l6

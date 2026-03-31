@@ -1,0 +1,11 @@
+{
+  "package_name": "cuas_msgs",
+  "non_idl_tuples": [
+    "/home/zork/ProjectHailMarry/msgs/cuas_msgs:msg/RadarDetection.msg",
+    "/home/zork/ProjectHailMarry/msgs/cuas_msgs:msg/RadarFrame.msg",
+    "/home/zork/ProjectHailMarry/msgs/cuas_msgs:msg/FusedDetection.msg",
+    "/home/zork/ProjectHailMarry/msgs/cuas_msgs:msg/Track.msg",
+    "/home/zork/ProjectHailMarry/msgs/cuas_msgs:msg/TrackArray.msg",
+    "/home/zork/ProjectHailMarry/msgs/cuas_msgs:msg/ThreatReport.msg"
+  ]
+}

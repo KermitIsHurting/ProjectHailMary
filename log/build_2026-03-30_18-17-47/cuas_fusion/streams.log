@@ -1,0 +1,2 @@
+[0.020s] Invoking command in '/home/zork/ProjectHailMarry/build/cuas_fusion': /usr/bin/cmake --build /home/zork/ProjectHailMarry/build/cuas_fusion -- -j6 -l6
+[0.107s] Invoked command in '/home/zork/ProjectHailMarry/build/cuas_fusion' returned '0': /usr/bin/cmake --build /home/zork/ProjectHailMarry/build/cuas_fusion -- -j6 -l6

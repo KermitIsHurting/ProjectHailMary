@@ -1,0 +1,373 @@
+[0.015s] Invoking command in '/home/zork/ProjectHailMarry/build/cuas_msgs': /usr/bin/cmake /home/zork/ProjectHailMarry/msgs/cuas_msgs -DCATKIN_INSTALL_INTO_PREFIX_ROOT=0 -DCMAKE_INSTALL_PREFIX=/home/zork/ProjectHailMarry/install/cuas_msgs
+[0.036s] -- Found ament_cmake: 1.3.14 (/opt/ros/humble/share/ament_cmake/cmake)
+[0.308s] -- Found rosidl_default_generators: 1.2.1 (/opt/ros/humble/share/rosidl_default_generators/cmake)
+[0.309s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[0.314s] -- Found rosidl_adapter: 3.1.8 (/opt/ros/humble/share/rosidl_adapter/cmake)
+[0.381s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[0.987s] -- Found ament_cmake_ros: 0.10.0 (/opt/ros/humble/share/ament_cmake_ros/cmake)
+[1.442s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[2.040s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[2.101s] -- Found PythonInterp: /usr/bin/python3 (found suitable version "3.10.12", minimum required is "3.6") 
+[2.104s] -- Found python_cmake_module: 0.10.0 (/opt/ros/humble/share/python_cmake_module/cmake)
+[2.180s] -- Found PythonLibs: /usr/lib/aarch64-linux-gnu/libpython3.10.so (found suitable version "3.10.12", minimum required is "3.5") 
+[2.180s] -- Using PYTHON_EXECUTABLE: /usr/bin/python3
+[2.180s] -- Using PYTHON_INCLUDE_DIRS: /usr/include/python3.10
+[2.181s] -- Using PYTHON_LIBRARIES: /usr/lib/aarch64-linux-gnu/libpython3.10.so
+[2.231s] -- Found PythonExtra: .so  
+[2.504s] -- Configuring done
+[2.594s] -- Generating done
+[2.598s] CMake Warning:
+[2.599s]   Manually-specified variables were not used by the project:
+[2.599s] 
+[2.599s]     CATKIN_INSTALL_INTO_PREFIX_ROOT
+[2.600s] 
+[2.600s] 
+[2.616s] -- Build files have been written to: /home/zork/ProjectHailMarry/build/cuas_msgs
+[2.632s] Invoked command in '/home/zork/ProjectHailMarry/build/cuas_msgs' returned '0': /usr/bin/cmake /home/zork/ProjectHailMarry/msgs/cuas_msgs -DCATKIN_INSTALL_INTO_PREFIX_ROOT=0 -DCMAKE_INSTALL_PREFIX=/home/zork/ProjectHailMarry/install/cuas_msgs
+[2.636s] Invoking command in '/home/zork/ProjectHailMarry/build/cuas_msgs': /usr/bin/cmake --build /home/zork/ProjectHailMarry/build/cuas_msgs -- -j6 -l6
+[2.729s] [  1%] Generating C code for ROS interfaces
+[2.751s] [  4%] Generating C++ code for ROS interfaces
+[2.751s] [  4%] Generating Rust code for ROS interfaces
+[2.769s] [  4%] Built target ament_cmake_python_copy_cuas_msgs
+[3.217s] running egg_info
+[3.221s] creating cuas_msgs.egg-info
+[3.221s] writing cuas_msgs.egg-info/PKG-INFO
+[3.222s] writing dependency_links to cuas_msgs.egg-info/dependency_links.txt
+[3.222s] writing top-level names to cuas_msgs.egg-info/top_level.txt
+[3.222s] writing manifest file 'cuas_msgs.egg-info/SOURCES.txt'
+[3.226s] reading manifest file 'cuas_msgs.egg-info/SOURCES.txt'
+[3.227s] writing manifest file 'cuas_msgs.egg-info/SOURCES.txt'
+[3.237s] [  4%] Built target cuas_msgs__rs
+[3.297s] [  4%] Built target ament_cmake_python_build_cuas_msgs_egg
+[3.668s] [  4%] Built target cuas_msgs__cpp
+[3.701s] [  8%] Generating C++ introspection for ROS interfaces
+[3.701s] [  8%] Generating C++ type support dispatch for ROS interfaces
+[3.702s] [  8%] Generating C++ type support for eProsima Fast-RTPS
+[3.739s] [ 11%] Building C object CMakeFiles/cuas_msgs__rosidl_generator_c.dir/rosidl_generator_c/cuas_msgs/msg/detail/radar_frame__functions.c.o
+[3.739s] [ 11%] Building C object CMakeFiles/cuas_msgs__rosidl_generator_c.dir/rosidl_generator_c/cuas_msgs/msg/detail/fused_detection__functions.c.o
+[3.739s] [ 12%] Building C object CMakeFiles/cuas_msgs__rosidl_generator_c.dir/rosidl_generator_c/cuas_msgs/msg/detail/radar_detection__functions.c.o
+[3.862s] [ 13%] Building C object CMakeFiles/cuas_msgs__rosidl_generator_c.dir/rosidl_generator_c/cuas_msgs/msg/detail/track__functions.c.o
+[3.865s] [ 15%] Building C object CMakeFiles/cuas_msgs__rosidl_generator_c.dir/rosidl_generator_c/cuas_msgs/msg/detail/track_array__functions.c.o
+[3.873s] [ 16%] Building C object CMakeFiles/cuas_msgs__rosidl_generator_c.dir/rosidl_generator_c/cuas_msgs/msg/detail/threat_report__functions.c.o
+[3.968s] [ 18%] Linking C shared library libcuas_msgs__rosidl_generator_c.so
+[4.035s] [ 18%] Built target cuas_msgs__rosidl_generator_c
+[4.054s] [ 19%] Generating C type support dispatch for ROS interfaces
+[4.054s] [ 20%] Generating C type support for eProsima Fast-RTPS
+[4.056s] [ 22%] Generating C introspection for ROS interfaces
+[4.338s] [ 23%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/cuas_msgs/msg/radar_detection__type_support.cpp.o
+[4.583s] [ 26%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/cuas_msgs/msg/detail/radar_detection__type_support.cpp.o
+[4.583s] [ 26%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/cuas_msgs/msg/detail/dds_fastrtps/radar_detection__type_support.cpp.o
+[4.721s] [ 27%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/cuas_msgs/msg/radar_detection__type_support.cpp.o
+[4.781s] [ 29%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/cuas_msgs/msg/radar_frame__type_support.cpp.o
+[4.839s] [ 30%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/cuas_msgs/msg/fused_detection__type_support.cpp.o
+[4.908s] [ 31%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/cuas_msgs/msg/track__type_support.cpp.o
+[4.960s] [ 33%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/cuas_msgs/msg/detail/radar_detection__type_support_c.cpp.o
+[4.965s] [ 34%] Building C object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/cuas_msgs/msg/detail/radar_detection__type_support.c.o
+[4.976s] [ 36%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/cuas_msgs/msg/track_array__type_support.cpp.o
+[4.996s] [ 37%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/cuas_msgs/msg/radar_frame__type_support.cpp.o
+[5.034s] [ 38%] Building C object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/cuas_msgs/msg/detail/radar_frame__type_support.c.o
+[5.034s] [ 40%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_c.dir/rosidl_typesupport_c/cuas_msgs/msg/threat_report__type_support.cpp.o
+[5.092s] [ 41%] Linking CXX shared library libcuas_msgs__rosidl_typesupport_c.so
+[5.109s] [ 43%] Building C object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/cuas_msgs/msg/detail/fused_detection__type_support.c.o
+[5.181s] [ 43%] Built target cuas_msgs__rosidl_typesupport_c
+[5.200s] [ 44%] Building C object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/cuas_msgs/msg/detail/track__type_support.c.o
+[5.203s] [ 45%] Building C object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/cuas_msgs/msg/detail/track_array__type_support.c.o
+[5.277s] [ 48%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/cuas_msgs/msg/detail/radar_frame__type_support_c.cpp.o
+[5.278s] [ 48%] Building C object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/cuas_msgs/msg/detail/threat_report__type_support.c.o
+[5.349s] [ 50%] Linking C shared library libcuas_msgs__rosidl_typesupport_introspection_c.so
+[5.399s] [ 51%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/cuas_msgs/msg/detail/radar_frame__type_support.cpp.o
+[5.412s] [ 52%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/cuas_msgs/msg/detail/dds_fastrtps/radar_frame__type_support.cpp.o
+[5.432s] [ 52%] Built target cuas_msgs__rosidl_typesupport_introspection_c
+[5.481s] [ 54%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/cuas_msgs/msg/detail/dds_fastrtps/fused_detection__type_support.cpp.o
+[5.548s] [ 55%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/cuas_msgs/msg/fused_detection__type_support.cpp.o
+[5.664s] [ 56%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/cuas_msgs/msg/detail/fused_detection__type_support_c.cpp.o
+[5.937s] [ 58%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/cuas_msgs/msg/detail/track__type_support_c.cpp.o
+[6.130s] [ 59%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/cuas_msgs/msg/track__type_support.cpp.o
+[6.187s] [ 61%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/cuas_msgs/msg/detail/fused_detection__type_support.cpp.o
+[6.210s] [ 62%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/cuas_msgs/msg/detail/dds_fastrtps/track__type_support.cpp.o
+[6.311s] [ 63%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/cuas_msgs/msg/detail/dds_fastrtps/track_array__type_support.cpp.o
+[6.407s] [ 65%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/cuas_msgs/msg/detail/track_array__type_support_c.cpp.o
+[6.581s] [ 66%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_c.dir/rosidl_typesupport_fastrtps_c/cuas_msgs/msg/detail/threat_report__type_support_c.cpp.o
+[6.720s] [ 68%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/cuas_msgs/msg/track_array__type_support.cpp.o
+[6.959s] [ 69%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/cuas_msgs/msg/detail/track__type_support.cpp.o
+[7.014s] [ 70%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_cpp.dir/rosidl_typesupport_fastrtps_cpp/cuas_msgs/msg/detail/dds_fastrtps/threat_report__type_support.cpp.o
+[7.142s] [ 72%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/cuas_msgs/msg/detail/track_array__type_support.cpp.o
+[7.149s] [ 73%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_cpp.dir/rosidl_typesupport_introspection_cpp/cuas_msgs/msg/detail/threat_report__type_support.cpp.o
+[7.239s] [ 75%] Linking CXX shared library libcuas_msgs__rosidl_typesupport_fastrtps_c.so
+[7.277s] [ 76%] Building CXX object CMakeFiles/cuas_msgs__rosidl_typesupport_cpp.dir/rosidl_typesupport_cpp/cuas_msgs/msg/threat_report__type_support.cpp.o
+[7.404s] [ 76%] Built target cuas_msgs__rosidl_typesupport_fastrtps_c
+[7.793s] [ 77%] Linking CXX shared library libcuas_msgs__rosidl_typesupport_cpp.so
+[7.821s] [ 79%] Linking CXX shared library libcuas_msgs__rosidl_typesupport_fastrtps_cpp.so
+[7.870s] [ 79%] Built target cuas_msgs__rosidl_typesupport_cpp
+[7.941s] [ 80%] Linking CXX shared library libcuas_msgs__rosidl_typesupport_introspection_cpp.so
+[7.991s] [ 80%] Built target cuas_msgs__rosidl_typesupport_fastrtps_cpp
+[8.025s] [ 80%] Built target cuas_msgs__rosidl_typesupport_introspection_cpp
+[8.073s] [ 80%] Built target cuas_msgs
+[8.125s] [ 81%] Generating Python code for ROS interfaces
+[9.243s] [ 81%] Built target cuas_msgs__py
+[9.290s] [ 90%] Building C object CMakeFiles/cuas_msgs__rosidl_generator_py.dir/rosidl_generator_py/cuas_msgs/msg/_track_array_s.c.o
+[9.290s] [ 90%] Building C object CMakeFiles/cuas_msgs__rosidl_generator_py.dir/rosidl_generator_py/cuas_msgs/msg/_threat_report_s.c.o
+[9.290s] [ 90%] Building C object CMakeFiles/cuas_msgs__rosidl_generator_py.dir/rosidl_generator_py/cuas_msgs/msg/_track_s.c.o
+[9.290s] [ 90%] Building C object CMakeFiles/cuas_msgs__rosidl_generator_py.dir/rosidl_generator_py/cuas_msgs/msg/_radar_detection_s.c.o
+[9.290s] [ 90%] Building C object CMakeFiles/cuas_msgs__rosidl_generator_py.dir/rosidl_generator_py/cuas_msgs/msg/_fused_detection_s.c.o
+[9.290s] [ 90%] Building C object CMakeFiles/cuas_msgs__rosidl_generator_py.dir/rosidl_generator_py/cuas_msgs/msg/_radar_frame_s.c.o
+[9.558s] [ 91%] Linking C shared library rosidl_generator_py/cuas_msgs/libcuas_msgs__rosidl_generator_py.so
+[9.660s] [ 91%] Built target cuas_msgs__rosidl_generator_py
+[9.703s] [ 95%] Building C object CMakeFiles/cuas_msgs__rosidl_typesupport_introspection_c__pyext.dir/rosidl_generator_py/cuas_msgs/_cuas_msgs_s.ep.rosidl_typesupport_introspection_c.c.o
+[9.704s] [ 95%] Building C object CMakeFiles/cuas_msgs__rosidl_typesupport_fastrtps_c__pyext.dir/rosidl_generator_py/cuas_msgs/_cuas_msgs_s.ep.rosidl_typesupport_fastrtps_c.c.o
+[9.704s] [ 95%] Building C object CMakeFiles/cuas_msgs__rosidl_typesupport_c__pyext.dir/rosidl_generator_py/cuas_msgs/_cuas_msgs_s.ep.rosidl_typesupport_c.c.o
+[9.902s] [ 98%] Linking C shared library rosidl_generator_py/cuas_msgs/cuas_msgs_s__rosidl_typesupport_introspection_c.cpython-310-aarch64-linux-gnu.so
+[9.902s] [ 98%] Linking C shared library rosidl_generator_py/cuas_msgs/cuas_msgs_s__rosidl_typesupport_fastrtps_c.cpython-310-aarch64-linux-gnu.so
+[9.908s] [100%] Linking C shared library rosidl_generator_py/cuas_msgs/cuas_msgs_s__rosidl_typesupport_c.cpython-310-aarch64-linux-gnu.so
+[9.972s] [100%] Built target cuas_msgs__rosidl_typesupport_c__pyext
+[9.972s] [100%] Built target cuas_msgs__rosidl_typesupport_introspection_c__pyext
+[9.972s] [100%] Built target cuas_msgs__rosidl_typesupport_fastrtps_c__pyext
+[10.006s] Invoked command in '/home/zork/ProjectHailMarry/build/cuas_msgs' returned '0': /usr/bin/cmake --build /home/zork/ProjectHailMarry/build/cuas_msgs -- -j6 -l6
+[10.034s] Invoking command in '/home/zork/ProjectHailMarry/build/cuas_msgs': /usr/bin/cmake --install /home/zork/ProjectHailMarry/build/cuas_msgs
+[10.054s] -- Install configuration: ""
+[10.055s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/ament_index/resource_index/rosidl_interfaces/cuas_msgs
+[10.055s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs
+[10.055s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg
+[10.056s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/track.h
+[10.056s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/rosidl_generator_c__visibility_control.h
+[10.056s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/radar_detection.h
+[10.056s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail
+[10.057s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__functions.c
+[10.057s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__functions.h
+[10.057s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__struct.h
+[10.057s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__functions.c
+[10.058s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__struct.h
+[10.058s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__functions.c
+[10.058s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__type_support.h
+[10.058s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__functions.h
+[10.058s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__type_support.h
+[10.058s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__type_support.h
+[10.059s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__struct.h
+[10.059s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__functions.c
+[10.059s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__struct.h
+[10.059s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__functions.c
+[10.059s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__type_support.h
+[10.060s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__functions.h
+[10.060s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__struct.h
+[10.060s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__type_support.h
+[10.060s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__type_support.h
+[10.060s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__functions.c
+[10.061s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__functions.h
+[10.061s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__functions.h
+[10.061s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__struct.h
+[10.061s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__functions.h
+[10.061s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/radar_frame.h
+[10.062s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/track_array.h
+[10.062s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/fused_detection.h
+[10.062s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/threat_report.h
+[10.062s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/environment/library_path.sh
+[10.062s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/environment/library_path.dsv
+[10.063s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_generator_c.so
+[10.064s] -- Set runtime path of "/home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_generator_c.so" to ""
+[10.064s] -- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs
+[10.064s] -- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg
+[10.064s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/rosidl_typesupport_fastrtps_c__visibility_control.h
+[10.065s] -- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail
+[10.065s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__rosidl_typesupport_fastrtps_c.h
+[10.065s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__rosidl_typesupport_fastrtps_c.h
+[10.065s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__rosidl_typesupport_fastrtps_c.h
+[10.065s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__rosidl_typesupport_fastrtps_c.h
+[10.065s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__rosidl_typesupport_fastrtps_c.h
+[10.066s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__rosidl_typesupport_fastrtps_c.h
+[10.066s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_typesupport_fastrtps_c.so
+[10.066s] -- Set runtime path of "/home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_typesupport_fastrtps_c.so" to ""
+[10.066s] -- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs
+[10.067s] -- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg
+[10.067s] -- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail
+[10.067s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__rosidl_typesupport_introspection_c.h
+[10.067s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__type_support.c
+[10.068s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__type_support.c
+[10.068s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__rosidl_typesupport_introspection_c.h
+[10.068s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__type_support.c
+[10.068s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__rosidl_typesupport_introspection_c.h
+[10.068s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__rosidl_typesupport_introspection_c.h
+[10.068s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__rosidl_typesupport_introspection_c.h
+[10.069s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__type_support.c
+[10.069s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__type_support.c
+[10.069s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__type_support.c
+[10.069s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__rosidl_typesupport_introspection_c.h
+[10.069s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/rosidl_typesupport_introspection_c__visibility_control.h
+[10.069s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_typesupport_introspection_c.so
+[10.070s] -- Set runtime path of "/home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_typesupport_introspection_c.so" to ""
+[10.070s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_typesupport_c.so
+[10.070s] -- Set runtime path of "/home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_typesupport_c.so" to ""
+[10.070s] -- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs
+[10.071s] -- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg
+[10.071s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/threat_report.hpp
+[10.071s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/fused_detection.hpp
+[10.071s] -- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail
+[10.072s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__traits.hpp
+[10.072s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__struct.hpp
+[10.072s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__type_support.hpp
+[10.072s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__struct.hpp
+[10.072s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__type_support.hpp
+[10.072s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__type_support.hpp
+[10.073s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__struct.hpp
+[10.073s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__type_support.hpp
+[10.073s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__traits.hpp
+[10.073s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__builder.hpp
+[10.073s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__builder.hpp
+[10.074s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__type_support.hpp
+[10.074s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__traits.hpp
+[10.074s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__builder.hpp
+[10.075s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__traits.hpp
+[10.075s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__struct.hpp
+[10.075s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__traits.hpp
+[10.075s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__builder.hpp
+[10.075s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__type_support.hpp
+[10.076s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__struct.hpp
+[10.076s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__builder.hpp
+[10.076s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__struct.hpp
+[10.076s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__traits.hpp
+[10.077s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__builder.hpp
+[10.077s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/track.hpp
+[10.077s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/track_array.hpp
+[10.077s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/radar_frame.hpp
+[10.077s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/radar_detection.hpp
+[10.077s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/rosidl_generator_cpp__visibility_control.hpp
+[10.078s] -- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs
+[10.078s] -- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg
+[10.078s] -- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail
+[10.078s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/dds_fastrtps
+[10.078s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__rosidl_typesupport_fastrtps_cpp.hpp
+[10.078s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__rosidl_typesupport_fastrtps_cpp.hpp
+[10.079s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__rosidl_typesupport_fastrtps_cpp.hpp
+[10.079s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__rosidl_typesupport_fastrtps_cpp.hpp
+[10.079s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__rosidl_typesupport_fastrtps_cpp.hpp
+[10.079s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__rosidl_typesupport_fastrtps_cpp.hpp
+[10.079s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/rosidl_typesupport_fastrtps_cpp__visibility_control.h
+[10.080s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_typesupport_fastrtps_cpp.so
+[10.080s] -- Set runtime path of "/home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_typesupport_fastrtps_cpp.so" to ""
+[10.080s] -- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs
+[10.080s] -- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg
+[10.080s] -- Up-to-date: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail
+[10.081s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__type_support.cpp
+[10.081s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/threat_report__rosidl_typesupport_introspection_cpp.hpp
+[10.081s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__type_support.cpp
+[10.081s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__rosidl_typesupport_introspection_cpp.hpp
+[10.081s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track__type_support.cpp
+[10.081s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__type_support.cpp
+[10.081s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__type_support.cpp
+[10.082s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__type_support.cpp
+[10.082s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_frame__rosidl_typesupport_introspection_cpp.hpp
+[10.082s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/track_array__rosidl_typesupport_introspection_cpp.hpp
+[10.082s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/radar_detection__rosidl_typesupport_introspection_cpp.hpp
+[10.082s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/include/cuas_msgs/cuas_msgs/msg/detail/fused_detection__rosidl_typesupport_introspection_cpp.hpp
+[10.082s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_typesupport_introspection_cpp.so
+[10.082s] -- Set runtime path of "/home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_typesupport_introspection_cpp.so" to ""
+[10.083s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_typesupport_cpp.so
+[10.083s] -- Set runtime path of "/home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_typesupport_cpp.so" to ""
+[10.083s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/environment/pythonpath.sh
+[10.083s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/environment/pythonpath.dsv
+[10.083s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs-0.1.0-py3.10.egg-info
+[10.083s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs-0.1.0-py3.10.egg-info/SOURCES.txt
+[10.084s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs-0.1.0-py3.10.egg-info/PKG-INFO
+[10.084s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs-0.1.0-py3.10.egg-info/top_level.txt
+[10.084s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs-0.1.0-py3.10.egg-info/dependency_links.txt
+[10.084s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs
+[10.084s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/_cuas_msgs_s.ep.rosidl_typesupport_introspection_c.c
+[10.085s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/_cuas_msgs_s.ep.rosidl_typesupport_fastrtps_c.c
+[10.085s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/libcuas_msgs__rosidl_generator_py.so
+[10.085s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg
+[10.085s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_track_array_s.c
+[10.086s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_track_s.c
+[10.086s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/__init__.py
+[10.086s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_threat_report_s.c
+[10.086s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_fused_detection_s.c
+[10.086s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_radar_detection.py
+[10.086s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_radar_frame.py
+[10.087s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_threat_report.py
+[10.087s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_radar_detection_s.c
+[10.087s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_fused_detection.py
+[10.087s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_track_array.py
+[10.087s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_track.py
+[10.087s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_radar_frame_s.c
+[10.088s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/cuas_msgs_s__rosidl_typesupport_introspection_c.cpython-310-aarch64-linux-gnu.so
+[10.088s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/__init__.py
+[10.088s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/cuas_msgs_s__rosidl_typesupport_c.cpython-310-aarch64-linux-gnu.so
+[10.088s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/cuas_msgs_s__rosidl_typesupport_fastrtps_c.cpython-310-aarch64-linux-gnu.so
+[10.088s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/_cuas_msgs_s.ep.rosidl_typesupport_c.c
+[10.163s] Listing '/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs'...
+[10.163s] Compiling '/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/__init__.py'...
+[10.163s] Listing '/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg'...
+[10.163s] Compiling '/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/__init__.py'...
+[10.163s] Compiling '/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_fused_detection.py'...
+[10.163s] Compiling '/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_radar_detection.py'...
+[10.164s] Compiling '/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_radar_frame.py'...
+[10.164s] Compiling '/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_threat_report.py'...
+[10.164s] Compiling '/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_track.py'...
+[10.164s] Compiling '/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/msg/_track_array.py'...
+[10.174s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/cuas_msgs_s__rosidl_typesupport_fastrtps_c.cpython-310-aarch64-linux-gnu.so
+[10.174s] -- Set runtime path of "/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/cuas_msgs_s__rosidl_typesupport_fastrtps_c.cpython-310-aarch64-linux-gnu.so" to ""
+[10.174s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/cuas_msgs_s__rosidl_typesupport_introspection_c.cpython-310-aarch64-linux-gnu.so
+[10.175s] -- Set runtime path of "/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/cuas_msgs_s__rosidl_typesupport_introspection_c.cpython-310-aarch64-linux-gnu.so" to ""
+[10.175s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/cuas_msgs_s__rosidl_typesupport_c.cpython-310-aarch64-linux-gnu.so
+[10.176s] -- Set runtime path of "/home/zork/ProjectHailMarry/install/cuas_msgs/local/lib/python3.10/dist-packages/cuas_msgs/cuas_msgs_s__rosidl_typesupport_c.cpython-310-aarch64-linux-gnu.so" to ""
+[10.176s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_generator_py.so
+[10.177s] -- Set runtime path of "/home/zork/ProjectHailMarry/install/cuas_msgs/lib/libcuas_msgs__rosidl_generator_py.so" to ""
+[10.177s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/ament_index/resource_index/rust_packages/cuas_msgs
+[10.177s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/rust
+[10.178s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/rust/src
+[10.178s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/rust/src/msg
+[10.178s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/rust/src/msg/rmw.rs
+[10.178s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/rust/src/lib.rs
+[10.179s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/rust/src/msg.rs
+[10.179s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/rust/Cargo.toml
+[10.179s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/rust/build.rs
+[10.179s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/msg/RadarDetection.idl
+[10.179s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/msg/RadarFrame.idl
+[10.180s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/msg/FusedDetection.idl
+[10.180s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/msg/Track.idl
+[10.180s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/msg/TrackArray.idl
+[10.180s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/msg/ThreatReport.idl
+[10.181s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/msg/RadarDetection.msg
+[10.181s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/msg/RadarFrame.msg
+[10.181s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/msg/FusedDetection.msg
+[10.181s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/msg/Track.msg
+[10.182s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/msg/TrackArray.msg
+[10.182s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/msg/ThreatReport.msg
+[10.182s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/ament_index/resource_index/package_run_dependencies/cuas_msgs
+[10.183s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/ament_index/resource_index/parent_prefix_path/cuas_msgs
+[10.183s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/environment/ament_prefix_path.sh
+[10.183s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/environment/ament_prefix_path.dsv
+[10.183s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/environment/path.sh
+[10.184s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/environment/path.dsv
+[10.184s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/local_setup.bash
+[10.184s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/local_setup.sh
+[10.185s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/local_setup.zsh
+[10.185s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/local_setup.dsv
+[10.185s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/package.dsv
+[10.186s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/ament_index/resource_index/packages/cuas_msgs
+[10.186s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/export_cuas_msgs__rosidl_generator_cExport.cmake
+[10.186s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/export_cuas_msgs__rosidl_generator_cExport-noconfig.cmake
+[10.187s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/export_cuas_msgs__rosidl_typesupport_fastrtps_cExport.cmake
+[10.187s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/export_cuas_msgs__rosidl_typesupport_fastrtps_cExport-noconfig.cmake
+[10.187s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/cuas_msgs__rosidl_typesupport_introspection_cExport.cmake
+[10.188s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/cuas_msgs__rosidl_typesupport_introspection_cExport-noconfig.cmake
+[10.188s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/cuas_msgs__rosidl_typesupport_cExport.cmake
+[10.188s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/cuas_msgs__rosidl_typesupport_cExport-noconfig.cmake
+[10.189s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/export_cuas_msgs__rosidl_generator_cppExport.cmake
+[10.189s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/export_cuas_msgs__rosidl_typesupport_fastrtps_cppExport.cmake
+[10.189s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/export_cuas_msgs__rosidl_typesupport_fastrtps_cppExport-noconfig.cmake
+[10.190s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/cuas_msgs__rosidl_typesupport_introspection_cppExport.cmake
+[10.190s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/cuas_msgs__rosidl_typesupport_introspection_cppExport-noconfig.cmake
+[10.190s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/cuas_msgs__rosidl_typesupport_cppExport.cmake
+[10.191s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/cuas_msgs__rosidl_typesupport_cppExport-noconfig.cmake
+[10.191s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/export_cuas_msgs__rosidl_generator_pyExport.cmake
+[10.191s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/export_cuas_msgs__rosidl_generator_pyExport-noconfig.cmake
+[10.191s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/rosidl_cmake-extras.cmake
+[10.192s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/ament_cmake_export_include_directories-extras.cmake
+[10.192s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/ament_cmake_export_libraries-extras.cmake
+[10.192s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/ament_cmake_export_targets-extras.cmake
+[10.193s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/rosidl_cmake_export_typesupport_targets-extras.cmake
+[10.193s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/ament_cmake_export_dependencies-extras.cmake
+[10.193s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/rosidl_cmake_export_typesupport_libraries-extras.cmake
+[10.193s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/cuas_msgsConfig.cmake
+[10.194s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/cmake/cuas_msgsConfig-version.cmake
+[10.194s] -- Installing: /home/zork/ProjectHailMarry/install/cuas_msgs/share/cuas_msgs/package.xml
+[10.201s] Invoked command in '/home/zork/ProjectHailMarry/build/cuas_msgs' returned '0': /usr/bin/cmake --install /home/zork/ProjectHailMarry/build/cuas_msgs

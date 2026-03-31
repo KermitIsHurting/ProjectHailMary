@@ -1,0 +1,14 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : [],
+		"nodes" : []
+	},
+	"installers" : [],
+	"paths" : 
+	{
+		"build" : "cuas_msgs__rs",
+		"source" : "/home/zork/ProjectHailMarry/build/cuas_msgs/cuas_msgs__rs"
+	}
+}

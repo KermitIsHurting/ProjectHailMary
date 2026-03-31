@@ -1,0 +1,4 @@
+source;share/cuas_fusion/local_setup.bash
+source;share/cuas_fusion/local_setup.dsv
+source;share/cuas_fusion/local_setup.sh
+source;share/cuas_fusion/local_setup.zsh
