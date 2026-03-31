@@ -1,0 +1,7 @@
+build/
+install/
+log/
+.editor-scratch/
+*.pyc
+__pycache__/
+.cache/
