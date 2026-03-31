@@ -1,2 +1,0 @@
-Invoking command in '/home/zork/ProjectHailMarry/build/cuas_msgs': /usr/bin/cmake --build /home/zork/ProjectHailMarry/build/cuas_msgs -- -j6 -l6
-Invoked command in '/home/zork/ProjectHailMarry/build/cuas_msgs' returned '0': /usr/bin/cmake --build /home/zork/ProjectHailMarry/build/cuas_msgs -- -j6 -l6

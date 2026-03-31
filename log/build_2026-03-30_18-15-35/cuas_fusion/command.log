@@ -1,4 +1,0 @@
-Invoking command in '/home/zork/ProjectHailMarry/build/cuas_fusion': /usr/bin/cmake /home/zork/ProjectHailMarry/src/cuas_fusion -DCMAKE_INSTALL_PREFIX=/home/zork/ProjectHailMarry/install/cuas_fusion
-Invoked command in '/home/zork/ProjectHailMarry/build/cuas_fusion' returned '0': /usr/bin/cmake /home/zork/ProjectHailMarry/src/cuas_fusion -DCMAKE_INSTALL_PREFIX=/home/zork/ProjectHailMarry/install/cuas_fusion
-Invoking command in '/home/zork/ProjectHailMarry/build/cuas_fusion': /usr/bin/cmake --build /home/zork/ProjectHailMarry/build/cuas_fusion -- -j6 -l6
-Invoked command in '/home/zork/ProjectHailMarry/build/cuas_fusion' returned '0': /usr/bin/cmake --build /home/zork/ProjectHailMarry/build/cuas_fusion -- -j6 -l6
