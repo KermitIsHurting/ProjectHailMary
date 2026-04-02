@@ -1,5 +1,5 @@
 // radar_parser_node.cpp
-// Standalone ROS 2 node for the TI IWR6843ISK radar data port.
+// Standalone ROS 2 node for the TI IWR6843ISK radar datart.
 // Opens /dev/ttyUSB0 at 921600 baud, syncs to the TI mmWave SDK binary
 // magic word, parses frame headers and TLV type-1 detected-point payloads,
 // publishes sensor_msgs/PointCloud2 to /radar/detections, and prints each
@@ -84,7 +84,7 @@ struct DetectedPoint {
 class RadarParserNode : public rclcpp::Node
 {
 public:
-    explicit RadarParserNode(const std::string & port = "/dev/ttyUSB2")
+    explicit RadarParserNode(const std::string & port = "/dev/ttyUSB1")
     : Node("radar_parser_node"), port_(port), fd_(-1), running_(false)
     {
         pub_ = create_publisher<sensor_msgs::msg::PointCloud2>("/radar/detections", 10);
@@ -353,7 +353,7 @@ int main(int argc, char ** argv)
 {
     rclcpp::init(argc, argv);
 
-    const std::string port = (argc > 1) ? argv[1] : "/dev/ttyUSB2";
+    const std::string port = (argc > 1) ? argv[1] : "/dev/ttyUSB1";
 
     auto node = std::make_shared<cuas::RadarParserNode>(port);
     rclcpp::spin(node);

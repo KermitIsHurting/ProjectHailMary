@@ -6,7 +6,20 @@ set(CMAKE_CXX_STANDARD 17)
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
 find_package(cuas_msgs REQUIRED)
+find_package(vision_msgs REQUIRED)
+find_package(cv_bridge REQUIRED)
+
+set(OpenCV_DIR /usr/lib/aarch64-linux-gnu/cmake/opencv4)
+find_package(OpenCV REQUIRED)
+message(STATUS "OpenCV_LIBS: ${OpenCV_LIBS}")
+message(STATUS "OpenCV_LIBRARIES: ${OpenCV_LIBRARIES}")
+
+find_library(NVINFER_LIB nvinfer PATHS /usr/lib/aarch64-linux-gnu)
+find_library(CUDART_LIB cudart PATHS /usr/local/cuda/lib64)
+
+include_directories(include)
 
 # radar parser node
 add_executable(radar_parser_node
@@ -18,13 +31,72 @@ ament_target_dependencies(radar_parser_node
   cuas_msgs
 )
 
+# camera node
+add_executable(camera_node
+  src/drivers/camera_driver.cpp
+  src/drivers/camera_node.cpp
+)
+ament_target_dependencies(camera_node
+  rclcpp
+  sensor_msgs
+  std_msgs
+)
+target_include_directories(camera_node PRIVATE ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(camera_node ${OpenCV_LIBS})
+
+# TRT detector library (no ROS dependency)
+add_library(trt_detector STATIC
+  src/inference/trt_detector.cpp
+)
+target_include_directories(trt_detector PUBLIC
+  include
+  ${OpenCV_INCLUDE_DIRS}
+  /usr/local/cuda-12.6/targets/aarch64-linux/include
+  /usr/local/cuda/include
+)
+target_link_libraries(trt_detector
+  ${OpenCV_LIBS}
+  ${NVINFER_LIB}
+  ${CUDART_LIB}
+)
+
+# inference node
+add_executable(inference_node
+  src/inference/inference_node.cpp
+)
+ament_target_dependencies(inference_node
+  rclcpp
+  sensor_msgs
+  vision_msgs
+  cv_bridge
+)
+target_link_libraries(inference_node trt_detector)
+
 install(TARGETS
   radar_parser_node
+  camera_node
+  inference_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
 install(DIRECTORY config launch
   DESTINATION share/${PROJECT_NAME}
 )
+
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+
+  ament_add_gtest(test_timestamp_associator
+    ../../test/unit/test_timestamp_associator.cpp
+    src/fusion/timestamp_associator.cpp
+  )
+  target_include_directories(test_timestamp_associator PRIVATE
+    include
+    ${OpenCV_INCLUDE_DIRS}
+  )
+  target_link_libraries(test_timestamp_associator
+    ${OpenCV_LIBS}
+  )
+endif()
 
 ament_package()
