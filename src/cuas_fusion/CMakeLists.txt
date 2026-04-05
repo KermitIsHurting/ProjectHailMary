@@ -10,6 +10,8 @@ find_package(std_msgs REQUIRED)
 find_package(cuas_msgs REQUIRED)
 find_package(vision_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(geometry_msgs REQUIRED)
 
 set(OpenCV_DIR /usr/lib/aarch64-linux-gnu/cmake/opencv4)
 find_package(OpenCV REQUIRED)
@@ -72,10 +74,31 @@ ament_target_dependencies(inference_node
 )
 target_link_libraries(inference_node trt_detector)
 
+# fusion engine library (no ROS dependency)
+add_library(fusion_engine STATIC
+  src/fusion/fusion_engine.cpp
+)
+target_include_directories(fusion_engine PUBLIC include)
+
+# fusion node
+add_executable(fusion_node
+  src/fusion/fusion_node.cpp
+)
+ament_target_dependencies(fusion_node
+  rclcpp
+  sensor_msgs
+  vision_msgs
+  cuas_msgs
+  tf2_ros
+  geometry_msgs
+)
+target_link_libraries(fusion_node fusion_engine)
+
 install(TARGETS
   radar_parser_node
   camera_node
   inference_node
+  fusion_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

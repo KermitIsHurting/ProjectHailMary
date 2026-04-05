@@ -10,4 +10,7 @@
   <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
   <depend>cuas_msgs</depend>
+  <depend>vision_msgs</depend>
+  <depend>tf2_ros</depend>
+  <depend>geometry_msgs</depend>
 </package>

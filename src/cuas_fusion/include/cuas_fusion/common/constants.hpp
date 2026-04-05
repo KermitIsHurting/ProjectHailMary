@@ -51,4 +51,16 @@ static constexpr int   INFERENCE_NUM_ANCHORS  = 8400;
 static constexpr size_t   TIMESTAMP_BUFFER_SIZE   = 6;
 static constexpr int64_t  MAX_TIMESTAMP_DELTA_NS  = 50'000'000LL;  // 50 ms
 
+// ---------------------------------------------------------------------------
+// Fusion (radar-camera association)
+// ---------------------------------------------------------------------------
+static constexpr float  FUSION_IOU_THRESHOLD       = 0.15f;
+static constexpr float  FUSION_MAX_PROJ_ERROR_PX   = 50.0f;
+static constexpr float  CAMERA_FX                  = 800.0f;   // estimate — update after calibration
+static constexpr float  CAMERA_FY                  = 800.0f;
+static constexpr float  CAMERA_CX                  = 960.0f;   // half of 1920
+static constexpr float  CAMERA_CY                  = 600.0f;   // half of 1200
+static constexpr int    CAMERA_IMAGE_W             = 1920;
+static constexpr int    CAMERA_IMAGE_H             = 1080;
+
 } // namespace cuas

@@ -1,0 +1,4 @@
+extrinsic:
+  x_offset_m: -0.0075   # 7.5mm — camera left of radar center
+  y_offset_m:  0.017    # 17mm — camera forward of radar face
+  z_offset_m: -0.079    # 79mm — camera below radar antenna center

@@ -5,3 +5,7 @@ log/
 *.pyc
 __pycache__/
 .cache/
+models/*.onnx
+models/*.engine
+models/*.pt
+build.log

@@ -1,0 +1,9 @@
+float32 position_x_m
+float32 position_y_m
+float32 position_z_m
+float32 velocity_mps
+string  class_label
+float32 confidence
+float32 pixel_u
+float32 pixel_v
+int64   timestamp_ns
