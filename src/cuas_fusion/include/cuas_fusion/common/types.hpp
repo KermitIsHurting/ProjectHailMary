@@ -7,6 +7,23 @@
 
 namespace cuas {
 
+enum class TrackState {
+    TENTATIVE,
+    CONFIRMED,
+    COASTED,
+    DELETED
+};
+
+enum class ThreatLevel {
+    BENIGN,
+    UNKNOWN,
+    SUSPECT,
+    THREAT
+};
+
+std::string trackStateToString(TrackState state);
+std::string threatLevelToString(ThreatLevel level);
+
 struct BoundingBox {
     float   x, y, w, h;
     float   confidence;

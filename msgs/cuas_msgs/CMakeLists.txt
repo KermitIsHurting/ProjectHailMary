@@ -13,6 +13,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Track.msg"
   "msg/TrackArray.msg"
   "msg/ThreatReport.msg"
+  "msg/ThreatReportArray.msg"
   DEPENDENCIES std_msgs
 )
 

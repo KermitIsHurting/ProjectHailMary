@@ -1,14 +1,16 @@
-// threat_classifier.hpp
-// Assigns threat levels and UAS class labels to confirmed tracks using
-// kinematic features, RCS estimates, and TensorRT inference scores.
-
 #pragma once
+
+#include "cuas_fusion/common/types.hpp"
+#include "cuas_fusion/tracking/track.hpp"
 
 namespace cuas {
 
 class ThreatClassifier {
 public:
     ThreatClassifier() = default;
+
+    bool init();
+    ThreatLevel classify(const Track& track) const;
 };
 
 } // namespace cuas

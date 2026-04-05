@@ -4,8 +4,10 @@
 
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
+#include <string_view>
 
 namespace cuas {
 
@@ -58,9 +60,33 @@ static constexpr float  FUSION_IOU_THRESHOLD       = 0.15f;
 static constexpr float  FUSION_MAX_PROJ_ERROR_PX   = 50.0f;
 static constexpr float  CAMERA_FX                  = 800.0f;   // estimate — update after calibration
 static constexpr float  CAMERA_FY                  = 800.0f;
-static constexpr float  CAMERA_CX                  = 960.0f;   // half of 1920
-static constexpr float  CAMERA_CY                  = 600.0f;   // half of 1200
+static constexpr float  CAMERA_CX                  = 960.0f;
+static constexpr float  CAMERA_CY                  = 600.0f;
 static constexpr int    CAMERA_IMAGE_W             = 1920;
 static constexpr int    CAMERA_IMAGE_H             = 1080;
+
+// ---------------------------------------------------------------------------
+// Tracking
+// ---------------------------------------------------------------------------
+static constexpr size_t TRACK_MAX_TRACKS            = 32;
+static constexpr float  TRACK_ASSOCIATION_DIST_M    = 3.0f;
+static constexpr int    TRACK_CONFIRM_HITS          = 3;
+static constexpr int    TRACK_MAX_MISSES            = 5;
+
+// ---------------------------------------------------------------------------
+// Threat classifier thresholds
+// ---------------------------------------------------------------------------
+static constexpr float THREAT_VELOCITY_SUSPECT_MPS   = 2.0f;
+static constexpr float THREAT_VELOCITY_THREAT_MPS    = 5.0f;
+static constexpr float THREAT_APPROACH_THRESHOLD_MPS = -0.5f;
+static constexpr float THREAT_MIN_CONFIDENCE         = 0.45f;
+
+static constexpr std::array<std::string_view, 3> THREAT_DRONE_CLASSES = {
+    "bird", "airplane", "kite"
+};
+
+static constexpr std::array<std::string_view, 5> THREAT_BENIGN_CLASSES = {
+    "person", "car", "truck", "motorcycle", "bicycle"
+};
 
 } // namespace cuas

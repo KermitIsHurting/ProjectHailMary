@@ -1,0 +1,10 @@
+uint32  track_id
+string  threat_level
+float32 position_x_m
+float32 position_y_m
+float32 position_z_m
+float32 velocity_mps
+string  class_label
+float32 confidence
+string  track_state
+int64   timestamp_ns

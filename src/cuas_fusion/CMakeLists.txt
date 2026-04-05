@@ -94,11 +94,47 @@ ament_target_dependencies(fusion_node
 )
 target_link_libraries(fusion_node fusion_engine)
 
+# tracking library (no ROS dependency)
+add_library(tracking_lib STATIC
+  src/tracking/track_manager.cpp
+  src/common/types.cpp
+)
+target_include_directories(tracking_lib PUBLIC include)
+
+# tracker node
+add_executable(tracker_node
+  src/tracking/track_manager_node.cpp
+)
+ament_target_dependencies(tracker_node
+  rclcpp
+  cuas_msgs
+)
+target_link_libraries(tracker_node tracking_lib)
+
+# classification library (no ROS dependency)
+add_library(classification_lib STATIC
+  src/classification/threat_classifier.cpp
+)
+target_include_directories(classification_lib PUBLIC include)
+target_link_libraries(classification_lib tracking_lib)
+
+# classifier node
+add_executable(classifier_node
+  src/classification/threat_classifier_node.cpp
+)
+ament_target_dependencies(classifier_node
+  rclcpp
+  cuas_msgs
+)
+target_link_libraries(classifier_node classification_lib)
+
 install(TARGETS
   radar_parser_node
   camera_node
   inference_node
   fusion_node
+  tracker_node
+  classifier_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -120,6 +156,13 @@ if(BUILD_TESTING)
   target_link_libraries(test_timestamp_associator
     ${OpenCV_LIBS}
   )
+
+  ament_add_gtest(test_threat_classifier
+    ../../test/unit/test_threat_classifier.cpp
+    src/classification/threat_classifier.cpp
+    src/common/types.cpp
+  )
+  target_include_directories(test_threat_classifier PRIVATE include)
 endif()
 
 ament_package()
