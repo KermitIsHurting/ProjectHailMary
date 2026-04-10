@@ -8,3 +8,9 @@ string  class_label
 float32 confidence
 string  track_state
 int64   timestamp_ns
+float32 quality_score
+float32 dwell_time_s
+string  escalation_state
+float32 predicted_impact_x_m
+float32 predicted_impact_y_m
+geometry_msgs/Point[] exclusion_zones_violated

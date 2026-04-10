@@ -1,0 +1,16 @@
+std_msgs/Header header
+uint32 track_id
+float64 pos_x_m
+float64 pos_y_m
+float64 pos_z_m
+float64 vel_x_mps
+float64 vel_y_mps
+float64 vel_z_mps
+float64[36] covariance
+float64 bearing_deg
+float64 elevation_deg
+float64 model_weight_cv
+float64 model_weight_ca
+float64 model_weight_ct
+string track_state
+float64 prediction_horizon_sec

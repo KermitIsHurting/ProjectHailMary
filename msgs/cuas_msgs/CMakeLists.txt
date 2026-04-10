@@ -4,6 +4,7 @@ project(cuas_msgs)
 find_package(ament_cmake REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/RadarDetection.msg"
@@ -14,7 +15,9 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/TrackArray.msg"
   "msg/ThreatReport.msg"
   "msg/ThreatReportArray.msg"
-  DEPENDENCIES std_msgs
+  "msg/PredictedTrack.msg"
+  "msg/TrajectoryWaypoints.msg"
+  DEPENDENCIES std_msgs geometry_msgs
 )
 
 ament_export_dependencies(rosidl_default_runtime)

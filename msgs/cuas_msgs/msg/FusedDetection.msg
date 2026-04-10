@@ -7,3 +7,7 @@ float32 confidence
 float32 pixel_u
 float32 pixel_v
 int64   timestamp_ns
+float32 range_m
+float32 azimuth_deg
+float32 bbox_width_px
+float32 bbox_height_px
