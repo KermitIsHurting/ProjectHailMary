@@ -1,0 +1,13 @@
+kinematic_predictor_node:
+  ros__parameters:
+    prediction_horizon_sec: 5.0
+    prediction_step_dt: 0.1
+    publish_rate_hz: 20.0
+
+occlusion_predictor_node:
+  ros__parameters:
+    prediction_horizon_sec: 5.0
+    prediction_step_dt: 0.1
+    publish_rate_hz: 20.0
+    max_occlusion_sec: 4.0
+    mahalanobis_gate: 3.0

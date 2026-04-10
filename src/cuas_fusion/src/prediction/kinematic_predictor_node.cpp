@@ -1,0 +1,177 @@
+#include "cuas_fusion/prediction/kinematic_predictor.hpp"
+#include "cuas_fusion/estimation/imm_filter.hpp"
+
+#include <rclcpp/rclcpp.hpp>
+#include <cuas_msgs/msg/track.hpp>
+#include <cuas_msgs/msg/track_array.hpp>
+#include <cuas_msgs/msg/predicted_track.hpp>
+#include <cuas_msgs/msg/trajectory_waypoints.hpp>
+
+#include <map>
+
+namespace cuas {
+
+class KinematicPredictorNode : public rclcpp::Node
+{
+public:
+    KinematicPredictorNode()
+    : Node("kinematic_predictor_node")
+    {
+        declare_parameter("prediction_horizon_sec", 5.0);
+        declare_parameter("prediction_step_dt", 0.1);
+        declare_parameter("publish_rate_hz", 20.0);
+
+        horizon_ = get_parameter("prediction_horizon_sec").as_double();
+        step_dt_ = get_parameter("prediction_step_dt").as_double();
+        double rate = get_parameter("publish_rate_hz").as_double();
+
+        n_steps_ = static_cast<int>(horizon_ / step_dt_);
+
+        sub_ = create_subscription<cuas_msgs::msg::TrackArray>(
+            "/tracks", 10,
+            std::bind(&KinematicPredictorNode::trackCallback, this, std::placeholders::_1));
+
+        pub_pred_ = create_publisher<cuas_msgs::msg::PredictedTrack>(
+            "/predicted_tracks/kinematic", 10);
+        pub_traj_ = create_publisher<cuas_msgs::msg::TrajectoryWaypoints>(
+            "/trajectory_waypoints/kinematic", 10);
+
+        int period_ms = static_cast<int>(1000.0 / rate);
+        timer_ = create_wall_timer(
+            std::chrono::milliseconds(period_ms),
+            std::bind(&KinematicPredictorNode::publish, this));
+
+        RCLCPP_INFO(get_logger(), "Kinematic predictor node ready (horizon=%.1fs, dt=%.2fs)",
+                     horizon_, step_dt_);
+    }
+
+private:
+    void trackCallback(const cuas_msgs::msg::TrackArray::ConstSharedPtr& msg)
+    {
+        latest_tracks_ = *msg;
+
+        for (const auto& t : msg->tracks) {
+            if (cov_cache_.find(t.track_id) == cov_cache_.end()) {
+                Eigen::MatrixXd P0 = Eigen::MatrixXd::Zero(6, 6);
+                P0.diagonal() << 1.0, 1.0, 1.0, 0.25, 0.25, 0.25;
+                cov_cache_[t.track_id] = P0;
+                weight_cache_[t.track_id] = {0.33, 0.33, 0.34};
+            }
+        }
+    }
+
+    void publish()
+    {
+        for (const auto& t : latest_tracks_.tracks) {
+            if (t.track_state != "CONFIRMED" && t.track_state != "REACQUIRED") {
+                continue;
+            }
+
+            Eigen::VectorXd state(6);
+            state << t.position_x_m, t.position_y_m, t.position_z_m,
+                     0.0, 0.0, 0.0;
+
+            if (t.velocity_mps > 0.0f) {
+                double bearing = std::atan2(t.position_y_m, t.position_x_m);
+                state(3) = t.velocity_mps * std::cos(bearing);
+                state(4) = t.velocity_mps * std::sin(bearing);
+            }
+
+            Eigen::MatrixXd P = cov_cache_[t.track_id];
+            auto weights = weight_cache_[t.track_id];
+
+            Eigen::MatrixXd F = Eigen::MatrixXd::Identity(6, 6);
+            F(0, 3) = step_dt_;
+            F(1, 4) = step_dt_;
+            F(2, 5) = step_dt_;
+
+            double sa2 = 0.25;
+            double dt2 = step_dt_ * step_dt_;
+            Eigen::MatrixXd Q = Eigen::MatrixXd::Zero(6, 6);
+            for (int i = 0; i < 3; ++i) {
+                Q(i, i)         = 0.25 * dt2 * dt2 * sa2;
+                Q(i, i + 3)     = 0.5  * dt2 * step_dt_ * sa2;
+                Q(i + 3, i)     = 0.5  * dt2 * step_dt_ * sa2;
+                Q(i + 3, i + 3) = dt2 * sa2;
+            }
+
+            auto traj = predictor_.propagateForward(state, P, weights, F, Q, step_dt_, n_steps_);
+
+            // Update covariance cache with propagated value
+            if (!traj.positions.empty()) {
+                Eigen::MatrixXd P_prop = F * P * F.transpose() + Q;
+                cov_cache_[t.track_id] = P_prop;
+            }
+
+            // Publish PredictedTrack
+            cuas_msgs::msg::PredictedTrack pred;
+            pred.header.stamp = this->now();
+            pred.header.frame_id = "base_link";
+            pred.track_id = t.track_id;
+
+            if (!traj.positions.empty()) {
+                const auto& last = traj.positions.back();
+                pred.pos_x_m = last.x();
+                pred.pos_y_m = last.y();
+                pred.pos_z_m = last.z();
+            }
+            pred.vel_x_mps = state(3);
+            pred.vel_y_mps = state(4);
+            pred.vel_z_mps = state(5);
+
+            Eigen::MatrixXd Pcov = cov_cache_[t.track_id];
+            for (int r = 0; r < 6; ++r)
+                for (int c = 0; c < 6; ++c)
+                    pred.covariance[r * 6 + c] = Pcov(r, c);
+
+            pred.bearing_deg = traj.final_bearing_deg;
+            pred.elevation_deg = traj.final_elevation_deg;
+            pred.model_weight_cv = weights[0];
+            pred.model_weight_ca = weights[1];
+            pred.model_weight_ct = weights[2];
+            pred.track_state = t.track_state;
+            pred.prediction_horizon_sec = horizon_;
+            pub_pred_->publish(pred);
+
+            // Publish TrajectoryWaypoints
+            cuas_msgs::msg::TrajectoryWaypoints wp;
+            wp.header = pred.header;
+            wp.track_id = t.track_id;
+            for (size_t i = 0; i < traj.positions.size(); ++i) {
+                wp.waypoints_x_m.push_back(traj.positions[i].x());
+                wp.waypoints_y_m.push_back(traj.positions[i].y());
+                wp.waypoints_z_m.push_back(traj.positions[i].z());
+                wp.timestamps_sec.push_back(traj.timestamps_sec[i]);
+                wp.uncertainty_radii_m.push_back(traj.uncertainty_radii_m[i]);
+                wp.bearing_deg.push_back(traj.bearing_deg[i]);
+                wp.elevation_deg.push_back(traj.elevation_deg[i]);
+            }
+            pub_traj_->publish(wp);
+        }
+    }
+
+    KinematicPredictor predictor_;
+    double horizon_;
+    double step_dt_;
+    int n_steps_;
+
+    cuas_msgs::msg::TrackArray latest_tracks_;
+    std::map<uint32_t, Eigen::MatrixXd> cov_cache_;
+    std::map<uint32_t, std::array<double, 3>> weight_cache_;
+
+    rclcpp::Subscription<cuas_msgs::msg::TrackArray>::SharedPtr sub_;
+    rclcpp::Publisher<cuas_msgs::msg::PredictedTrack>::SharedPtr pub_pred_;
+    rclcpp::Publisher<cuas_msgs::msg::TrajectoryWaypoints>::SharedPtr pub_traj_;
+    rclcpp::TimerBase::SharedPtr timer_;
+};
+
+} // namespace cuas
+
+int main(int argc, char** argv)
+{
+    rclcpp::init(argc, argv);
+    auto node = std::make_shared<cuas::KinematicPredictorNode>();
+    rclcpp::spin(node);
+    rclcpp::shutdown();
+    return 0;
+}
