@@ -33,39 +33,61 @@ protected:
     cuas::ThreatClassifier classifier_;
 };
 
-// 1. Low confidence → UNKNOWN regardless of class.
-TEST_F(ThreatClassifierTest, LowConfidenceReturnsUnknown)
+// 1. Empty class label → UNKNOWN
+TEST_F(ThreatClassifierTest, EmptyLabelReturnsUnknown)
 {
-    auto t = make_track(0.1f, "person", 0.5f, 0.1f);
-    EXPECT_EQ(classifier_.classify(t), cuas::ThreatLevel::UNKNOWN);
+    auto t = make_track(0.9f, "", 0.5f, 0.1f);
+    auto r = classifier_.classify(t, 1.0);
+    EXPECT_EQ(r.threat_level, cuas::ThreatLevel::UNKNOWN);
 }
 
-// 2. Slow person not approaching → BENIGN.
+// 2. Slow person → BENIGN
 TEST_F(ThreatClassifierTest, SlowPersonReturnsBenign)
 {
-    auto t = make_track(0.9f, "person", 0.5f, 0.1f);
-    EXPECT_EQ(classifier_.classify(t), cuas::ThreatLevel::BENIGN);
+    auto t = make_track(0.9f, "0", 0.5f, 0.1f);
+    auto r = classifier_.classify(t, 1.0);
+    EXPECT_EQ(r.threat_level, cuas::ThreatLevel::BENIGN);
 }
 
-// 3. Fast approaching target → THREAT.
-TEST_F(ThreatClassifierTest, FastApproachingReturnsThreat)
+// 3. Fast person → SUSPECT
+TEST_F(ThreatClassifierTest, FastPersonReturnsSuspect)
 {
-    auto t = make_track(0.9f, "person", 6.0f, -1.0f);
-    EXPECT_EQ(classifier_.classify(t), cuas::ThreatLevel::THREAT);
+    auto t = make_track(0.9f, "0", 3.0f, -1.0f);
+    auto r = classifier_.classify(t, 1.0);
+    EXPECT_EQ(r.threat_level, cuas::ThreatLevel::SUSPECT);
 }
 
-// 4. Bird class → SUSPECT (drone class triggers regardless of speed).
-TEST_F(ThreatClassifierTest, DroneClassReturnsSuspect)
+// 4. Non-person high confidence → THREAT
+TEST_F(ThreatClassifierTest, NonPersonHighConfReturnsThreat)
 {
-    // velocity < THREAT_VELOCITY_THREAT_MPS and not strongly approaching,
-    // but bird is a drone class → SUSPECT via rule 4.
-    auto t = make_track(0.9f, "bird", 1.0f, 0.1f);
-    EXPECT_EQ(classifier_.classify(t), cuas::ThreatLevel::SUSPECT);
+    auto t = make_track(0.9f, "14", 1.0f, 0.1f);
+    auto r = classifier_.classify(t, 1.0);
+    EXPECT_EQ(r.threat_level, cuas::ThreatLevel::THREAT);
 }
 
-// 5. TENTATIVE state → UNKNOWN regardless of other params.
-TEST_F(ThreatClassifierTest, TentativeTrackReturnsUnknown)
+// 5. Non-person low confidence → UNKNOWN
+TEST_F(ThreatClassifierTest, NonPersonLowConfReturnsUnknown)
 {
-    auto t = make_track(0.9f, "bird", 8.0f, -2.0f, cuas::TrackState::TENTATIVE);
-    EXPECT_EQ(classifier_.classify(t), cuas::ThreatLevel::UNKNOWN);
+    auto t = make_track(0.3f, "14", 1.0f, 0.1f);
+    auto r = classifier_.classify(t, 1.0);
+    EXPECT_EQ(r.threat_level, cuas::ThreatLevel::UNKNOWN);
+}
+
+// 6. Quality score: radar only = 0.3
+TEST_F(ThreatClassifierTest, QualityScoreRadarOnly)
+{
+    auto t = make_track(0.9f, "", 0.5f, 0.1f);
+    auto r = classifier_.classify(t, 0.5);
+    EXPECT_NEAR(r.quality_score, 0.3f, 0.01f);
+}
+
+// 7. Quality score: camera confirmed + CONFIRMED state + dwell > 3s
+TEST_F(ThreatClassifierTest, QualityScoreFull)
+{
+    auto t = make_track(0.9f, "0", 0.5f, 0.1f, cuas::TrackState::CONFIRMED);
+    // First call sets first_seen_s
+    classifier_.classify(t, 0.0);
+    // Second call at 4.0s → dwell > 3.0
+    auto r = classifier_.classify(t, 4.0);
+    EXPECT_NEAR(r.quality_score, 1.0f, 0.01f);
 }

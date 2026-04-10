@@ -41,7 +41,7 @@ static constexpr float        CAMERA_TONE_SCALE        = 0.026f;
 static constexpr int   INFERENCE_INPUT_W      = 640;
 static constexpr int   INFERENCE_INPUT_H      = 640;
 static constexpr int   INFERENCE_INPUT_C      = 3;
-static constexpr float INFERENCE_CONF_THRESH  = 0.45f;
+static constexpr float INFERENCE_CONF_THRESH  = 0.25f;
 static constexpr float INFERENCE_NMS_THRESH   = 0.45f;
 static constexpr int   INFERENCE_MAX_DET      = 100;
 static constexpr int   INFERENCE_NUM_CLASSES  = 80;
@@ -51,7 +51,7 @@ static constexpr int   INFERENCE_NUM_ANCHORS  = 8400;
 // Timestamp association
 // ---------------------------------------------------------------------------
 static constexpr size_t   TIMESTAMP_BUFFER_SIZE   = 6;
-static constexpr int64_t  MAX_TIMESTAMP_DELTA_NS  = 50'000'000LL;  // 50 ms
+static constexpr int64_t  MAX_TIMESTAMP_DELTA_NS  = 150'000'000LL; // 150 ms
 
 // ---------------------------------------------------------------------------
 // Fusion (radar-camera association)
@@ -79,14 +79,14 @@ static constexpr int    TRACK_MAX_MISSES            = 5;
 static constexpr float THREAT_VELOCITY_SUSPECT_MPS   = 2.0f;
 static constexpr float THREAT_VELOCITY_THREAT_MPS    = 5.0f;
 static constexpr float THREAT_APPROACH_THRESHOLD_MPS = -0.5f;
-static constexpr float THREAT_MIN_CONFIDENCE         = 0.45f;
+static constexpr float THREAT_MIN_CONFIDENCE         = 0.25f;
 
 static constexpr std::array<std::string_view, 3> THREAT_DRONE_CLASSES = {
-    "bird", "airplane", "kite"
+    "14", "4", "33"   // bird, airplane, kite (COCO numeric IDs)
 };
 
 static constexpr std::array<std::string_view, 5> THREAT_BENIGN_CLASSES = {
-    "person", "car", "truck", "motorcycle", "bicycle"
+    "0", "2", "7", "3", "1"  // person, car, truck, motorcycle, bicycle (COCO numeric IDs)
 };
 
 } // namespace cuas

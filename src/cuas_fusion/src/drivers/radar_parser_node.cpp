@@ -1,6 +1,6 @@
 // radar_parser_node.cpp
 // Standalone ROS 2 node for the TI IWR6843ISK radar datart.
-// Opens /dev/ttyUSB0 at 921600 baud, syncs to the TI mmWave SDK binary
+// Opens the radar data port at 921600 baud, syncs to the TI mmWave SDK binary
 // magic word, parses frame headers and TLV type-1 detected-point payloads,
 // publishes sensor_msgs/PointCloud2 to /radar/detections, and prints each
 // detection to stdout for hardware verification.
@@ -21,10 +21,13 @@
 #include <cstdint>
 #include <array>
 #include <atomic>
+#include <fstream>
 #include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
+#include <algorithm>
+#include <utility>
 
 namespace cuas {
 
@@ -84,9 +87,30 @@ struct DetectedPoint {
 class RadarParserNode : public rclcpp::Node
 {
 public:
-    explicit RadarParserNode(const std::string & port = "/dev/ttyUSB1")
-    : Node("radar_parser_node"), port_(port), fd_(-1), running_(false)
+    RadarParserNode()
+    : Node("radar_parser_node"), fd_(-1), running_(false)
     {
+        declare_parameter("data_port", std::string("/dev/radar_data"));
+        declare_parameter("config_port", std::string("/dev/radar_config"));
+
+        data_port_ = get_parameter("data_port").as_string();
+        config_port_ = get_parameter("config_port").as_string();
+
+        if (access(data_port_.c_str(), F_OK) != 0) {
+            RCLCPP_WARN(get_logger(),
+                "Port %s not found, attempting auto-detection...",
+                data_port_.c_str());
+            auto [dp, cp] = detectRadarPorts();
+            if (!dp.empty()) {
+                data_port_ = dp;
+                config_port_ = cp;
+                RCLCPP_INFO(get_logger(),
+                    "Auto-detected: data=%s  config=%s",
+                    data_port_.c_str(), config_port_.c_str());
+            }
+        }
+
+        port_ = data_port_;
         pub_ = create_publisher<sensor_msgs::msg::PointCloud2>("/radar/detections", 10);
 
         open_port();
@@ -94,7 +118,8 @@ public:
         running_ = true;
         parse_thread_ = std::thread(&RadarParserNode::parse_loop, this);
 
-        RCLCPP_INFO(get_logger(), "Radar parser started — port: %s", port_.c_str());
+        RCLCPP_INFO(get_logger(), "Radar parser started — data_port: %s  config_port: %s",
+                     data_port_.c_str(), config_port_.c_str());
     }
 
     ~RadarParserNode() override
@@ -110,6 +135,35 @@ public:
     }
 
 private:
+    // -----------------------------------------------------------------------
+    // Auto-detect CP210x radar ports via sysfs VID
+    // -----------------------------------------------------------------------
+    std::pair<std::string, std::string> detectRadarPorts()
+    {
+        std::vector<std::string> radar_ports;
+        for (int i = 0; i <= 9; ++i) {
+            std::string port = "/dev/ttyUSB" + std::to_string(i);
+            if (access(port.c_str(), F_OK) != 0) continue;
+            std::string base = "/sys/class/tty/ttyUSB"
+                               + std::to_string(i) + "/device/../";
+            std::ifstream vid_file(base + "idVendor");
+            std::ifstream pid_file(base + "idProduct");
+            std::string vid, pid;
+            if (vid_file >> vid && pid_file >> pid
+                && vid == "10c4" && pid == "ea70") {
+                radar_ports.push_back(port);
+            }
+        }
+        if (radar_ports.size() < 2) {
+            RCLCPP_ERROR(get_logger(),
+                "Radar auto-detect failed: found %zu CP210x ports, need 2",
+                radar_ports.size());
+            return {"", ""};
+        }
+        std::sort(radar_ports.begin(), radar_ports.end());
+        return {radar_ports[0], radar_ports[1]};
+    }
+
     // -----------------------------------------------------------------------
     // Serial port initialisation (POSIX termios, 921600 8N1 raw)
     // -----------------------------------------------------------------------
@@ -304,7 +358,7 @@ private:
     {
         sensor_msgs::msg::PointCloud2 msg;
         msg.header.stamp    = stamp;
-        msg.header.frame_id = "radar";
+        msg.header.frame_id = "radar_frame";
         msg.height          = 1;
         msg.width           = static_cast<uint32_t>(points.size());
         msg.is_dense        = false;
@@ -337,6 +391,8 @@ private:
     // -----------------------------------------------------------------------
     // Members
     // -----------------------------------------------------------------------
+    std::string  data_port_;
+    std::string  config_port_;
     std::string  port_;
     int          fd_;
     std::atomic<bool> running_;
@@ -352,10 +408,7 @@ private:
 int main(int argc, char ** argv)
 {
     rclcpp::init(argc, argv);
-
-    const std::string port = (argc > 1) ? argv[1] : "/dev/ttyUSB1";
-
-    auto node = std::make_shared<cuas::RadarParserNode>(port);
+    auto node = std::make_shared<cuas::RadarParserNode>();
     rclcpp::spin(node);
     rclcpp::shutdown();
     return 0;

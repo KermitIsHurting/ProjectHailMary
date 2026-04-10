@@ -1,3 +1,4 @@
+
 // fusion_node.cpp
 
 #include "cuas_fusion/fusion/fusion_engine.hpp"
@@ -113,7 +114,6 @@ private:
 
         std::vector<FusedDetection> fused;
         if (!engine_.projectAndAssociate(radar_pts, yolo_boxes, fused)) {
-            RCLCPP_WARN(get_logger(), "projectAndAssociate failed");
             return;
         }
 
@@ -136,6 +136,10 @@ private:
             det.pixel_u      = fd.pixel_u;
             det.pixel_v      = fd.pixel_v;
             det.timestamp_ns = fd.timestamp_ns;
+            det.range_m      = fd.range_m;
+            det.azimuth_deg  = fd.azimuth_deg;
+            det.bbox_width_px  = fd.bbox_width_px;
+            det.bbox_height_px = fd.bbox_height_px;
             out.detections.push_back(det);
         }
 
@@ -145,11 +149,15 @@ private:
     void yoloCallback(const vision_msgs::msg::Detection2DArray::ConstSharedPtr& msg)
     {
         std::lock_guard<std::mutex> lock(yolo_mutex_);
-        latest_yolo_boxes_.clear();
 
         int64_t ts_ns = static_cast<int64_t>(msg->header.stamp.sec) * 1'000'000'000LL
                       + static_cast<int64_t>(msg->header.stamp.nanosec);
         latest_yolo_ts_ = ts_ns;
+
+        if (msg->detections.empty()) {
+            return;  // Keep last known boxes
+        }
+        latest_yolo_boxes_.clear();
 
         for (const auto& det : msg->detections) {
             BoundingBox bb;

@@ -36,9 +36,9 @@ bool FusionEngine::projectAndAssociate(
     std::unordered_map<size_t, Candidate> best_per_box;
 
     for (const auto& rpt : radar_pts) {
-        float x_cam = rpt.x + extrinsic_.x_m;
-        float y_cam = rpt.y + extrinsic_.y_m;
-        float z_cam = rpt.z + extrinsic_.z_m;
+        float x_cam = rpt.x + extrinsic_.x_m;            // lateral
+        float z_cam = rpt.y + extrinsic_.y_m;            // range = depth for pinhole
+        float y_cam = -(rpt.z + extrinsic_.z_m);         // elevation, negated for image Y axis
 
         if (z_cam <= 0.0f) {
             continue;
@@ -58,8 +58,10 @@ bool FusionEngine::projectAndAssociate(
         bool matched = false;
         for (size_t bi = 0; bi < yolo_boxes.size(); ++bi) {
             const auto& box = yolo_boxes[bi];
-            if (u >= box.x && u <= box.x + box.w &&
-                v >= box.y && v <= box.y + box.h) {
+            float pad_x = box.w * 0.25f;
+            float pad_y = box.h * 0.25f;
+            if (u >= box.x - pad_x && u <= box.x + box.w + pad_x &&
+                v >= box.y - pad_y && v <= box.y + box.h + pad_y) {
                 FusedDetection fd;
                 fd.position_x_m = rpt.x;
                 fd.position_y_m = rpt.y;
@@ -70,6 +72,10 @@ bool FusionEngine::projectAndAssociate(
                 fd.pixel_u      = u;
                 fd.pixel_v      = v;
                 fd.timestamp_ns = rpt.timestamp_ns;
+                fd.range_m      = rpt.y;
+                fd.azimuth_deg  = std::atan2(rpt.x, rpt.y) * 180.0f / static_cast<float>(M_PI);
+                fd.bbox_width_px  = box.w;
+                fd.bbox_height_px = box.h;
 
                 float range = rpt.y;
 

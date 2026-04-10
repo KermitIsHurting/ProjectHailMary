@@ -55,6 +55,10 @@ struct FusedDetection {
     float       pixel_u;
     float       pixel_v;
     int64_t     timestamp_ns;
+    float       range_m;
+    float       azimuth_deg;
+    float       bbox_width_px  = 0.0f;
+    float       bbox_height_px = 0.0f;
 };
 
 } // namespace cuas
