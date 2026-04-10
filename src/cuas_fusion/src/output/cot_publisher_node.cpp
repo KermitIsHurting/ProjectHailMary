@@ -1,0 +1,151 @@
+// cot_publisher_node.cpp
+// Publishes Cursor on Target (CoT) XML events over UDP multicast
+// for consumption by ATAK and other TAK-compatible systems.
+
+#include <rclcpp/rclcpp.hpp>
+#include <cuas_msgs/msg/threat_report_array.hpp>
+
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <cerrno>
+#include <chrono>
+#include <cmath>
+#include <cstring>
+#include <ctime>
+#include <iomanip>
+#include <sstream>
+#include <string>
+#include <unordered_set>
+
+namespace cuas {
+
+class CotPublisherNode : public rclcpp::Node
+{
+public:
+    CotPublisherNode()
+    : Node("cot_publisher_node")
+    {
+        sub_ = create_subscription<cuas_msgs::msg::ThreatReportArray>(
+            "/threat/reports", 5,
+            std::bind(&CotPublisherNode::threatCallback, this, std::placeholders::_1));
+
+        // Create UDP socket
+        sock_ = socket(AF_INET, SOCK_DGRAM, 0);
+        if (sock_ < 0) {
+            RCLCPP_ERROR(get_logger(), "CoT: socket() failed: %s", strerror(errno));
+            return;
+        }
+
+        // Set multicast TTL
+        unsigned char ttl = 32;
+        setsockopt(sock_, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
+
+        std::memset(&dest_, 0, sizeof(dest_));
+        dest_.sin_family = AF_INET;
+        dest_.sin_port = htons(6969);
+        inet_aton("239.2.3.1", &dest_.sin_addr);
+
+        last_full_send_ = std::chrono::steady_clock::now();
+
+        RCLCPP_INFO(get_logger(), "CoT publisher node ready (239.2.3.1:6969)");
+    }
+
+    ~CotPublisherNode() override
+    {
+        if (sock_ >= 0) close(sock_);
+    }
+
+private:
+    static std::string isoTimestamp(double offset_s = 0.0)
+    {
+        auto now = std::chrono::system_clock::now();
+        now += std::chrono::milliseconds(static_cast<int64_t>(offset_s * 1000.0));
+        auto tt = std::chrono::system_clock::to_time_t(now);
+        std::tm utc{};
+        gmtime_r(&tt, &utc);
+        char buf[32];
+        std::strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", &utc);
+        return buf;
+    }
+
+    std::string buildCotEvent(const cuas_msgs::msg::ThreatReport& report)
+    {
+        std::string now_ts = isoTimestamp();
+        std::string stale_ts = isoTimestamp(30.0);
+
+        std::ostringstream xml;
+        xml << "<?xml version=\"1.0\"?>"
+            << "<event version=\"2.0\""
+            << " uid=\"CUAS-TRACK-" << report.track_id << "\""
+            << " type=\"a-u-G\""
+            << " time=\"" << now_ts << "\""
+            << " start=\"" << now_ts << "\""
+            << " stale=\"" << stale_ts << "\""
+            << " how=\"m-g\">"
+            << "<point lat=\"0.0\" lon=\"0.0\" hae=\"0.0\" ce=\"10.0\" le=\"10.0\"/>"
+            << "<detail>"
+            << "<track speed=\"" << std::fixed << std::setprecision(2) << report.velocity_mps << "\""
+            << " course=\"" << std::fixed << std::setprecision(1)
+            << std::atan2(report.position_x_m, report.position_y_m) * 180.0f / static_cast<float>(M_PI) << "\"/>"
+            << "<status readiness=\"true\"/>"
+            << "<remarks>ThreatLevel:" << report.threat_level
+            << " Quality:" << std::fixed << std::setprecision(2) << report.quality_score
+            << " Class:" << report.class_label
+            << " Esc:" << report.escalation_state
+            << "</remarks>"
+            << "</detail>"
+            << "</event>";
+        return xml.str();
+    }
+
+    void sendUdp(const std::string& xml)
+    {
+        if (sock_ < 0) return;
+        sendto(sock_, xml.data(), xml.size(), 0,
+               reinterpret_cast<const sockaddr*>(&dest_), sizeof(dest_));
+    }
+
+    void threatCallback(const cuas_msgs::msg::ThreatReportArray::ConstSharedPtr& msg)
+    {
+        auto now = std::chrono::steady_clock::now();
+        double elapsed_s = std::chrono::duration<double>(now - last_threatening_send_).count();
+        double full_elapsed_s = std::chrono::duration<double>(now - last_full_send_).count();
+
+        // Send THREATENING/ENGAGED tracks every 1.0s
+        if (elapsed_s >= 1.0) {
+            for (const auto& report : msg->reports) {
+                if (report.escalation_state == "THREATENING" ||
+                    report.escalation_state == "ENGAGED") {
+                    sendUdp(buildCotEvent(report));
+                }
+            }
+            last_threatening_send_ = now;
+        }
+
+        // Send all tracks every 5.0s
+        if (full_elapsed_s >= 5.0) {
+            for (const auto& report : msg->reports) {
+                sendUdp(buildCotEvent(report));
+            }
+            last_full_send_ = now;
+        }
+    }
+
+    rclcpp::Subscription<cuas_msgs::msg::ThreatReportArray>::SharedPtr sub_;
+    int sock_ = -1;
+    struct sockaddr_in dest_{};
+    std::chrono::steady_clock::time_point last_threatening_send_{};
+    std::chrono::steady_clock::time_point last_full_send_{};
+};
+
+} // namespace cuas
+
+int main(int argc, char** argv)
+{
+    rclcpp::init(argc, argv);
+    auto node = std::make_shared<cuas::CotPublisherNode>();
+    rclcpp::spin(node);
+    rclcpp::shutdown();
+    return 0;
+}
