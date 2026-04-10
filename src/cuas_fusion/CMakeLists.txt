@@ -12,6 +12,9 @@ find_package(vision_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
+find_package(image_transport REQUIRED)
+find_package(Eigen3 REQUIRED)
 
 set(OpenCV_DIR /usr/lib/aarch64-linux-gnu/cmake/opencv4)
 find_package(OpenCV REQUIRED)
@@ -21,7 +24,7 @@ message(STATUS "OpenCV_LIBRARIES: ${OpenCV_LIBRARIES}")
 find_library(NVINFER_LIB nvinfer PATHS /usr/lib/aarch64-linux-gnu)
 find_library(CUDART_LIB cudart PATHS /usr/local/cuda/lib64)
 
-include_directories(include)
+include_directories(include ${EIGEN3_INCLUDE_DIR})
 
 # radar parser node
 add_executable(radar_parser_node
@@ -128,6 +131,82 @@ ament_target_dependencies(classifier_node
 )
 target_link_libraries(classifier_node classification_lib)
 
+# imm tracker node
+add_executable(imm_tracker_node
+  src/tracking/imm_tracker_node.cpp
+  src/tracking/imm_tracker.cpp
+  src/estimation/imm_filter.cpp
+  src/estimation/kalman_cv.cpp
+  src/estimation/kalman_ca.cpp
+  src/estimation/kalman_ct.cpp
+)
+ament_target_dependencies(imm_tracker_node
+  rclcpp sensor_msgs cuas_msgs geometry_msgs)
+target_include_directories(imm_tracker_node PRIVATE
+  ${EIGEN3_INCLUDE_DIR})
+
+# kinematic predictor node
+add_executable(kinematic_predictor_node
+  src/prediction/kinematic_predictor_node.cpp
+  src/prediction/kinematic_predictor.cpp
+  src/estimation/imm_filter.cpp
+  src/estimation/kalman_cv.cpp
+  src/estimation/kalman_ca.cpp
+  src/estimation/kalman_ct.cpp
+)
+ament_target_dependencies(kinematic_predictor_node
+  rclcpp cuas_msgs geometry_msgs)
+target_include_directories(kinematic_predictor_node PRIVATE
+  ${EIGEN3_INCLUDE_DIR})
+
+# occlusion predictor node
+add_executable(occlusion_predictor_node
+  src/prediction/occlusion_predictor_node.cpp
+  src/prediction/occlusion_predictor.cpp
+  src/prediction/kinematic_predictor.cpp
+  src/estimation/imm_filter.cpp
+  src/estimation/kalman_cv.cpp
+  src/estimation/kalman_ca.cpp
+  src/estimation/kalman_ct.cpp
+)
+ament_target_dependencies(occlusion_predictor_node
+  rclcpp cuas_msgs geometry_msgs)
+target_include_directories(occlusion_predictor_node PRIVATE
+  ${EIGEN3_INCLUDE_DIR})
+
+# prediction mux node
+add_executable(prediction_mux_node
+  src/prediction/prediction_mux_node.cpp
+)
+ament_target_dependencies(prediction_mux_node
+  rclcpp cuas_msgs)
+
+# cot publisher node
+add_executable(cot_publisher_node
+  src/output/cot_publisher_node.cpp
+)
+ament_target_dependencies(cot_publisher_node
+  rclcpp
+  cuas_msgs
+)
+
+# cuas visualizer node
+add_executable(cuas_visualizer_node
+  src/visualization/cuas_visualizer_node.cpp
+)
+ament_target_dependencies(cuas_visualizer_node
+  rclcpp
+  cuas_msgs
+  visualization_msgs
+  geometry_msgs
+  std_msgs
+  vision_msgs
+  sensor_msgs
+  cv_bridge
+)
+target_include_directories(cuas_visualizer_node PRIVATE ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(cuas_visualizer_node ${OpenCV_LIBS})
+
 install(TARGETS
   radar_parser_node
   camera_node
@@ -135,11 +214,21 @@ install(TARGETS
   fusion_node
   tracker_node
   classifier_node
+  imm_tracker_node
+  kinematic_predictor_node
+  occlusion_predictor_node
+  prediction_mux_node
+  cuas_visualizer_node
+  cot_publisher_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
 install(DIRECTORY config launch
   DESTINATION share/${PROJECT_NAME}
+)
+
+install(PROGRAMS ${CMAKE_CURRENT_SOURCE_DIR}/../../scripts/send_radar_config.sh
+  DESTINATION share/${PROJECT_NAME}/scripts
 )
 
 if(BUILD_TESTING)

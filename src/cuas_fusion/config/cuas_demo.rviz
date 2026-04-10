@@ -1,0 +1,129 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: rviz_common/Views
+    Name: Views
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Enabled: true
+      Value: true
+      Cell Size: 1
+      Color: 160; 160; 164
+      Line Style:
+        Line Width: 0.03
+        Value: Lines
+      Normal Cell Count: 0
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Plane: XY
+      Plane Cell Count: 20
+      Reference Frame: base_link
+
+    - Class: rviz_default_plugins/MarkerArray
+      Name: Track positions
+      Enabled: true
+      Value: true
+      Topic:
+        Value: /visualization/track_markers
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+
+    - Class: rviz_default_plugins/MarkerArray
+      Name: Predicted trajectories
+      Enabled: true
+      Value: true
+      Topic:
+        Value: /visualization/trajectory_markers
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+
+    - Class: rviz_default_plugins/MarkerArray
+      Name: Uncertainty cones
+      Enabled: true
+      Value: true
+      Topic:
+        Value: /visualization/uncertainty_markers
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+
+    - Class: rviz_default_plugins/MarkerArray
+      Name: Track labels
+      Enabled: true
+      Value: true
+      Topic:
+        Value: /visualization/track_labels
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+
+    - Class: rviz_default_plugins/Image
+      Name: Camera feed
+      Enabled: true
+      Value: true
+      Topic:
+        Value: /camera/annotated
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Normalize Range: true
+      Transport Hint: raw
+
+    - Class: rviz_default_plugins/Axes
+      Name: Axes
+      Enabled: true
+      Value: true
+      Length: 1
+      Radius: 0.05
+      Reference Frame: base_link
+
+  Enabled: true
+  Global Options:
+    Background Color: 48; 48; 48
+    Fixed Frame: base_link
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/FocusCamera
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 8
+      Focal Point:
+        X: 3
+        Y: 0
+        Z: 0
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05
+      Invert Z Axis: false
+      Name: Current View
+      Near Clip Distance: 0.01
+      Pitch: 0.785
+      Target Frame: base_link
+      Value: Orbit (rviz_default_plugins)
+      Yaw: 0
+    Saved: ~
+Window Geometry:
+  Displays:
+    collapsed: false
+  Height: 846
+  Width: 1280
+  X: 0
+  Y: 0

@@ -27,16 +27,4 @@ def generate_launch_description():
             name='kinematic_predictor_node',
             parameters=[config, {'use_sim_time': False}],
         ),
-        Node(
-            package='cuas_fusion',
-            executable='occlusion_predictor_node',
-            name='occlusion_predictor_node',
-            parameters=[config, {'use_sim_time': False}],
-        ),
-        Node(
-            package='cuas_fusion',
-            executable='prediction_mux_node',
-            name='prediction_mux_node',
-            parameters=[{'use_sim_time': False}],
-        ),
     ])

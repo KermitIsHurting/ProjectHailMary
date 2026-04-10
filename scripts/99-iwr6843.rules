@@ -1,0 +1,13 @@
+# TI IWR6843ISK radar — CP2105 Dual UART (VID:PID 10c4:ea70)
+# Interface 00 = config port (Enhanced, lower ttyUSB)
+# Interface 01 = data port (Standard, higher ttyUSB)
+
+# Config port (interface 00)
+SUBSYSTEM=="tty", ENV{ID_VENDOR_ID}=="10c4", ENV{ID_MODEL_ID}=="ea70", \
+ENV{ID_USB_INTERFACE_NUM}=="00", \
+SYMLINK+="radar_config", MODE="0666"
+
+# Data port (interface 01)
+SUBSYSTEM=="tty", ENV{ID_VENDOR_ID}=="10c4", ENV{ID_MODEL_ID}=="ea70", \
+ENV{ID_USB_INTERFACE_NUM}=="01", \
+SYMLINK+="radar_data", MODE="0666"

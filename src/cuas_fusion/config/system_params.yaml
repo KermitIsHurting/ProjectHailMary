@@ -1,0 +1,20 @@
+radar_parser_node:
+  ros__parameters:
+    data_port: "/dev/radar_data"
+    config_port: "/dev/radar_config"
+
+threat_classifier_node:
+  ros__parameters:
+    threatening_range_m: 4.0
+    threatening_velocity_mps: 0.3
+    zone_radius_m: 3.0
+    escalation_dwell_s: 1.0
+    track_timeout_s: 5.0
+
+cuas_visualizer_node:
+  ros__parameters:
+    show_prediction_arc: true
+    show_track_table: true
+    show_velocity_vector: true
+    show_ppi: true
+    show_zone_timer: true

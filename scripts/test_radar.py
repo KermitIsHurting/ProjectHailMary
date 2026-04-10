@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 """
 test_radar.py — IWR6843ISK diagnostic script
-Sends full radar config to /dev/ttyUSB0, captures all responses,
-then listens on /dev/ttyUSB2 for binary data frames.
+Sends full radar config to the config port, captures all responses,
+then listens on the data port for binary data frames.
+
+Port detection priority:
+    1. udev symlinks (/dev/radar_data, /dev/radar_config)
+    2. CLI arguments
+    3. Auto-detect CP210x ports by VID:PID 10c4:ea60
 
 Usage:
     python3 test_radar.py [config_file] [config_port] [data_port]
 Defaults:
     config_file : ../src/cuas_fusion/config/radar_profile.cfg
-    config_port : /dev/ttyUSB0   (115200 baud, UART CLI)
-    data_port   : /dev/ttyUSB2   (921600 baud, binary output)
+    config_port : /dev/radar_config  (115200 baud, UART CLI)
+    data_port   : /dev/radar_data    (921600 baud, binary output)
 """
 
 import os
@@ -27,8 +32,8 @@ WORKSPACE   = os.path.dirname(SCRIPT_DIR)
 CONFIG_FILE = (sys.argv[1] if len(sys.argv) > 1
                else os.path.join(WORKSPACE,
                                  "src/cuas_fusion/config/radar_profile.cfg"))
-CONFIG_PORT = sys.argv[2] if len(sys.argv) > 2 else "/dev/ttyUSB0"
-DATA_PORT   = sys.argv[3] if len(sys.argv) > 3 else "/dev/ttyUSB2"
+CONFIG_PORT = sys.argv[2] if len(sys.argv) > 2 else "/dev/radar_config"
+DATA_PORT   = sys.argv[3] if len(sys.argv) > 3 else "/dev/radar_data"
 
 CONFIG_BAUD  = 115200
 DATA_BAUD    = 921600
@@ -55,7 +60,7 @@ def check_ports():
     if not ok:
         print()
         print("  Fix: sudo usermod -aG dialout $USER  (then log out/in)")
-        print("  Or:  sudo chmod a+rw /dev/ttyUSB0 /dev/ttyUSB2")
+        print("  Or:  sudo chmod a+rw", CONFIG_PORT, DATA_PORT)
         sys.exit(1)
     print()
 
@@ -365,8 +370,8 @@ def diagnose_failure(error_msg):
     print("      cfarCfg -1 0 2 8 4 3 0 15 0  (was: 15.0)")
     print("      cfarCfg -1 1 0 4 2 3 1 12 0  (was: 12.0)")
     print()
-    print("  Also: radar_parser_node.cpp default port must be /dev/ttyUSB2")
-    print("        (data port), not /dev/ttyUSB0 (config port).")
+    print("  Also: radar_parser_node uses /dev/radar_data by default.")
+    print("        Install udev rules or pass --ros-args -p data_port:=/dev/ttyUSBx")
 
 
 # ---------------------------------------------------------------------------
