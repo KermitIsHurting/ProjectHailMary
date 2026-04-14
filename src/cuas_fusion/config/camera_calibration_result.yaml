@@ -1,0 +1,18 @@
+# Camera calibration — 2026-04-09 20:33
+# 15 frames, RMS error: 1.8157 px
+# Board: 10x7, square: 23.0mm
+
+intrinsics:
+  fx: 1862.67
+  fy: 1877.74
+  cx: 1032.83
+  cy: 426.82
+
+distortion:
+  k1: 0.53071662
+  k2: -1.71486904
+  p1: -0.05275674
+  p2: 0.01685926
+  k3: 4.14461728
+
+reprojection_error_px: 1.8157

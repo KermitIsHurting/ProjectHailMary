@@ -1,12 +1,15 @@
-#include "cuas_fusion/tracking/track_manager.hpp"
+// @file track_manager_node.cpp
+// @brief ROS 2 node wrapping TrackManager for fused-detection input.
+#include "cuas_fusion/common/constants.hpp"
+#include "cuas_fusion/common/fixed_containers.hpp"
+#include "cuas_fusion/common/fixed_types.hpp"
 #include "cuas_fusion/common/types.hpp"
+#include "cuas_fusion/tracking/track_manager.hpp"
 
 #include <rclcpp/rclcpp.hpp>
 #include <cuas_msgs/msg/fused_detection_array.hpp>
 #include <cuas_msgs/msg/track_array.hpp>
 #include <cuas_msgs/msg/track.hpp>
-
-#include <vector>
 
 namespace cuas {
 
@@ -34,10 +37,11 @@ public:
 private:
     void fusionCallback(const cuas_msgs::msg::FusedDetectionArray::ConstSharedPtr& msg)
     {
-        std::vector<FusedDetection> detections;
-        detections.reserve(msg->detections.size());
-
+        FixedVector<FusedDetection, TRACK_MAX_TRACKS> detections;
         for (const auto& d : msg->detections) {
+            if (detections.size() >= detections.capacity()) {
+                break;
+            }
             FusedDetection fd;
             fd.position_x_m = d.position_x_m;
             fd.position_y_m = d.position_y_m;
@@ -46,11 +50,11 @@ private:
             fd.class_label  = d.class_label;
             fd.confidence   = d.confidence;
             fd.timestamp_ns = d.timestamp_ns;
-            detections.push_back(fd);
+            (void)detections.push_back(fd);
         }
 
-        std::vector<Track> confirmed;
-        if (!manager_.update(detections, confirmed)) {
+        FixedVector<Track, TRACK_MAX_TRACKS> confirmed;
+        if (!manager_.update(detections.data(), detections.size(), confirmed)) {
             RCLCPP_WARN(get_logger(), "TrackManager update failed");
             return;
         }
@@ -58,7 +62,8 @@ private:
         cuas_msgs::msg::TrackArray out;
         out.header = msg->header;
 
-        for (const auto& t : confirmed) {
+        for (uint32_t i = 0U; i < confirmed.size(); ++i) {
+            const Track& t = confirmed[i];
             cuas_msgs::msg::Track tm;
             tm.track_id      = t.track_id_;
             tm.position_x_m  = t.position_x_m_;

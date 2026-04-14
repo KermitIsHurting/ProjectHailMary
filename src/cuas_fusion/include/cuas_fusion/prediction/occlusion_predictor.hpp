@@ -1,46 +1,44 @@
+// @file occlusion_predictor.hpp
+// @brief Ghost-track predictor that propagates through occlusions.
 #pragma once
 
+#include "cuas_fusion/common/fixed_types.hpp"
 #include "cuas_fusion/prediction/kinematic_predictor.hpp"
 
 #include <Eigen/Dense>
 #include <array>
-#include <cstdint>
 
 namespace cuas {
 
-/// Maintains ghost tracks for occluded targets and predicts through occlusion
 class OcclusionPredictor {
 public:
     struct GhostTrack {
-        uint32_t track_id = 0;
+        uint32_t track_id = 0U;
         Eigen::VectorXd state = Eigen::VectorXd::Zero(6);
         Eigen::MatrixXd covariance = Eigen::MatrixXd::Identity(6, 6);
-        std::array<double, 3> model_weights = {0.33, 0.33, 0.34};
-        double occlusion_start_time_sec = 0.0;
-        bool expired = false;
+        std::array<float64_t, 3> model_weights = {0.33, 0.33, 0.34};
+        float64_t occlusion_start_time_sec = 0.0;
+        bool      expired = false;
     };
 
     OcclusionPredictor() = default;
 
-    /// Set max occlusion duration and Mahalanobis gate
-    void configure(double max_occlusion_sec, double mahalanobis_gate);
+    void configure(float64_t max_occlusion_sec, float64_t mahalanobis_gate);
 
-    /// Propagate a ghost track forward
     KinematicPredictor::TrajectoryResult propagateGhost(
         GhostTrack& ghost,
-        double current_time,
-        double step_dt,
-        int n_steps,
+        float64_t current_time,
+        float64_t step_dt,
+        int32_t n_steps,
         const Eigen::MatrixXd& F_blended,
         const Eigen::MatrixXd& Q_blended);
 
-    /// Test whether a measurement can reacquire a ghost track
     bool reacquire(const GhostTrack& ghost,
-                   double meas_x, double meas_y, double meas_z);
+                   float64_t meas_x, float64_t meas_y, float64_t meas_z) const;
 
 private:
-    double max_occlusion_sec_ = 4.0;
-    double mahalanobis_gate_ = 3.0;
+    float64_t max_occlusion_sec_ = 4.0;
+    float64_t mahalanobis_gate_  = 3.0;
     KinematicPredictor propagator_;
 };
 

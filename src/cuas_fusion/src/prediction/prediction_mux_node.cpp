@@ -1,9 +1,12 @@
+// @file prediction_mux_node.cpp
+// @brief ROS 2 node merging kinematic and occlusion prediction streams.
+#include "cuas_fusion/common/constants.hpp"
+#include "cuas_fusion/common/fixed_containers.hpp"
+#include "cuas_fusion/common/fixed_types.hpp"
+
 #include <rclcpp/rclcpp.hpp>
 #include <cuas_msgs/msg/predicted_track.hpp>
 #include <cuas_msgs/msg/trajectory_waypoints.hpp>
-
-#include <map>
-#include <vector>
 
 namespace cuas {
 
@@ -44,81 +47,106 @@ public:
 private:
     void kinPredCallback(const cuas_msgs::msg::PredictedTrack::ConstSharedPtr& msg)
     {
-        kinematic_pred_[msg->track_id] = *msg;
+        (void)kinematic_pred_.insert_or_assign(msg->track_id, *msg);
     }
 
     void occPredCallback(const cuas_msgs::msg::PredictedTrack::ConstSharedPtr& msg)
     {
-        occlusion_pred_[msg->track_id] = *msg;
+        (void)occlusion_pred_.insert_or_assign(msg->track_id, *msg);
     }
 
     void kinTrajCallback(const cuas_msgs::msg::TrajectoryWaypoints::ConstSharedPtr& msg)
     {
-        kinematic_traj_[msg->track_id] = *msg;
+        (void)kinematic_traj_.insert_or_assign(msg->track_id, *msg);
     }
 
     void occTrajCallback(const cuas_msgs::msg::TrajectoryWaypoints::ConstSharedPtr& msg)
     {
-        occlusion_traj_[msg->track_id] = *msg;
+        (void)occlusion_traj_.insert_or_assign(msg->track_id, *msg);
     }
 
     void mergeTick()
     {
-        std::map<uint32_t, bool> seen;
+        FixedVector<uint32_t, TRACK_MAX_TRACKS * 2U> seen;
+        for (uint32_t i = 0U; i < kinematic_pred_.slot_count(); ++i) {
+            const auto& slot = kinematic_pred_.slots()[i];
+            if (slot.occupied) {
+                (void)seen.push_back(slot.key);
+            }
+        }
+        for (uint32_t i = 0U; i < occlusion_pred_.slot_count(); ++i) {
+            const auto& slot = occlusion_pred_.slots()[i];
+            if (!slot.occupied) {
+                continue;
+            }
+            bool already = false;
+            for (uint32_t k = 0U; k < seen.size(); ++k) {
+                if (seen[k] == slot.key) {
+                    already = true;
+                    break;
+                }
+            }
+            if (!already) {
+                (void)seen.push_back(slot.key);
+            }
+        }
 
-        for (const auto& [id, _] : kinematic_pred_) seen[id] = true;
-        for (const auto& [id, _] : occlusion_pred_) seen[id] = true;
+        for (uint32_t idx = 0U; idx < seen.size(); ++idx) {
+            const uint32_t id = seen[idx];
 
-        for (const auto& [id, _] : seen) {
-            auto kit = kinematic_pred_.find(id);
-            auto oit = occlusion_pred_.find(id);
+            const cuas_msgs::msg::PredictedTrack* kit = kinematic_pred_.find(id);
+            const cuas_msgs::msg::PredictedTrack* oit = occlusion_pred_.find(id);
 
             const cuas_msgs::msg::PredictedTrack* chosen = nullptr;
 
-            if (kit != kinematic_pred_.end() && oit != occlusion_pred_.end()) {
-                if (oit->second.track_state == "OCCLUDED") {
-                    chosen = &oit->second;
+            if ((kit != nullptr) && (oit != nullptr)) {
+                // Prefer occlusion stream while the track remains OCCLUDED
+                if (oit->track_state == "OCCLUDED") {
+                    chosen = oit;
                 } else {
-                    chosen = &kit->second;
+                    chosen = kit;
                 }
-            } else if (oit != occlusion_pred_.end()) {
-                chosen = &oit->second;
-            } else if (kit != kinematic_pred_.end()) {
-                chosen = &kit->second;
+            } else if (oit != nullptr) {
+                chosen = oit;
+            } else if (kit != nullptr) {
+                chosen = kit;
+            } else {
+                chosen = nullptr;
             }
 
-            if (chosen) {
+            if (chosen != nullptr) {
                 pub_pred_->publish(*chosen);
             }
 
-            // Same logic for trajectory
-            auto kt = kinematic_traj_.find(id);
-            auto ot = occlusion_traj_.find(id);
+            const cuas_msgs::msg::TrajectoryWaypoints* kt = kinematic_traj_.find(id);
+            const cuas_msgs::msg::TrajectoryWaypoints* ot = occlusion_traj_.find(id);
 
             const cuas_msgs::msg::TrajectoryWaypoints* chosen_t = nullptr;
 
-            if (kt != kinematic_traj_.end() && ot != occlusion_traj_.end()) {
-                if (oit != occlusion_pred_.end() && oit->second.track_state == "OCCLUDED") {
-                    chosen_t = &ot->second;
+            if ((kt != nullptr) && (ot != nullptr)) {
+                if ((oit != nullptr) && oit->track_state == "OCCLUDED") {
+                    chosen_t = ot;
                 } else {
-                    chosen_t = &kt->second;
+                    chosen_t = kt;
                 }
-            } else if (ot != occlusion_traj_.end()) {
-                chosen_t = &ot->second;
-            } else if (kt != kinematic_traj_.end()) {
-                chosen_t = &kt->second;
+            } else if (ot != nullptr) {
+                chosen_t = ot;
+            } else if (kt != nullptr) {
+                chosen_t = kt;
+            } else {
+                chosen_t = nullptr;
             }
 
-            if (chosen_t) {
+            if (chosen_t != nullptr) {
                 pub_traj_->publish(*chosen_t);
             }
         }
     }
 
-    std::map<uint32_t, cuas_msgs::msg::PredictedTrack> kinematic_pred_;
-    std::map<uint32_t, cuas_msgs::msg::PredictedTrack> occlusion_pred_;
-    std::map<uint32_t, cuas_msgs::msg::TrajectoryWaypoints> kinematic_traj_;
-    std::map<uint32_t, cuas_msgs::msg::TrajectoryWaypoints> occlusion_traj_;
+    FixedMap<uint32_t, cuas_msgs::msg::PredictedTrack,       TRACK_MAX_TRACKS> kinematic_pred_{};
+    FixedMap<uint32_t, cuas_msgs::msg::PredictedTrack,       TRACK_MAX_TRACKS> occlusion_pred_{};
+    FixedMap<uint32_t, cuas_msgs::msg::TrajectoryWaypoints,  TRACK_MAX_TRACKS> kinematic_traj_{};
+    FixedMap<uint32_t, cuas_msgs::msg::TrajectoryWaypoints,  TRACK_MAX_TRACKS> occlusion_traj_{};
 
     rclcpp::Subscription<cuas_msgs::msg::PredictedTrack>::SharedPtr sub_kin_pred_;
     rclcpp::Subscription<cuas_msgs::msg::PredictedTrack>::SharedPtr sub_occ_pred_;

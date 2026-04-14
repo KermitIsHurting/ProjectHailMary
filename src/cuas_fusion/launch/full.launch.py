@@ -79,7 +79,7 @@ def generate_launch_description():
             name='inference_node',
             parameters=[{
                 'use_sim_time': False,
-                'engine_path': '/home/zork/ProjectHailMarry/models/yolov8s_fp16.engine',
+                'engine_path': '/home/zork/ProjectHailMarry/models/yolov8s_int8.engine',
             }],
         ),
         Node(

@@ -1,8 +1,5 @@
-// camera_node.cpp
-// ROS 2 node wrapper for CameraDriver: spins a capture thread, demosaics
-// Bayer frames, and publishes sensor_msgs/Image to /camera/image_raw.
-// Constructs Image messages directly to avoid cv_bridge OpenCV version issues.
-
+// @file camera_node.cpp
+// @brief ROS 2 node that publishes camera frames on a capture thread.
 #include "cuas_fusion/drivers/camera_driver.hpp"
 #include "cuas_fusion/common/constants.hpp"
 
@@ -43,7 +40,6 @@ public:
 private:
     void capture_loop()
     {
-        // Open with retry
         while (running_ && !driver_.open(CAMERA_DEVICE_PATH)) {
             RCLCPP_ERROR(get_logger(),
                 "Failed to open camera %s — retrying in %d ms",
@@ -52,7 +48,9 @@ private:
                 std::chrono::milliseconds(CAMERA_RETRY_INTERVAL_MS));
         }
 
-        if (!running_) return;
+        if (!running_) {
+            return;
+        }
         RCLCPP_INFO(get_logger(), "Camera opened successfully");
 
         cv::Mat bgr;
@@ -74,7 +72,6 @@ private:
                 continue;
             }
 
-            // Build sensor_msgs::msg::Image directly (no cv_bridge needed)
             sensor_msgs::msg::Image msg;
             msg.header.stamp.sec     = static_cast<int32_t>(ts_ns / 1'000'000'000LL);
             msg.header.stamp.nanosec = static_cast<uint32_t>(ts_ns % 1'000'000'000LL);

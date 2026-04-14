@@ -1,7 +1,5 @@
-// radar_driver.cpp
-// Implements UDP receive loop, binary frame deserialization, and conversion
-// of raw radar returns into cuas_msgs/RadarDetection ROS 2 messages.
-
+// @file radar_driver.cpp
+// @brief Translation unit placeholder for radar_driver.hpp.
 #include "cuas_fusion/drivers/radar_driver.hpp"
 
 namespace cuas {

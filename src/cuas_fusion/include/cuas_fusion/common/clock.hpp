@@ -1,10 +1,9 @@
-// clock.hpp
-// Centralized clock abstraction providing monotonic and ROS sim-time access,
-// used to stamp detections and synchronize multi-sensor data streams.
-
+// @file clock.hpp
+// @brief Monotonic nanosecond timestamp helper.
 #pragma once
 
-#include <cstdint>
+#include "cuas_fusion/common/fixed_types.hpp"
+
 #include <time.h>
 
 namespace cuas {

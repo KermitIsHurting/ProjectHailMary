@@ -1,14 +1,14 @@
-// inference_node.cpp
-// Thin ROS 2 wrapper around TrtDetector: subscribes to camera images,
-// runs YOLOv8 TensorRT inference, publishes Detection2DArray.
-
+// @file inference_node.cpp
+// @brief ROS 2 node wrapping TrtDetector for camera image input.
+#include "cuas_fusion/common/fixed_types.hpp"
+#include "cuas_fusion/common/ros_image_adapter.hpp"
 #include "cuas_fusion/inference/trt_detector.hpp"
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <vision_msgs/msg/detection2_d_array.hpp>
-#include <cv_bridge/cv_bridge.h>
 
+#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -20,9 +20,11 @@ public:
     InferenceNode()
     : Node("inference_node")
     {
-        declare_parameter<std::string>(
-            "engine_path",
-            std::string(getenv("HOME")) + "/ProjectHailMarry/models/yolov8s_int8.engine");
+        const char* home = std::getenv("HOME");
+        const std::string default_path =
+            std::string(home != nullptr ? home : "/root")
+            + "/ProjectHailMarry/models/yolov8s_int8.engine";
+        declare_parameter<std::string>("engine_path", default_path);
 
         const std::string engine_path = get_parameter("engine_path").as_string();
 
@@ -45,34 +47,35 @@ public:
 private:
     void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& msg)
     {
-        cv_bridge::CvImageConstPtr cv_ptr;
-        try {
-            cv_ptr = cv_bridge::toCvShare(msg, "bgr8");
-        } catch (const cv_bridge::Exception& e) {
-            RCLCPP_ERROR(get_logger(), "cv_bridge: %s", e.what());
+        cv::Mat frame;
+        if (!rosImageToBgr(*msg, frame)) {
+            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
+                "Unsupported image encoding '%s' or empty frame",
+                msg->encoding.c_str());
             return;
         }
 
         std::vector<BoundingBox> detections;
-        if (!detector_.infer(cv_ptr->image, detections)) {
+        if (!detector_.infer(frame, detections)) {
             return;
         }
 
         vision_msgs::msg::Detection2DArray out;
         out.header = msg->header;
 
-        for (const auto& bb : detections) {
+        for (std::size_t i = 0U; i < detections.size(); ++i) {
+            const BoundingBox& bb = detections[i];
             vision_msgs::msg::Detection2D det;
             det.header = msg->header;
 
-            det.bbox.center.position.x = static_cast<double>(bb.x + bb.w * 0.5f);
-            det.bbox.center.position.y = static_cast<double>(bb.y + bb.h * 0.5f);
-            det.bbox.size_x = static_cast<double>(bb.w);
-            det.bbox.size_y = static_cast<double>(bb.h);
+            det.bbox.center.position.x = static_cast<float64_t>(bb.x + bb.w * 0.5F);
+            det.bbox.center.position.y = static_cast<float64_t>(bb.y + bb.h * 0.5F);
+            det.bbox.size_x = static_cast<float64_t>(bb.w);
+            det.bbox.size_y = static_cast<float64_t>(bb.h);
 
             vision_msgs::msg::ObjectHypothesisWithPose hyp;
             hyp.hypothesis.class_id = std::to_string(bb.class_id);
-            hyp.hypothesis.score    = static_cast<double>(bb.confidence);
+            hyp.hypothesis.score    = static_cast<float64_t>(bb.confidence);
             det.results.push_back(hyp);
 
             out.detections.push_back(det);

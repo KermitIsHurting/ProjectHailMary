@@ -1,4 +1,10 @@
+// @file cuas_visualizer.hpp
+// @brief ROS 2 visualization node that renders tracks, trajectories, and PPI.
 #pragma once
+
+#include "cuas_fusion/common/constants.hpp"
+#include "cuas_fusion/common/fixed_containers.hpp"
+#include "cuas_fusion/common/fixed_types.hpp"
 
 #include <rclcpp/rclcpp.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
@@ -10,11 +16,12 @@
 #include <sensor_msgs/msg/image.hpp>
 
 #include <chrono>
-#include <map>
 #include <mutex>
 #include <string>
 
 namespace cuas {
+
+static constexpr uint32_t VIZ_MAX_CACHE_ENTRIES = 64U;
 
 class CuasVisualizerNode : public rclcpp::Node
 {
@@ -22,13 +29,18 @@ public:
     CuasVisualizerNode();
 
 private:
-    struct Color { double r, g, b, a; };
+    struct Color {
+        float64_t r = 0.0;
+        float64_t g = 0.0;
+        float64_t b = 0.0;
+        float64_t a = 0.0;
+    };
 
     struct CachedDetection {
         cuas_msgs::msg::FusedDetection detection;
-        float smooth_u = 0.0f;
-        float smooth_v = 0.0f;
-        int missed_frames = 0;
+        float32_t smooth_u     = 0.0F;
+        float32_t smooth_v     = 0.0F;
+        int32_t   missed_frames = 0;
     };
 
     void trackCallback(const cuas_msgs::msg::TrackArray::ConstSharedPtr& msg);
@@ -62,22 +74,18 @@ private:
     cuas_msgs::msg::FusedDetectionArray::ConstSharedPtr latest_fused_detections_;
     cuas_msgs::msg::ThreatReportArray::ConstSharedPtr latest_threats_;
     cuas_msgs::msg::TrackArray::ConstSharedPtr latest_tracks_;
-    std::map<uint32_t, cuas_msgs::msg::PredictedTrack> latest_predictions_;
-    std::map<uint32_t, cuas_msgs::msg::TrajectoryWaypoints> latest_trajectories_;
-    std::map<uint32_t, std::string> threat_levels_;
+    FixedMap<uint32_t, cuas_msgs::msg::PredictedTrack,      TRACK_MAX_TRACKS> latest_predictions_{};
+    FixedMap<uint32_t, cuas_msgs::msg::TrajectoryWaypoints, TRACK_MAX_TRACKS> latest_trajectories_{};
+    FixedMap<uint32_t, std::string,                         TRACK_MAX_TRACKS> threat_levels_{};
 
-    // Temporal smoothing cache (keyed by pixel_u rounded to 50)
-    std::map<int, CachedDetection> detection_cache_;
+    FixedMap<int32_t, CachedDetection,                         VIZ_MAX_CACHE_ENTRIES> detection_cache_{};
+    FixedMap<int32_t, std::chrono::steady_clock::time_point,   VIZ_MAX_CACHE_ENTRIES> zone_entry_times_{};
 
-    // Zone dwell timer (keyed by pixel_u rounded to 50)
-    std::map<int, std::chrono::steady_clock::time_point> zone_entry_times_;
-
-    // Display toggle parameters
-    bool show_prediction_arc_ = true;
-    bool show_track_table_ = true;
+    bool show_prediction_arc_  = true;
+    bool show_track_table_     = true;
     bool show_velocity_vector_ = true;
-    bool show_ppi_ = true;
-    bool show_zone_timer_ = true;
+    bool show_ppi_             = true;
+    bool show_zone_timer_      = true;
 };
 
 } // namespace cuas

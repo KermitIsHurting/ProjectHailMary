@@ -1,18 +1,16 @@
-// camera_driver.hpp
-// Low-level V4L2 camera capture with mmap: opens Tegra CSI device, grabs
-// raw BA10 Bayer frames, demosaics to BGR, timestamps with CLOCK_MONOTONIC.
-// Zero ROS dependency — usable in standalone tests.
-
+// @file camera_driver.hpp
+// @brief V4L2 MIPI CSI camera driver wrapping VIDIOC ioctls and mmap buffers.
 #pragma once
+
+#include "cuas_fusion/common/fixed_types.hpp"
 
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 #include <string>
-#include <cstdint>
 
 namespace cuas {
 
-static constexpr int V4L2_BUF_COUNT = 4;
+static constexpr int32_t V4L2_BUF_COUNT = 4;
 
 class CameraDriver {
 public:
@@ -27,10 +25,10 @@ public:
     void close();
 
 private:
-    int fd_;
-    void * buffers_[V4L2_BUF_COUNT];
+    int32_t  fd_;
+    void *   buffers_[V4L2_BUF_COUNT];
     uint32_t buf_lengths_[V4L2_BUF_COUNT];
-    bool streaming_;
+    bool     streaming_;
 };
 
 } // namespace cuas

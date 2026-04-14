@@ -1,62 +1,54 @@
+// @file imm_tracker.hpp
+// @brief IMM-filter-backed single-target tracker with confidence and maneuver outputs.
 #pragma once
 
+#include "cuas_fusion/common/constants.hpp"
+#include "cuas_fusion/common/fixed_types.hpp"
+#include "cuas_fusion/common/types.hpp"
 #include "cuas_fusion/estimation/imm_filter.hpp"
 
 #include <Eigen/Dense>
 #include <array>
-#include <cstdint>
-#include <string>
 
 namespace cuas {
 
-/// Per-track IMM-backed tracker with lifecycle management
 class IMMTracker {
 public:
-    IMMTracker(uint32_t track_id, double x, double y, double z, double timestamp);
+    IMMTracker() = default;
+    IMMTracker(uint32_t track_id,
+               float64_t x, float64_t y, float64_t z, float64_t timestamp);
 
-    /// Propagate filter forward by dt seconds
-    void predict(double dt);
-
-    /// Incorporate a new position measurement
-    void update(double x, double y, double z, double timestamp);
-
-    /// Current lifecycle state string
-    std::string getState() const;
-
-    /// Current estimated position (3x1)
+    void predict(float64_t dt);
+    void update(float64_t x, float64_t y, float64_t z, float64_t timestamp);
+    TrackState getState() const;
     Eigen::VectorXd getPosition() const;
-
-    /// Current estimated velocity (3x1)
     Eigen::VectorXd getVelocity() const;
-
-    /// Full 6x6 covariance
     Eigen::MatrixXd getCovariance() const;
-
-    /// IMM model weights [CV, CA, CT]
-    std::array<double, 3> getModelWeights() const;
-
-    /// Track identifier
+    std::array<float64_t, 3> getModelWeights() const;
     uint32_t getTrackId() const;
+    Eigen::MatrixXd getMixedF(float64_t dt) const;
+    Eigen::MatrixXd getMixedQ(float64_t dt) const;
+    float64_t lastUpdateTime() const;
 
-    /// Blended F matrix for predictor
-    Eigen::MatrixXd getMixedF(double dt) const;
-
-    /// Blended Q matrix for predictor
-    Eigen::MatrixXd getMixedQ(double dt) const;
-
-    /// Timestamp of last successful update
-    double lastUpdateTime() const;
+    float32_t getConfidence()    const { return confidence_; }
+    bool      isManeuvering()    const { return is_maneuvering_; }
+    float32_t getCtProbability() const { return imm_ct_probability_; }
 
 private:
-    ImmFilter imm_;
-    uint32_t track_id_;
-    std::string track_state_;
-    double last_update_time_;
-    int consecutive_hit_count_;
+    ImmFilter  imm_{};
+    uint32_t   track_id_              = 0U;
+    TrackState track_state_           = TrackState::TENTATIVE;
+    float64_t  last_update_time_      = 0.0;
+    int32_t    consecutive_hit_count_ = 0;
 
-    static constexpr int kConfirmHits = 5;
-    static constexpr double kOccludedTimeout = 0.5;
-    static constexpr double kLostTimeout = 5.0;
+    bool       is_maneuvering_       = false;
+    uint32_t   ct_dominant_frames_   = 0U;
+    float32_t  imm_ct_probability_   = 0.0F;
+    float32_t  confidence_           = kInitConfidence;
+
+    static constexpr int32_t   kConfirmHits     = 5;
+    static constexpr float64_t kOccludedTimeout = 0.5;
+    static constexpr float64_t kLostTimeout     = 5.0;
 };
 
 } // namespace cuas

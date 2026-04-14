@@ -1,49 +1,36 @@
+// @file kalman_ct.hpp
+// @brief Coordinated-turn Kalman filter with 7-state (pos, vel, omega).
 #pragma once
+
+#include "cuas_fusion/common/fixed_types.hpp"
 
 #include <Eigen/Dense>
 
 namespace cuas {
 
-/// Coordinated-Turn 7-state EKF with turn-rate estimation
 class KalmanCT {
 public:
     KalmanCT() = default;
 
-    /// Initialize state and covariance
     void init(const Eigen::VectorXd& x0, const Eigen::MatrixXd& P0);
-
-    /// Propagate state forward by dt seconds (nonlinear)
-    void predict(double dt);
-
-    /// Incorporate a position measurement z with noise R
+    void predict(float64_t dt);
     void update(const Eigen::VectorXd& z, const Eigen::MatrixXd& R);
-
-    /// Current state projected to 6-DOF [px, py, pz, vx, vy, vz]
     Eigen::VectorXd getState() const;
-
-    /// Current covariance projected to 6x6
     Eigen::MatrixXd getCovariance() const;
+    float64_t likelihood(const Eigen::VectorXd& z, const Eigen::MatrixXd& R) const;
+    Eigen::MatrixXd getF(float64_t dt) const;
+    Eigen::MatrixXd getQ(float64_t dt) const;
 
-    /// Measurement likelihood
-    double likelihood(const Eigen::VectorXd& z, const Eigen::MatrixXd& R) const;
-
-    /// State-transition Jacobian for given dt (projected to 6x6)
-    Eigen::MatrixXd getF(double dt) const;
-
-    /// Process-noise matrix for given dt (projected to 6x6)
-    Eigen::MatrixXd getQ(double dt) const;
-
-    /// Dimension of internal state
-    static constexpr int kStateDim = 7;
+    static constexpr int32_t kStateDim = 7;
 
 private:
     Eigen::VectorXd x_ = Eigen::VectorXd::Zero(7);
     Eigen::MatrixXd P_ = Eigen::MatrixXd::Identity(7, 7);
     bool initialized_ = false;
 
-    static constexpr double sigma_a_ = 0.5;
-    static constexpr double sigma_omega_ = 0.1;
-    static constexpr double omega_guard_ = 1e-6;
+    static constexpr float64_t sigma_a_     = 0.5;
+    static constexpr float64_t sigma_omega_ = 0.1;
+    static constexpr float64_t omega_guard_ = 1e-6;  // below this, linearise around zero turn
 };
 
 } // namespace cuas

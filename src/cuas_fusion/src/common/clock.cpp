@@ -1,7 +1,5 @@
-// clock.cpp
-// Implementation of the Clock abstraction: wraps ROS 2 time sources to
-// provide consistent timestamps across all sensor processing nodes.
-
+// @file clock.cpp
+// @brief Translation unit for clock.hpp; now_ns is defined inline.
 #include "cuas_fusion/common/clock.hpp"
 
 namespace cuas {

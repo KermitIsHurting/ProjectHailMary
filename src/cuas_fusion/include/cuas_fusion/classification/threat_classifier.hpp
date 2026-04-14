@@ -1,11 +1,12 @@
+// @file threat_classifier.hpp
+// @brief Threat level and escalation-state classifier over tracks.
 #pragma once
 
+#include "cuas_fusion/common/constants.hpp"
+#include "cuas_fusion/common/fixed_containers.hpp"
+#include "cuas_fusion/common/fixed_types.hpp"
 #include "cuas_fusion/common/types.hpp"
 #include "cuas_fusion/tracking/track.hpp"
-
-#include <cstdint>
-#include <string>
-#include <unordered_map>
 
 namespace cuas {
 
@@ -17,13 +18,23 @@ enum class EscalationState {
     ENGAGED
 };
 
-std::string escalationStateToString(EscalationState state);
+inline const char* escalationStateToString(EscalationState state)
+{
+    switch (state) {
+        case EscalationState::UNKNOWN:     { return "UNKNOWN"; }
+        case EscalationState::TRACKED:     { return "TRACKED"; }
+        case EscalationState::IDENTIFIED:  { return "IDENTIFIED"; }
+        case EscalationState::THREATENING: { return "THREATENING"; }
+        case EscalationState::ENGAGED:     { return "ENGAGED"; }
+        default:                           { return "UNKNOWN"; }
+    }
+}
 
 struct ClassificationResult {
-    ThreatLevel threat_level = ThreatLevel::UNKNOWN;
+    ThreatLevel     threat_level     = ThreatLevel::UNKNOWN;
     EscalationState escalation_state = EscalationState::UNKNOWN;
-    float quality_score = 0.0f;
-    float dwell_time_s = 0.0f;
+    float32_t       quality_score    = 0.0F;
+    float32_t       dwell_time_s     = 0.0F;
 };
 
 class ThreatClassifier {
@@ -32,23 +43,24 @@ public:
 
     bool init();
 
-    ClassificationResult classify(const Track& track, double current_time_s,
-                                  float threatening_range_m = 4.0f,
-                                  float threatening_velocity_mps = 0.3f,
-                                  float escalation_dwell_s = 1.0f);
+    ClassificationResult classify(const Track& track,
+                                  float64_t current_time_s,
+                                  float32_t threatening_range_m     = 4.0F,
+                                  float32_t threatening_velocity_mps = 0.3F,
+                                  float32_t escalation_dwell_s       = 1.0F);
 
-    void pruneStale(double current_time_s, double timeout_s = 5.0);
+    void pruneStale(float64_t current_time_s, float64_t timeout_s = 5.0);
 
 private:
     struct PerTrackState {
-        EscalationState state = EscalationState::UNKNOWN;
-        double first_seen_s = 0.0;
-        double identified_s = 0.0;
-        double threatening_s = 0.0;
-        double last_seen_s = 0.0;
+        EscalationState state          = EscalationState::UNKNOWN;
+        float64_t       first_seen_s   = 0.0;
+        float64_t       identified_s   = 0.0;
+        float64_t       threatening_s  = 0.0;
+        float64_t       last_seen_s    = 0.0;
     };
 
-    std::unordered_map<uint32_t, PerTrackState> states_;
+    FixedMap<uint32_t, PerTrackState, TRACK_MAX_TRACKS> states_{};
 };
 
 } // namespace cuas

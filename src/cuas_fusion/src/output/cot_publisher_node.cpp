@@ -1,9 +1,9 @@
-// cot_publisher_node.cpp
-// Publishes Cursor on Target (CoT) XML events over UDP multicast
-// for consumption by ATAK and other TAK-compatible systems.
-
+// @file cot_publisher_node.cpp
+// @brief ROS 2 node that emits Cursor-on-Target XML events over UDP multicast.
 #include <rclcpp/rclcpp.hpp>
 #include <cuas_msgs/msg/threat_report_array.hpp>
+
+#include "cuas_fusion/common/fixed_types.hpp"
 
 #include <arpa/inet.h>
 #include <sys/socket.h>
@@ -16,7 +16,6 @@
 #include <iomanip>
 #include <sstream>
 #include <string>
-#include <unordered_set>
 
 namespace cuas {
 
@@ -30,14 +29,13 @@ public:
             "/threat/reports", 5,
             std::bind(&CotPublisherNode::threatCallback, this, std::placeholders::_1));
 
-        // Create UDP socket
         sock_ = socket(AF_INET, SOCK_DGRAM, 0);
         if (sock_ < 0) {
             RCLCPP_ERROR(get_logger(), "CoT: socket() failed: %s", strerror(errno));
             return;
         }
 
-        // Set multicast TTL
+        // TTL 32 reaches LAN-wide ATAK endpoints without crossing the site router
         unsigned char ttl = 32;
         setsockopt(sock_, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
 
@@ -53,7 +51,9 @@ public:
 
     ~CotPublisherNode() override
     {
-        if (sock_ >= 0) close(sock_);
+        if (sock_ >= 0) {
+            (void)close(sock_);
+        }
     }
 
 private:
@@ -101,7 +101,9 @@ private:
 
     void sendUdp(const std::string& xml)
     {
-        if (sock_ < 0) return;
+        if (sock_ < 0) {
+            return;
+        }
         sendto(sock_, xml.data(), xml.size(), 0,
                reinterpret_cast<const sockaddr*>(&dest_), sizeof(dest_));
     }
@@ -112,7 +114,7 @@ private:
         double elapsed_s = std::chrono::duration<double>(now - last_threatening_send_).count();
         double full_elapsed_s = std::chrono::duration<double>(now - last_full_send_).count();
 
-        // Send THREATENING/ENGAGED tracks every 1.0s
+        // Threatening events fire at 1 Hz; a full sweep fires every 5 s
         if (elapsed_s >= 1.0) {
             for (const auto& report : msg->reports) {
                 if (report.escalation_state == "THREATENING" ||
@@ -123,7 +125,6 @@ private:
             last_threatening_send_ = now;
         }
 
-        // Send all tracks every 5.0s
         if (full_elapsed_s >= 5.0) {
             for (const auto& report : msg->reports) {
                 sendUdp(buildCotEvent(report));
@@ -133,7 +134,7 @@ private:
     }
 
     rclcpp::Subscription<cuas_msgs::msg::ThreatReportArray>::SharedPtr sub_;
-    int sock_ = -1;
+    int32_t sock_ = -1;
     struct sockaddr_in dest_{};
     std::chrono::steady_clock::time_point last_threatening_send_{};
     std::chrono::steady_clock::time_point last_full_send_{};

@@ -1,4 +1,10 @@
+// @file imm_tracker_node.cpp
+// @brief ROS 2 node wrapping IMMTracker for radar point-cloud input.
 #include "cuas_fusion/tracking/imm_tracker.hpp"
+#include "cuas_fusion/common/fixed_containers.hpp"
+#include "cuas_fusion/common/fixed_types.hpp"
+#include "cuas_fusion/common/constants.hpp"
+#include "cuas_fusion/common/types.hpp"
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
@@ -6,9 +12,9 @@
 #include <cuas_msgs/msg/track.hpp>
 #include <cuas_msgs/msg/track_array.hpp>
 
-#include <map>
 #include <cmath>
 #include <limits>
+#include <utility>
 
 namespace cuas {
 
@@ -17,7 +23,7 @@ class IMMTrackerNode : public rclcpp::Node
 public:
     IMMTrackerNode()
     : Node("imm_tracker_node")
-    , next_track_id_(1)
+    , next_track_id_(1U)
     {
         sub_ = create_subscription<sensor_msgs::msg::PointCloud2>(
             "/radar/detections", 10,
@@ -36,104 +42,119 @@ public:
     }
 
 private:
-    static constexpr double kAssociationGate = 0.8;
+    static constexpr float64_t kAssociationGate = 0.8;
 
     void radarCallback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg)
     {
-        double now = clock_->now().seconds();
+        const float64_t now = clock_->now().seconds();
 
         sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x");
         sensor_msgs::PointCloud2ConstIterator<float> iter_y(*msg, "y");
         sensor_msgs::PointCloud2ConstIterator<float> iter_z(*msg, "z");
 
         for (; iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
-            double px = *iter_x;
-            double py = *iter_y;
-            double pz = *iter_z;
+            const float64_t px = static_cast<float64_t>(*iter_x);
+            const float64_t py = static_cast<float64_t>(*iter_y);
+            const float64_t pz = static_cast<float64_t>(*iter_z);
 
-            uint32_t best_id = 0;
-            double best_dist = kAssociationGate;
+            uint32_t  best_id   = 0U;
+            float64_t best_dist = kAssociationGate;
 
-            for (auto& [id, tracker] : active_tracks_) {
-                Eigen::VectorXd pos = tracker.getPosition();
-                double dx = pos(0) - px;
-                double dy = pos(1) - py;
-                double dz = pos(2) - pz;
-                double d = std::sqrt(dx * dx + dy * dy + dz * dz);
+            for (uint32_t i = 0U; i < active_tracks_.slot_count(); ++i) {
+                auto& slot = active_tracks_.slots()[i];
+                if (!slot.occupied) {
+                    continue;
+                }
+                const Eigen::VectorXd pos = slot.value.getPosition();
+                const float64_t dx = pos(0) - px;
+                const float64_t dy = pos(1) - py;
+                const float64_t dz = pos(2) - pz;
+                const float64_t d  = std::sqrt(dx * dx + dy * dy + dz * dz);
                 if (d < best_dist) {
                     best_dist = d;
-                    best_id = id;
+                    best_id   = slot.key;
                 }
             }
 
-            if (best_id != 0) {
-                active_tracks_.at(best_id).update(px, py, pz, now);
+            if (best_id != 0U) {
+                IMMTracker* tracker = active_tracks_.find(best_id);
+                if (tracker != nullptr) {
+                    tracker->update(px, py, pz, now);
+                }
             } else {
-                uint32_t new_id = next_track_id_++;
-                active_tracks_.emplace(new_id, IMMTracker(new_id, px, py, pz, now));
+                const uint32_t new_id = next_track_id_;
+                ++next_track_id_;
+                IMMTracker fresh(new_id, px, py, pz, now);
+                if (!active_tracks_.insert_or_assign(new_id, fresh)) {
+                    RCLCPP_WARN_THROTTLE(get_logger(), *clock_, 1000,
+                        "IMM tracker capacity reached (%u), dropping detection",
+                        TRACK_MAX_TRACKS);
+                }
             }
         }
     }
 
     void publishTracks()
     {
-        double now = clock_->now().seconds();
-        double dt = now - last_predict_time_;
+        const float64_t now = clock_->now().seconds();
+        float64_t dt = now - last_predict_time_;
         last_predict_time_ = now;
-        if (dt <= 0.0) dt = 0.05;
-
-        std::vector<uint32_t> to_remove;
-
-        for (auto& [id, tracker] : active_tracks_) {
-            tracker.predict(dt);
-
-            double elapsed = now - tracker.lastUpdateTime();
-            std::string state = tracker.getState();
-
-            if ((state == "CONFIRMED" || state == "REACQUIRED") && elapsed > 0.5) {
-                // transition to OCCLUDED handled externally via state string
-            }
-            if (elapsed > 5.0) {
-                to_remove.push_back(id);
-            }
+        if (dt <= 0.0) {
+            dt = 0.05;
         }
 
-        for (auto id : to_remove) {
-            active_tracks_.erase(id);
+        active_tracks_.erase_if(
+            [&](uint32_t /*id*/, const IMMTracker& tracker) {
+                return (now - tracker.lastUpdateTime()) > 5.0;
+            });
+
+        for (uint32_t i = 0U; i < active_tracks_.slot_count(); ++i) {
+            auto& slot = active_tracks_.slots()[i];
+            if (!slot.occupied) {
+                continue;
+            }
+            slot.value.predict(dt);
         }
 
         cuas_msgs::msg::TrackArray out;
-        out.header.stamp = this->now();
+        out.header.stamp    = this->now();
         out.header.frame_id = "base_link";
 
-        for (const auto& [id, tracker] : active_tracks_) {
+        for (uint32_t i = 0U; i < active_tracks_.slot_count(); ++i) {
+            const auto& slot = active_tracks_.slots()[i];
+            if (!slot.occupied) {
+                continue;
+            }
+            const IMMTracker& tracker = slot.value;
             cuas_msgs::msg::Track t;
             t.track_id = tracker.getTrackId();
-            Eigen::VectorXd pos = tracker.getPosition();
-            Eigen::VectorXd vel = tracker.getVelocity();
+            const Eigen::VectorXd pos = tracker.getPosition();
+            const Eigen::VectorXd vel = tracker.getVelocity();
             t.position_x_m = static_cast<float>(pos(0));
             t.position_y_m = static_cast<float>(pos(1));
             t.position_z_m = static_cast<float>(pos(2));
             t.velocity_mps = static_cast<float>(vel.norm());
-            t.doppler_mps  = 0.0f;
+            t.doppler_mps  = 0.0F;
             t.class_label  = "unknown";
-            t.confidence   = 1.0f;
-            t.track_state  = tracker.getState();
-            t.timestamp_ns = static_cast<int64_t>(tracker.lastUpdateTime() * 1e9);
+            t.confidence   = tracker.getConfidence();
+            t.track_state  = trackStateToString(tracker.getState());
+            t.timestamp_ns = static_cast<int64_t>(tracker.lastUpdateTime() * 1.0e9);
+            t.is_maneuvering     = tracker.isManeuvering();
+            t.imm_ct_probability = tracker.getCtProbability();
             out.tracks.push_back(t);
         }
 
         pub_->publish(out);
     }
 
-    std::map<uint32_t, IMMTracker> active_tracks_;
+    FixedMap<uint32_t, IMMTracker, TRACK_MAX_TRACKS> active_tracks_;
     uint32_t next_track_id_;
 
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_;
     rclcpp::Publisher<cuas_msgs::msg::TrackArray>::SharedPtr pub_;
     rclcpp::TimerBase::SharedPtr timer_;
     std::shared_ptr<rclcpp::Clock> clock_;
-    double last_predict_time_;
+    float64_t last_predict_time_ = 0.0;
 };
 
 } // namespace cuas

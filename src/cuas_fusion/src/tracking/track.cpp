@@ -1,7 +1,5 @@
-// track.cpp
-// Implements Track state management: IMM filter integration, hit/miss
-// counter updates, state machine transitions, and unique ID assignment.
-
+// @file track.cpp
+// @brief Translation unit for track.hpp; Track is a plain aggregate.
 #include "cuas_fusion/tracking/track.hpp"
 
 namespace cuas {

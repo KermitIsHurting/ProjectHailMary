@@ -1,10 +1,8 @@
-// timestamp_associator.cpp
-// Implements nearest-neighbor camera-frame lookup for radar timestamp association.
-// Zero dynamic allocation — uses a fixed circular buffer of size TIMESTAMP_BUFFER_SIZE.
-
+// @file timestamp_associator.cpp
+// @brief Ring-buffer camera frame nearest-neighbour lookup by timestamp.
 #include "cuas_fusion/fusion/timestamp_associator.hpp"
+#include "cuas_fusion/common/fixed_types.hpp"
 
-#include <cstdio>
 #include <cstdlib>
 
 namespace cuas {
@@ -25,14 +23,14 @@ bool TimestampAssociator::findBestMatch(int64_t radar_ts_ns,
                                         int64_t& out_ts_ns) const
 {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (count_ == 0) {
+    if (count_ == 0U) {
         return false;
     }
 
-    size_t best = 0;
+    std::size_t best = 0U;
     int64_t min_delta = std::abs(buffer_[0].timestamp_ns - radar_ts_ns);
 
-    for (size_t i = 1; i < count_; ++i) {
+    for (std::size_t i = 1U; i < count_; ++i) {
         const int64_t delta = std::abs(buffer_[i].timestamp_ns - radar_ts_ns);
         if (delta < min_delta) {
             min_delta = delta;
@@ -41,9 +39,6 @@ bool TimestampAssociator::findBestMatch(int64_t radar_ts_ns,
     }
 
     if (min_delta > MAX_TIMESTAMP_DELTA_NS) {
-        fprintf(stderr,
-                "[TimestampAssociator] WARNING: best match delta %ldns exceeds 50ms limit\n",
-                static_cast<long>(min_delta));
         return false;
     }
 

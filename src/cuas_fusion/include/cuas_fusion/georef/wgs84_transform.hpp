@@ -1,7 +1,5 @@
-// wgs84_transform.hpp
-// Converts radar/sensor-frame Cartesian coordinates to WGS-84 geodetic
-// coordinates (lat/lon/alt) for geolocating tracks on a map display.
-
+// @file wgs84_transform.hpp
+// @brief Forward declaration placeholder for the WGS84 coordinate transform.
 #pragma once
 
 namespace cuas {

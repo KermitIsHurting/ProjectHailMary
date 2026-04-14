@@ -1,10 +1,16 @@
+// @file imm_tracker.cpp
+// @brief IMM tracker state machine with confidence decay and CT-driven maneuver detection.
 #include "cuas_fusion/tracking/imm_tracker.hpp"
+#include "cuas_fusion/common/constants.hpp"
+
+#include <algorithm>
 
 namespace cuas {
 
-IMMTracker::IMMTracker(uint32_t track_id, double x, double y, double z, double timestamp)
+IMMTracker::IMMTracker(uint32_t track_id,
+                       float64_t x, float64_t y, float64_t z, float64_t timestamp)
     : track_id_(track_id)
-    , track_state_("TENTATIVE")
+    , track_state_(TrackState::TENTATIVE)
     , last_update_time_(timestamp)
     , consecutive_hit_count_(1)
 {
@@ -20,39 +26,92 @@ IMMTracker::IMMTracker(uint32_t track_id, double x, double y, double z, double t
     imm_.init(x0, P0);
 }
 
-void IMMTracker::predict(double dt)
+void IMMTracker::predict(float64_t dt)
 {
     imm_.predict(dt);
 
-    double time_since = dt;
-    if (track_state_ == "CONFIRMED" || track_state_ == "REACQUIRED") {
-        // stays in current state during predict
-    } else if (track_state_ == "OCCLUDED") {
-        // check for LOST handled by caller via elapsed time
-    }
-}
+    // Decay fires every tick; update() adds a larger gain so a hit net-increases.
+    const float32_t decayed =
+        confidence_ - kConfidenceDecayRate * static_cast<float32_t>(dt);
+    confidence_ = std::max(kMinConfidence, decayed);
 
-void IMMTracker::update(double x, double y, double z, double timestamp)
-{
-    Eigen::VectorXd z_meas(3);
-    z_meas << x, y, z;
-    Eigen::MatrixXd R = Eigen::MatrixXd::Identity(3, 3);
-
-    imm_.update(z_meas, R);
-    last_update_time_ = timestamp;
-    consecutive_hit_count_++;
-
-    if (track_state_ == "OCCLUDED") {
-        track_state_ = "REACQUIRED";
-        consecutive_hit_count_ = 1;
-    } else if (track_state_ == "TENTATIVE") {
-        if (consecutive_hit_count_ >= kConfirmHits) {
-            track_state_ = "CONFIRMED";
+    switch (track_state_) {
+        case TrackState::CONFIRMED:
+        case TrackState::REACQUIRED:
+        case TrackState::OCCLUDED:
+        case TrackState::TENTATIVE:
+        case TrackState::COASTED:
+        case TrackState::LOST:
+        case TrackState::DELETED:
+        default: {
+            break;
         }
     }
 }
 
-std::string IMMTracker::getState() const { return track_state_; }
+void IMMTracker::update(float64_t x, float64_t y, float64_t z, float64_t timestamp)
+{
+    Eigen::VectorXd z_meas(3);
+    z_meas << x, y, z;
+    const Eigen::MatrixXd R = Eigen::MatrixXd::Identity(3, 3);
+
+    imm_.update(z_meas, R);
+
+    // Gain uses time since last measurement, not predict dt, so bursts of
+    // quick updates don't saturate confidence in a single tick.
+    const float64_t dt_since_hit = std::max(0.0, timestamp - last_update_time_);
+    last_update_time_ = timestamp;
+    ++consecutive_hit_count_;
+
+    const float32_t gained =
+        confidence_ + kConfidenceGainRate * static_cast<float32_t>(dt_since_hit);
+    confidence_ = std::min(1.0F, gained);
+
+    switch (track_state_) {
+        case TrackState::OCCLUDED: {
+            track_state_ = TrackState::REACQUIRED;
+            consecutive_hit_count_ = 1;
+            break;
+        }
+        case TrackState::TENTATIVE: {
+            if (consecutive_hit_count_ >= kConfirmHits) {
+                track_state_ = TrackState::CONFIRMED;
+                confidence_ = kConfirmedConfidence;
+            }
+            break;
+        }
+        case TrackState::CONFIRMED:
+        case TrackState::REACQUIRED:
+        case TrackState::COASTED:
+        case TrackState::LOST:
+        case TrackState::DELETED:
+        default: {
+            break;
+        }
+    }
+
+    const std::array<float64_t, 3> weights = imm_.getModelWeights();
+    const float64_t ct_prob = weights[2];
+    imm_ct_probability_ = static_cast<float32_t>(ct_prob);
+
+    if (ct_prob > kManeuverCtThreshold) {
+        ++ct_dominant_frames_;
+        if ((ct_dominant_frames_ >= kManeuverFramesRequired) && !is_maneuvering_) {
+            is_maneuvering_ = true;
+            imm_.setModelNoise(0U, kManeuverCvSigmaA);
+            imm_.setModelNoise(1U, kManeuverCaSigmaJ);
+        }
+    } else {
+        ct_dominant_frames_ = 0U;
+        if (is_maneuvering_) {
+            is_maneuvering_ = false;
+            imm_.setModelNoise(0U, kNominalCvSigmaA);
+            imm_.setModelNoise(1U, kNominalCaSigmaJ);
+        }
+    }
+}
+
+TrackState IMMTracker::getState() const { return track_state_; }
 
 Eigen::VectorXd IMMTracker::getPosition() const
 {
@@ -69,23 +128,23 @@ Eigen::MatrixXd IMMTracker::getCovariance() const
     return imm_.getCovariance();
 }
 
-std::array<double, 3> IMMTracker::getModelWeights() const
+std::array<float64_t, 3> IMMTracker::getModelWeights() const
 {
     return imm_.getModelWeights();
 }
 
 uint32_t IMMTracker::getTrackId() const { return track_id_; }
 
-Eigen::MatrixXd IMMTracker::getMixedF(double dt) const
+Eigen::MatrixXd IMMTracker::getMixedF(float64_t dt) const
 {
     return imm_.getMixedF(dt);
 }
 
-Eigen::MatrixXd IMMTracker::getMixedQ(double dt) const
+Eigen::MatrixXd IMMTracker::getMixedQ(float64_t dt) const
 {
     return imm_.getMixedQ(dt);
 }
 
-double IMMTracker::lastUpdateTime() const { return last_update_time_; }
+float64_t IMMTracker::lastUpdateTime() const { return last_update_time_; }
 
 } // namespace cuas

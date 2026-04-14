@@ -1,10 +1,7 @@
-// radar_parser_node.cpp
-// Standalone ROS 2 node for the TI IWR6843ISK radar datart.
-// Opens the radar data port at 921600 baud, syncs to the TI mmWave SDK binary
-// magic word, parses frame headers and TLV type-1 detected-point payloads,
-// publishes sensor_msgs/PointCloud2 to /radar/detections, and prints each
-// detection to stdout for hardware verification.
-// Parsing runs in a dedicated std::thread; the main thread spins ROS 2.
+// @file radar_parser_node.cpp
+// @brief IWR6843ISK frame parser with DBSCAN clustering and ROS publishing.
+#include "cuas_fusion/common/fixed_containers.hpp"
+#include "cuas_fusion/common/fixed_types.hpp"
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
@@ -14,75 +11,184 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <unistd.h>
-#include <cerrno>
-#include <cstring>
-#include <ctime>
-#include <cstdio>
-#include <cstdint>
+
+#include <algorithm>
 #include <array>
 #include <atomic>
+#include <cerrno>
+#include <cmath>
+#include <cstring>
+#include <ctime>
 #include <fstream>
-#include <stdexcept>
 #include <string>
 #include <thread>
-#include <vector>
-#include <algorithm>
 #include <utility>
+#include <vector>
 
 namespace cuas {
 
-// ---------------------------------------------------------------------------
-// Protocol constants
-// ---------------------------------------------------------------------------
+static constexpr float32_t CLUTTER_VEL_THRESH  = 0.1F;
+static constexpr float32_t MAX_RANGE_M         = 15.0F;
+static constexpr float32_t DBSCAN_EPS          = 0.7F;
+static constexpr int32_t   DBSCAN_MIN_PTS      = 2;
 
 static constexpr std::array<uint8_t, 8> MAGIC_WORD = {
     0x02, 0x01, 0x04, 0x03, 0x06, 0x05, 0x08, 0x07
 };
 
-static constexpr size_t   HEADER_SIZE              = 40;
-static constexpr uint32_t TLV_TYPE_DETECTED_POINTS = 1;
-static constexpr uint32_t MAX_PACKET_BYTES         = 65536;
-
-// ---------------------------------------------------------------------------
-// Packed structs matching TI mmWave SDK 3.x binary output format
-// ---------------------------------------------------------------------------
+static constexpr std::size_t HEADER_SIZE              = 40U;
+static constexpr uint32_t    TLV_TYPE_DETECTED_POINTS = 1U;
+static constexpr uint32_t    MAX_PACKET_BYTES         = 65536U;
 
 #pragma pack(push, 1)
 
-// 40-byte frame header (SDK 3.4+ / 3.6 layout confirmed from live capture)
-// SDK 3.4+ moved subFrameNumber to the END — numTLVs is at 32-35, subFrameNumber at 36-39.
+// SDK 3.4+ moved numTLVs before subFrameNumber
 struct FrameHeader {
-    uint8_t  magic[8];          // bytes  0– 7: 0x02010403 06050807
-    uint32_t version;           // bytes  8–11
-    uint32_t totalPacketLen;    // bytes 12–15: full packet size including this header
-    uint32_t platform;          // bytes 16–19
-    uint32_t frameNumber;       // bytes 20–23
-    uint32_t timeCpuCycles;     // bytes 24–27
-    uint32_t numDetectedObj;    // bytes 28–31
-    uint32_t numTLVs;           // bytes 32–35  (SDK 3.4+: numTLVs before subFrameNumber)
-    uint32_t subFrameNumber;    // bytes 36–39
+    uint8_t  magic[8];
+    uint32_t version;
+    uint32_t totalPacketLen;
+    uint32_t platform;
+    uint32_t frameNumber;
+    uint32_t timeCpuCycles;
+    uint32_t numDetectedObj;
+    uint32_t numTLVs;
+    uint32_t subFrameNumber;
 };
 static_assert(sizeof(FrameHeader) == HEADER_SIZE, "FrameHeader must be exactly 40 bytes");
 
-// 8-byte TLV tag-length prefix
 struct TlvHeader {
-    uint32_t type;    // TLV type identifier
-    uint32_t length;  // payload length in bytes (excludes this header)
+    uint32_t type;
+    uint32_t length;  // payload length excludes this header
 };
 
-// One detected point from TLV type 1 (Cartesian, SDK DPIF_PointCloudCartesian)
 struct DetectedPoint {
-    float x;        // metres, positive = forward (broadside)
-    float y;        // metres, positive = left
-    float z;        // metres, positive = up
-    float doppler;  // m/s, positive = approaching
+    float32_t x;
+    float32_t y;
+    float32_t z;
+    float32_t doppler;  // positive = approaching
 };
 
 #pragma pack(pop)
 
-// ---------------------------------------------------------------------------
-// RadarParserNode
-// ---------------------------------------------------------------------------
+static std::vector<DetectedPoint> filterPoints(const std::vector<DetectedPoint>& raw)
+{
+    std::vector<DetectedPoint> out;
+    out.reserve(raw.size());
+    for (std::size_t i = 0U; i < raw.size(); ++i) {
+        const DetectedPoint& p = raw[i];
+        const float32_t range = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+        if (range > MAX_RANGE_M) {
+            continue;
+        }
+        if (std::abs(p.doppler) < CLUTTER_VEL_THRESH) {
+            continue;
+        }
+        out.push_back(p);
+    }
+    return out;
+}
+
+static float32_t pointDist(const DetectedPoint& a, const DetectedPoint& b)
+{
+    const float32_t dx = a.x - b.x;
+    const float32_t dy = a.y - b.y;
+    const float32_t dz = a.z - b.z;
+    return std::sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+static std::vector<DetectedPoint> dbscanCluster(const std::vector<DetectedPoint>& pts)
+{
+    const int32_t n = static_cast<int32_t>(pts.size());
+    if (n == 0) {
+        return {};
+    }
+
+    // label 0 marks noise, -1 means unvisited, >0 is a cluster id
+    std::vector<int32_t> label(static_cast<std::size_t>(n), -1);
+    int32_t cluster_id = 0;
+
+    for (int32_t i = 0; i < n; ++i) {
+        if (label[static_cast<std::size_t>(i)] != -1) {
+            continue;
+        }
+
+        std::vector<int32_t> neighbors;
+        for (int32_t j = 0; j < n; ++j) {
+            if (pointDist(pts[static_cast<std::size_t>(i)],
+                          pts[static_cast<std::size_t>(j)]) <= DBSCAN_EPS) {
+                neighbors.push_back(j);
+            }
+        }
+
+        if (static_cast<int32_t>(neighbors.size()) < DBSCAN_MIN_PTS) {
+            label[static_cast<std::size_t>(i)] = 0;
+            continue;
+        }
+
+        ++cluster_id;
+        label[static_cast<std::size_t>(i)] = cluster_id;
+
+        for (std::size_t qi = 0U; qi < neighbors.size(); ++qi) {
+            const int32_t q = neighbors[qi];
+            if (label[static_cast<std::size_t>(q)] == 0) {
+                label[static_cast<std::size_t>(q)] = cluster_id;
+            }
+            if (label[static_cast<std::size_t>(q)] != -1) {
+                continue;
+            }
+            label[static_cast<std::size_t>(q)] = cluster_id;
+
+            for (int32_t j = 0; j < n; ++j) {
+                if (pointDist(pts[static_cast<std::size_t>(q)],
+                              pts[static_cast<std::size_t>(j)]) <= DBSCAN_EPS) {
+                    bool already = false;
+                    for (std::size_t k = 0U; k < neighbors.size(); ++k) {
+                        if (neighbors[k] == j) {
+                            already = true;
+                            break;
+                        }
+                    }
+                    if (!already) {
+                        neighbors.push_back(j);
+                    }
+                }
+            }
+        }
+    }
+
+    std::vector<DetectedPoint> centroids;
+    for (int32_t c = 1; c <= cluster_id; ++c) {
+        float32_t sx = 0.0F;
+        float32_t sy = 0.0F;
+        float32_t sz = 0.0F;
+        float32_t sv = 0.0F;
+        int32_t   cnt = 0;
+        for (int32_t i = 0; i < n; ++i) {
+            if (label[static_cast<std::size_t>(i)] == c) {
+                sx += pts[static_cast<std::size_t>(i)].x;
+                sy += pts[static_cast<std::size_t>(i)].y;
+                sz += pts[static_cast<std::size_t>(i)].z;
+                sv += pts[static_cast<std::size_t>(i)].doppler;
+                ++cnt;
+            }
+        }
+        if (cnt > 0) {
+            const float32_t fn = static_cast<float32_t>(cnt);
+            centroids.push_back({sx / fn, sy / fn, sz / fn, sv / fn});
+        }
+    }
+
+    // Fall back to noise singletons when no clusters formed so the stage never drops frames silently
+    if (centroids.empty()) {
+        for (int32_t i = 0; i < n; ++i) {
+            if (label[static_cast<std::size_t>(i)] == 0) {
+                centroids.push_back(pts[static_cast<std::size_t>(i)]);
+            }
+        }
+    }
+
+    return centroids;
+}
 
 class RadarParserNode : public rclcpp::Node
 {
@@ -93,17 +199,17 @@ public:
         declare_parameter("data_port", std::string("/dev/radar_data"));
         declare_parameter("config_port", std::string("/dev/radar_config"));
 
-        data_port_ = get_parameter("data_port").as_string();
+        data_port_   = get_parameter("data_port").as_string();
         config_port_ = get_parameter("config_port").as_string();
 
         if (access(data_port_.c_str(), F_OK) != 0) {
             RCLCPP_WARN(get_logger(),
                 "Port %s not found, attempting auto-detection...",
                 data_port_.c_str());
-            auto [dp, cp] = detectRadarPorts();
-            if (!dp.empty()) {
-                data_port_ = dp;
-                config_port_ = cp;
+            auto ports = detectRadarPorts();
+            if (!ports.first.empty()) {
+                data_port_   = ports.first;
+                config_port_ = ports.second;
                 RCLCPP_INFO(get_logger(),
                     "Auto-detected: data=%s  config=%s",
                     data_port_.c_str(), config_port_.c_str());
@@ -111,9 +217,14 @@ public:
         }
 
         port_ = data_port_;
-        pub_ = create_publisher<sensor_msgs::msg::PointCloud2>("/radar/detections", 10);
+        pub_  = create_publisher<sensor_msgs::msg::PointCloud2>("/radar/detections", 10);
 
-        open_port();
+        if (!open_port()) {
+            RCLCPP_FATAL(get_logger(),
+                "Failed to open radar serial port %s — shutting down",
+                port_.c_str());
+            return;
+        }
 
         running_ = true;
         parse_thread_ = std::thread(&RadarParserNode::parse_loop, this);
@@ -129,148 +240,146 @@ public:
             parse_thread_.join();
         }
         if (fd_ >= 0) {
-            close(fd_);
+            (void)close(fd_);
             fd_ = -1;
         }
     }
 
 private:
-    // -----------------------------------------------------------------------
-    // Auto-detect CP210x radar ports via sysfs VID
-    // -----------------------------------------------------------------------
     std::pair<std::string, std::string> detectRadarPorts()
     {
         std::vector<std::string> radar_ports;
-        for (int i = 0; i <= 9; ++i) {
-            std::string port = "/dev/ttyUSB" + std::to_string(i);
-            if (access(port.c_str(), F_OK) != 0) continue;
-            std::string base = "/sys/class/tty/ttyUSB"
+        for (int32_t i = 0; i <= 9; ++i) {
+            const std::string port = "/dev/ttyUSB" + std::to_string(i);
+            if (access(port.c_str(), F_OK) != 0) {
+                continue;
+            }
+            const std::string base = "/sys/class/tty/ttyUSB"
                                + std::to_string(i) + "/device/../";
             std::ifstream vid_file(base + "idVendor");
             std::ifstream pid_file(base + "idProduct");
-            std::string vid, pid;
-            if (vid_file >> vid && pid_file >> pid
+            std::string vid;
+            std::string pid;
+            // CP210x on the IWR6843ISK reports VID=10c4 PID=ea70
+            if ((vid_file >> vid) && (pid_file >> pid)
                 && vid == "10c4" && pid == "ea70") {
                 radar_ports.push_back(port);
             }
         }
-        if (radar_ports.size() < 2) {
+        if (radar_ports.size() < 2U) {
             RCLCPP_ERROR(get_logger(),
                 "Radar auto-detect failed: found %zu CP210x ports, need 2",
                 radar_ports.size());
             return {"", ""};
         }
         std::sort(radar_ports.begin(), radar_ports.end());
+        // Lower ttyUSB index is the data port, higher is the config port
         return {radar_ports[0], radar_ports[1]};
     }
 
-    // -----------------------------------------------------------------------
-    // Serial port initialisation (POSIX termios, 921600 8N1 raw)
-    // -----------------------------------------------------------------------
-    void open_port()
+    bool open_port()
     {
         fd_ = ::open(port_.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
         if (fd_ < 0) {
-            throw std::runtime_error(
-                "Cannot open serial port " + port_ + ": " + strerror(errno));
+            RCLCPP_ERROR(get_logger(),
+                "Cannot open serial port %s: %s",
+                port_.c_str(), strerror(errno));
+            return false;
         }
 
         struct termios tty{};
         if (tcgetattr(fd_, &tty) != 0) {
-            throw std::runtime_error(
-                std::string("tcgetattr failed: ") + strerror(errno));
+            RCLCPP_ERROR(get_logger(),
+                "tcgetattr failed: %s", strerror(errno));
+            return false;
         }
 
-        // Raw mode — no special character processing
         cfmakeraw(&tty);
 
-        // 921600 baud
         if (cfsetispeed(&tty, B921600) != 0 || cfsetospeed(&tty, B921600) != 0) {
-            throw std::runtime_error("cfsetspeed B921600 failed — check kernel support");
+            RCLCPP_ERROR(get_logger(),
+                "cfsetspeed B921600 failed — check kernel support");
+            return false;
         }
 
-        // 8N1, no flow control
         tty.c_cflag |=  (CLOCAL | CREAD);
         tty.c_cflag &= ~CSTOPB;
         tty.c_cflag &= ~CRTSCTS;
 
-        // Blocking read: return as soon as ≥1 byte is available
         tty.c_cc[VMIN]  = 1;
         tty.c_cc[VTIME] = 0;
 
         if (tcsetattr(fd_, TCSANOW, &tty) != 0) {
-            throw std::runtime_error(
-                std::string("tcsetattr failed: ") + strerror(errno));
+            RCLCPP_ERROR(get_logger(),
+                "tcsetattr failed: %s", strerror(errno));
+            return false;
         }
 
-        tcflush(fd_, TCIFLUSH);
+        (void)tcflush(fd_, TCIFLUSH);
+        return true;
     }
 
-    // -----------------------------------------------------------------------
-    // Read exactly n bytes into buf; returns false if running_ goes false
-    // -----------------------------------------------------------------------
-    bool read_exact(uint8_t * buf, size_t n)
+    bool read_exact(uint8_t * buf, std::size_t n)
     {
-        size_t total = 0;
+        std::size_t total = 0U;
         while (total < n) {
-            if (!running_) return false;
-            ssize_t r = ::read(fd_, buf + total, n - total);
+            if (!running_) {
+                return false;
+            }
+            const ssize_t r = ::read(fd_, buf + total, n - total);
             if (r < 0) {
-                if (errno == EINTR) continue;
+                if (errno == EINTR) {
+                    continue;
+                }
                 RCLCPP_ERROR(get_logger(), "Serial read error: %s", strerror(errno));
                 return false;
             }
-            total += static_cast<size_t>(r);
+            total += static_cast<std::size_t>(r);
         }
         return true;
     }
 
-    // -----------------------------------------------------------------------
-    // Slide a byte at a time until the 8-byte magic word is matched
-    // -----------------------------------------------------------------------
     bool sync_to_magic()
     {
-        size_t matched = 0;
+        std::size_t matched = 0U;
         while (running_) {
-            uint8_t byte;
-            if (!read_exact(&byte, 1)) return false;
+            uint8_t byte = 0U;
+            if (!read_exact(&byte, 1U)) {
+                return false;
+            }
 
             if (byte == MAGIC_WORD[matched]) {
-                if (++matched == MAGIC_WORD.size()) return true;
+                ++matched;
+                if (matched == MAGIC_WORD.size()) {
+                    return true;
+                }
             } else {
-                // Restart match; check if this byte is the start of a new sequence
-                matched = (byte == MAGIC_WORD[0]) ? 1 : 0;
+                // Mismatched byte might itself start a new magic sequence
+                matched = (byte == MAGIC_WORD[0]) ? 1U : 0U;
             }
         }
         return false;
     }
 
-    // -----------------------------------------------------------------------
-    // CLOCK_MONOTONIC timestamp → builtin_interfaces::msg::Time
-    // -----------------------------------------------------------------------
     static builtin_interfaces::msg::Time monotonic_stamp()
     {
         struct timespec ts{};
-        clock_gettime(CLOCK_MONOTONIC, &ts);
+        (void)clock_gettime(CLOCK_MONOTONIC, &ts);
         builtin_interfaces::msg::Time t;
-        t.sec    = static_cast<int32_t>(ts.tv_sec);
+        t.sec     = static_cast<int32_t>(ts.tv_sec);
         t.nanosec = static_cast<uint32_t>(ts.tv_nsec);
         return t;
     }
 
-    // -----------------------------------------------------------------------
-    // Main parse loop — runs in parse_thread_
-    // -----------------------------------------------------------------------
     void parse_loop()
     {
         RCLCPP_INFO(get_logger(), "Parse thread running");
 
         while (running_) {
-            // ---- 1. synchronise to magic word ----
-            if (!sync_to_magic()) break;
+            if (!sync_to_magic()) {
+                break;
+            }
 
-            // ---- 2. read the remaining 32 bytes of the 40-byte header ----
-            //         (magic is already consumed, so we copy it in manually)
             uint8_t hdr_buf[HEADER_SIZE];
             std::memcpy(hdr_buf, MAGIC_WORD.data(), MAGIC_WORD.size());
 
@@ -279,9 +388,8 @@ private:
                 break;
             }
 
-            const auto & hdr = *reinterpret_cast<const FrameHeader *>(hdr_buf);
+            const FrameHeader& hdr = *reinterpret_cast<const FrameHeader *>(hdr_buf);
 
-            // ---- 3. validate packet length ----
             if (hdr.totalPacketLen < HEADER_SIZE ||
                 hdr.totalPacketLen > MAX_PACKET_BYTES)
             {
@@ -293,28 +401,27 @@ private:
 
             const uint32_t payload_len = hdr.totalPacketLen - HEADER_SIZE;
 
-            // ---- 4. read TLV payload ----
             std::vector<uint8_t> payload(payload_len);
-            if (!read_exact(payload.data(), payload_len)) break;
+            if (!read_exact(payload.data(), payload_len)) {
+                break;
+            }
 
-            // ---- 5. timestamp at last-byte-received (CLOCK_MONOTONIC) ----
             const auto stamp = monotonic_stamp();
 
-            // ---- 6. parse TLVs ----
             std::vector<DetectedPoint> points;
-            size_t offset = 0;
+            std::size_t offset = 0U;
 
-            for (uint32_t tlv_idx = 0;
+            for (uint32_t tlv_idx = 0U;
                  tlv_idx < hdr.numTLVs && offset + sizeof(TlvHeader) <= payload_len;
                  ++tlv_idx)
             {
-                const auto & tlv =
+                const TlvHeader& tlv =
                     *reinterpret_cast<const TlvHeader *>(payload.data() + offset);
                 offset += sizeof(TlvHeader);
 
                 if (tlv.type == TLV_TYPE_DETECTED_POINTS) {
-                    const size_t num_pts = tlv.length / sizeof(DetectedPoint);
-                    for (size_t i = 0;
+                    const std::size_t num_pts = tlv.length / sizeof(DetectedPoint);
+                    for (std::size_t i = 0U;
                          i < num_pts && offset + sizeof(DetectedPoint) <= payload_len;
                          ++i)
                     {
@@ -324,42 +431,35 @@ private:
                         offset += sizeof(DetectedPoint);
                     }
                 } else {
-                    // skip unknown TLV
-                    if (offset + tlv.length > payload_len) break;
+                    if (offset + tlv.length > payload_len) {
+                        break;
+                    }
                     offset += tlv.length;
                 }
             }
 
-            // ---- 7. print to terminal for hardware verification ----
-            std::printf("[Frame %5u] detections: %zu\n",
-                        hdr.frameNumber, points.size());
-            for (size_t i = 0; i < points.size(); ++i) {
-                std::printf("  [%2zu]  x=%7.2f m  y=%7.2f m  z=%7.2f m  vel=%6.2f m/s\n",
-                            i,
-                            points[i].x, points[i].y,
-                            points[i].z, points[i].doppler);
-            }
-            if (!points.empty()) std::fflush(stdout);
+            const auto filtered = filterPoints(points);
+            const auto clusters = dbscanCluster(filtered);
 
-            // ---- 8. publish PointCloud2 ----
-            if (!points.empty()) {
-                publish_cloud(points, stamp);
+            RCLCPP_DEBUG(get_logger(),
+                "[Frame %5u] raw=%zu filtered=%zu clusters=%zu",
+                hdr.frameNumber, points.size(), filtered.size(), clusters.size());
+
+            if (!clusters.empty()) {
+                publish_cloud(clusters, stamp);
             }
         }
 
         RCLCPP_INFO(get_logger(), "Parse thread exited");
     }
 
-    // -----------------------------------------------------------------------
-    // Build and publish sensor_msgs/PointCloud2
-    // -----------------------------------------------------------------------
     void publish_cloud(const std::vector<DetectedPoint> & points,
                        const builtin_interfaces::msg::Time & stamp)
     {
         sensor_msgs::msg::PointCloud2 msg;
         msg.header.stamp    = stamp;
         msg.header.frame_id = "radar_frame";
-        msg.height          = 1;
+        msg.height          = 1U;
         msg.width           = static_cast<uint32_t>(points.size());
         msg.is_dense        = false;
         msg.is_bigendian    = false;
@@ -378,23 +478,20 @@ private:
         sensor_msgs::PointCloud2Iterator<float> it_z(msg, "z");
         sensor_msgs::PointCloud2Iterator<float> it_v(msg, "velocity");
 
-        for (const auto & p : points) {
-            *it_x = p.x;       ++it_x;
-            *it_y = p.y;       ++it_y;
-            *it_z = p.z;       ++it_z;
-            *it_v = p.doppler; ++it_v;
+        for (std::size_t i = 0U; i < points.size(); ++i) {
+            *it_x = points[i].x;       ++it_x;
+            *it_y = points[i].y;       ++it_y;
+            *it_z = points[i].z;       ++it_z;
+            *it_v = points[i].doppler; ++it_v;
         }
 
         pub_->publish(msg);
     }
 
-    // -----------------------------------------------------------------------
-    // Members
-    // -----------------------------------------------------------------------
     std::string  data_port_;
     std::string  config_port_;
     std::string  port_;
-    int          fd_;
+    int32_t      fd_;
     std::atomic<bool> running_;
     std::thread  parse_thread_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_;
@@ -402,9 +499,6 @@ private:
 
 } // namespace cuas
 
-// ---------------------------------------------------------------------------
-// main — ROS 2 spins on the main thread; parser runs in a dedicated thread
-// ---------------------------------------------------------------------------
 int main(int argc, char ** argv)
 {
     rclcpp::init(argc, argv);

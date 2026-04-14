@@ -1,7 +1,5 @@
-// wgs84_transform.cpp
-// Implements the ECEF <-> WGS-84 geodetic conversion and sensor-frame-to-ECEF
-// rotation using the sensor's known GPS position and orientation.
-
+// @file wgs84_transform.cpp
+// @brief Translation unit placeholder for wgs84_transform.hpp.
 #include "cuas_fusion/georef/wgs84_transform.hpp"
 
 namespace cuas {

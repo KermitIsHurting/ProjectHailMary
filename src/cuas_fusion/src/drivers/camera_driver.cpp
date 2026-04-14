@@ -1,10 +1,8 @@
-// camera_driver.cpp
-// V4L2 mmap capture for Tegra CSI cameras: opens device, requests BA10
-// format at configured resolution, maps buffers, grabs frames, demosaics
-// BayerGB to BGR, stamps CLOCK_MONOTONIC.
-
+// @file camera_driver.cpp
+// @brief V4L2 MIPI CSI capture to BGR conversion pipeline.
 #include "cuas_fusion/drivers/camera_driver.hpp"
 #include "cuas_fusion/common/constants.hpp"
+#include "cuas_fusion/common/fixed_types.hpp"
 
 #include <linux/videodev2.h>
 #include <sys/ioctl.h>
@@ -39,7 +37,6 @@ bool CameraDriver::open(const std::string & device_path)
         return false;
     }
 
-    // Set format: BA10 at configured resolution
     struct v4l2_format fmt{};
     fmt.type                = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     fmt.fmt.pix.width       = CAMERA_WIDTH;
@@ -53,14 +50,12 @@ bool CameraDriver::open(const std::string & device_path)
         return false;
     }
 
-    // Set framerate
     struct v4l2_streamparm parm{};
     parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     parm.parm.capture.timeperframe.numerator   = 1;
     parm.parm.capture.timeperframe.denominator = CAMERA_FPS;
     ioctl(fd_, VIDIOC_S_PARM, &parm);  // best-effort
 
-    // Request mmap buffers
     struct v4l2_requestbuffers req{};
     req.count  = V4L2_BUF_COUNT;
     req.type   = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -72,7 +67,6 @@ bool CameraDriver::open(const std::string & device_path)
         return false;
     }
 
-    // Map buffers and queue them
     for (uint32_t i = 0; i < req.count && i < V4L2_BUF_COUNT; ++i) {
         struct v4l2_buffer buf{};
         buf.type   = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -101,8 +95,7 @@ bool CameraDriver::open(const std::string & device_path)
         }
     }
 
-    // Start streaming
-    int type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    int32_t type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (ioctl(fd_, VIDIOC_STREAMON, &type) < 0) {
         close();
         return false;
@@ -118,7 +111,6 @@ bool CameraDriver::grabFrame(cv::Mat & out_bgr, int64_t & timestamp_ns)
         return false;
     }
 
-    // Dequeue a filled buffer
     struct v4l2_buffer buf{};
     buf.type   = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     buf.memory = V4L2_MEMORY_MMAP;
@@ -127,25 +119,22 @@ bool CameraDriver::grabFrame(cv::Mat & out_bgr, int64_t & timestamp_ns)
         return false;
     }
 
-    // Timestamp immediately after dequeue
     struct timespec ts{};
     clock_gettime(CLOCK_MONOTONIC, &ts);
     timestamp_ns = static_cast<int64_t>(ts.tv_sec) * 1'000'000'000LL
                  + static_cast<int64_t>(ts.tv_nsec);
 
-    // Wrap raw buffer as 16-bit single-channel Mat (BA10 is 10-bit in 16-bit words)
+    // BA10 is 10-bit data packed in 16-bit words — wrap as CV_16UC1 without copy
     cv::Mat raw16(CAMERA_HEIGHT, CAMERA_WIDTH, CV_16UC1,
                   buffers_[buf.index]);
 
-    // Subtract sensor black level, then demosaic at 16-bit precision
     cv::Mat raw_sub;
     cv::subtract(raw16, cv::Scalar(CAMERA_BLACK_LEVEL), raw_sub);
 
     cv::Mat bgr16;
     cv::cvtColor(raw_sub, bgr16, cv::COLOR_BayerGB2BGR);
 
-    // Apply per-channel WB gains and tone-map to 8-bit.
-    // CAMERA_TONE_SCALE maps the typical scene range to 0-255.
+    // Per-channel WB gains convert black-subtracted 16-bit Bayer down to 8-bit BGR
     cv::Mat channels[3];
     cv::split(bgr16, channels);
     channels[0].convertTo(channels[0], CV_8UC1, CAMERA_WB_GAIN_B * CAMERA_TONE_SCALE);
@@ -153,7 +142,6 @@ bool CameraDriver::grabFrame(cv::Mat & out_bgr, int64_t & timestamp_ns)
     channels[2].convertTo(channels[2], CV_8UC1, CAMERA_WB_GAIN_R * CAMERA_TONE_SCALE);
     cv::merge(channels, 3, out_bgr);
 
-    // Re-queue the buffer
     if (ioctl(fd_, VIDIOC_QBUF, &buf) < 0) {
         return false;
     }
@@ -163,15 +151,17 @@ bool CameraDriver::grabFrame(cv::Mat & out_bgr, int64_t & timestamp_ns)
 
 void CameraDriver::close()
 {
-    if (fd_ < 0) return;
+    if (fd_ < 0) {
+        return;
+    }
 
     if (streaming_) {
-        int type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        int32_t type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         ioctl(fd_, VIDIOC_STREAMOFF, &type);
         streaming_ = false;
     }
 
-    for (int i = 0; i < V4L2_BUF_COUNT; ++i) {
+    for (int32_t i = 0; i < V4L2_BUF_COUNT; ++i) {
         if (buffers_[i] && buffers_[i] != MAP_FAILED) {
             munmap(buffers_[i], buf_lengths_[i]);
             buffers_[i] = nullptr;

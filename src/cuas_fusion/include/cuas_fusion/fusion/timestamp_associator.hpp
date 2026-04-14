@@ -1,15 +1,13 @@
-// timestamp_associator.hpp
-// Aligns camera frames with radar detections by finding the camera frame
-// whose CLOCK_MONOTONIC timestamp is nearest to a given radar timestamp.
-
+// @file timestamp_associator.hpp
+// @brief Ring-buffer camera-frame lookup matched to radar timestamps.
 #pragma once
 
+#include "cuas_fusion/common/constants.hpp"
+#include "cuas_fusion/common/fixed_types.hpp"
+
 #include <array>
-#include <cstdint>
 #include <mutex>
 #include <opencv2/core.hpp>
-
-#include "cuas_fusion/common/constants.hpp"
 
 namespace cuas {
 
@@ -27,8 +25,8 @@ private:
     };
 
     std::array<Entry, TIMESTAMP_BUFFER_SIZE> buffer_{};
-    size_t head_  = 0;
-    size_t count_ = 0;
+    std::size_t head_  = 0U;
+    std::size_t count_ = 0U;
     mutable std::mutex mutex_;
 };
 

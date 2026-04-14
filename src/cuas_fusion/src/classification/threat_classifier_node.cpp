@@ -1,3 +1,5 @@
+// @file threat_classifier_node.cpp
+// @brief ROS 2 node wrapping ThreatClassifier and publishing threat reports.
 #include "cuas_fusion/classification/threat_classifier.hpp"
 #include "cuas_fusion/common/types.hpp"
 #include "cuas_fusion/tracking/track.hpp"
@@ -26,7 +28,6 @@ public:
             return;
         }
 
-        // Load parameters
         declare_parameter("threatening_range_m", 4.0);
         declare_parameter("threatening_velocity_mps", 0.3);
         declare_parameter("zone_radius_m", 3.0);
@@ -50,7 +51,9 @@ public:
             std::bind(&ClassifierNode::fusedCallback, this, std::placeholders::_1));
 
         RCLCPP_INFO(get_logger(), "Classifier node ready (range=%.1f vel=%.1f zone=%.1f)",
-                     threatening_range_m_, threatening_velocity_mps_, zone_radius_m_);
+                     static_cast<double>(threatening_range_m_),
+                     static_cast<double>(threatening_velocity_mps_),
+                     static_cast<double>(zone_radius_m_));
     }
 
 private:
@@ -67,7 +70,6 @@ private:
         cuas_msgs::msg::ThreatReportArray out;
         out.header = msg->header;
 
-        // Snapshot fused detections
         cuas_msgs::msg::FusedDetectionArray::ConstSharedPtr fused;
         {
             std::lock_guard<std::mutex> lock(fused_mutex_);
@@ -84,11 +86,9 @@ private:
             t.doppler_mps_   = tm.doppler_mps;
             t.class_label_   = tm.class_label;
             t.confidence_    = tm.confidence;
-            t.state_         = (tm.track_state == "CONFIRMED") ? TrackState::CONFIRMED
-                                                                : TrackState::TENTATIVE;
+            t.state_         = trackStateFromString(tm.track_state);
             t.timestamp_ns_  = tm.timestamp_ns;
 
-            // Look up nearest FusedDetection by azimuth to get class label
             const cuas_msgs::msg::FusedDetection* matched_fd = nullptr;
             if (fused && !fused->detections.empty()) {
                 float track_az = std::atan2(tm.position_x_m, tm.position_y_m)
@@ -117,19 +117,18 @@ private:
             if (!logged_first_ && !t.class_label_.empty()) {
                 RCLCPP_INFO(get_logger(),
                     "First classification: track_id=%u class_label='%s' vel=%.2f -> %s esc=%s q=%.2f",
-                    t.track_id_, t.class_label_.c_str(), t.velocity_mps_,
-                    threatLevelToString(cr.threat_level).c_str(),
-                    escalationStateToString(cr.escalation_state).c_str(),
-                    cr.quality_score);
+                    t.track_id_, t.class_label_.c_str(),
+                    static_cast<double>(t.velocity_mps_),
+                    threatLevelToString(cr.threat_level),
+                    escalationStateToString(cr.escalation_state),
+                    static_cast<double>(cr.quality_score));
                 logged_first_ = true;
             }
 
-            // Predicted impact: linear extrapolation 5s along radial
             float az_rad = std::atan2(t.position_x_m_, t.position_y_m_);
             float pred_x = t.position_x_m_ + t.doppler_mps_ * std::sin(az_rad) * 5.0f;
             float pred_y = t.position_y_m_ + t.doppler_mps_ * std::cos(az_rad) * 5.0f;
 
-            // Exclusion zone check
             float range = std::sqrt(t.position_x_m_ * t.position_x_m_ +
                                     t.position_y_m_ * t.position_y_m_);
 
@@ -163,7 +162,6 @@ private:
 
         pub_->publish(out);
 
-        // Prune stale track escalation states
         classifier_.pruneStale(now_s, track_timeout_s_);
     }
 
