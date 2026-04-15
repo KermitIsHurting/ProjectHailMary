@@ -323,6 +323,62 @@ ament_target_dependencies(reachability_node
 target_link_libraries(reachability_node reachability_engine)
 target_compile_options(reachability_node PRIVATE ${CUAS_SAFETY_FLAGS})
 
+# health monitor library (no ROS dependency — use stricter flags)
+add_library(health_monitor_lib STATIC
+  src/health_monitor.cpp
+)
+target_include_directories(health_monitor_lib PUBLIC include)
+target_compile_options(health_monitor_lib PRIVATE ${CUAS_STRICT_FLAGS})
+
+# health monitor node
+add_executable(health_monitor_node
+  src/health_monitor_node.cpp
+)
+ament_target_dependencies(health_monitor_node
+  rclcpp
+  sensor_msgs
+  cuas_msgs
+)
+target_link_libraries(health_monitor_node health_monitor_lib)
+target_compile_options(health_monitor_node PRIVATE ${CUAS_SAFETY_FLAGS})
+
+# radar sim library (no ROS dependency — use stricter flags)
+add_library(radar_sim_lib STATIC
+  src/radar_sim.cpp
+)
+target_include_directories(radar_sim_lib PUBLIC include)
+target_compile_options(radar_sim_lib PRIVATE ${CUAS_STRICT_FLAGS})
+
+# sim radar node
+add_executable(sim_radar_node
+  src/sim_radar_node.cpp
+)
+ament_target_dependencies(sim_radar_node
+  rclcpp
+  sensor_msgs
+)
+target_link_libraries(sim_radar_node radar_sim_lib)
+target_compile_options(sim_radar_node PRIVATE ${CUAS_SAFETY_FLAGS})
+
+# clutter map library (no ROS dependency — use stricter flags)
+add_library(clutter_map_lib STATIC
+  src/clutter_map.cpp
+)
+target_include_directories(clutter_map_lib PUBLIC include)
+target_compile_options(clutter_map_lib PRIVATE ${CUAS_STRICT_FLAGS})
+
+# clutter map node
+add_executable(clutter_map_node
+  src/clutter_map_node.cpp
+)
+ament_target_dependencies(clutter_map_node
+  rclcpp
+  sensor_msgs
+  cuas_msgs
+)
+target_link_libraries(clutter_map_node clutter_map_lib)
+target_compile_options(clutter_map_node PRIVATE ${CUAS_SAFETY_FLAGS})
+
 install(TARGETS
   radar_parser_node
   camera_node
@@ -340,6 +396,9 @@ install(TARGETS
   cot_publisher_node
   geofence_node
   reachability_node
+  health_monitor_node
+  sim_radar_node
+  clutter_map_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

@@ -1,0 +1,11 @@
+uint8 status
+uint8 radar_status
+uint8 camera_status
+uint8 tracker_status
+uint8 classifier_status
+uint8 predictor_status
+float32 radar_hz
+float32 tracker_hz
+float32 classifier_hz
+float32 predictor_hz
+builtin_interfaces/Time stamp

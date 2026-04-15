@@ -1,6 +1,4 @@
 from launch import LaunchDescription
-from launch.actions import ExecuteProcess, RegisterEventHandler
-from launch.event_handlers import OnProcessExit
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 import os
@@ -11,24 +9,6 @@ def generate_launch_description():
     system_params = os.path.join(pkg_share, 'config', 'system_params.yaml')
     rviz_config = os.path.join(pkg_share, 'config', 'cuas_demo.rviz')
     geofence_config = os.path.join(pkg_share, 'config', 'geofence_zones.yaml')
-    radar_config_script = os.path.join(
-        pkg_share, 'scripts', 'send_radar_config.sh')
-    radar_profile = os.path.join(pkg_share, 'config', 'radar_profile.cfg')
-
-    send_radar_config = ExecuteProcess(
-        cmd=['bash', '-c',
-             f'{radar_config_script} {radar_profile} /dev/radar_config'
-             ' && sleep 2'],
-        name='send_radar_config',
-        output='screen',
-    )
-
-    radar_parser_node = Node(
-        package='cuas_fusion',
-        executable='radar_parser_node',
-        name='radar_parser_node',
-        parameters=[system_params, {'use_sim_time': False}],
-    )
 
     return LaunchDescription([
         Node(
@@ -37,12 +17,11 @@ def generate_launch_description():
             name='base_link_to_radar',
             arguments=['0', '0', '0', '0', '0', '0', 'base_link', 'radar_frame'],
         ),
-        send_radar_config,
-        RegisterEventHandler(
-            OnProcessExit(
-                target_action=send_radar_config,
-                on_exit=[radar_parser_node],
-            )
+        Node(
+            package='cuas_fusion',
+            executable='sim_radar_node',
+            name='sim_radar_node',
+            parameters=[{'use_sim_time': False}],
         ),
         Node(
             package='cuas_fusion',

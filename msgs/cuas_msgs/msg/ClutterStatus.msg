@@ -1,0 +1,5 @@
+uint8 state
+uint32 frames_learned
+uint32 frames_required
+float32 occupancy_ratio
+builtin_interfaces/Time stamp

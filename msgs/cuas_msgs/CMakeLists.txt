@@ -22,6 +22,9 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/GeofenceEventArray.msg"
   "msg/InterceptReport.msg"
   "msg/InterceptReportArray.msg"
+  "msg/SystemHealth.msg"
+  "msg/SystemHealthArray.msg"
+  "msg/ClutterStatus.msg"
   DEPENDENCIES std_msgs geometry_msgs builtin_interfaces
 )
 
