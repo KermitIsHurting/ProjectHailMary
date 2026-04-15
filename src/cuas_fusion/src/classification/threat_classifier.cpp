@@ -129,9 +129,35 @@ ClassificationResult ThreatClassifier::classify(
 void ThreatClassifier::pruneStale(float64_t current_time_s, float64_t timeout_s)
 {
     states_.erase_if(
-        [&](uint32_t /*id*/, const PerTrackState& s) {
+        [&](uint32_t id, const PerTrackState& s) {
+            (void)id;
             return (current_time_s - s.last_seen_s) > timeout_s;
         });
+}
+
+float32_t ThreatClassifier::bearing_deg(float32_t x_m, float32_t y_m) const
+{
+    const float32_t pi_f = 3.14159265358979F;
+    return std::atan2(x_m, y_m) * 180.0F / pi_f;
+}
+
+float32_t ThreatClassifier::predicted_range(float32_t x_m, float32_t y_m,
+                                            float32_t doppler_mps,
+                                            float32_t horizon_s) const
+{
+    const ImpactPoint p = predicted_impact(x_m, y_m, doppler_mps, horizon_s);
+    return std::sqrt((p.x_m * p.x_m) + (p.y_m * p.y_m));
+}
+
+ThreatClassifier::ImpactPoint ThreatClassifier::predicted_impact(
+    float32_t x_m, float32_t y_m,
+    float32_t doppler_mps, float32_t horizon_s) const
+{
+    const float32_t az_rad = std::atan2(x_m, y_m);
+    ImpactPoint out;
+    out.x_m = x_m + (doppler_mps * std::sin(az_rad) * horizon_s);
+    out.y_m = y_m + (doppler_mps * std::cos(az_rad) * horizon_s);
+    return out;
 }
 
 } // namespace cuas

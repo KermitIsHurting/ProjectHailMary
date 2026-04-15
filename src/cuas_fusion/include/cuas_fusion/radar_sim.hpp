@@ -32,6 +32,7 @@ public:
 
     void init(const float32_t noise_sigma_m);
     void set_target(const uint32_t idx, const SimTarget & t);
+    void step(const float32_t dt_sec);
     uint32_t generate(const float32_t dt_sec,
                       FixedVector<SimPoint, kRadarSimMaxPoints> & out) const;
 

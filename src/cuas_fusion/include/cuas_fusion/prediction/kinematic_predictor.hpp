@@ -32,6 +32,13 @@ public:
         const Eigen::MatrixXd& Q_blended,
         float64_t step_dt,
         int32_t n_steps);
+
+    static Eigen::VectorXd build_state_from_position_speed(
+        float64_t x_m, float64_t y_m, float64_t z_m, float64_t speed_mps);
+    static Eigen::MatrixXd build_initial_covariance_6d();
+    static Eigen::MatrixXd build_transition_matrix_6d(float64_t step_dt);
+    static Eigen::MatrixXd build_process_noise_6d(float64_t step_dt,
+                                                  float64_t sigma_a_sq);
 };
 
 } // namespace cuas

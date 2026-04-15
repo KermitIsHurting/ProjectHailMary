@@ -69,6 +69,17 @@ void RadarSim::set_target(const uint32_t idx, const SimTarget & t)
     targets_[idx] = t;
 }
 
+void RadarSim::step(const float32_t dt_sec)
+{
+    for (uint32_t i = 0U; i < kRadarSimMaxTargets; ++i) {
+        SimTarget & t = targets_[i];
+        if (t.active) {
+            t.x_m += t.vx_mps * dt_sec;
+            t.y_m += t.vy_mps * dt_sec;
+        }
+    }
+}
+
 uint32_t RadarSim::generate(const float32_t dt_sec,
                             FixedVector<SimPoint, kRadarSimMaxPoints> & out) const
 {

@@ -14,3 +14,5 @@ float64 model_weight_ca
 float64 model_weight_ct
 string track_state
 float64 prediction_horizon_sec
+uint8 track_state_id
+

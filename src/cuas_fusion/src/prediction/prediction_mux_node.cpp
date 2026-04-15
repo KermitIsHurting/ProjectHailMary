@@ -3,6 +3,7 @@
 #include "cuas_fusion/common/constants.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
+#include "cuas_fusion/common/track_state_ids.hpp"
 
 #include <rclcpp/rclcpp.hpp>
 #include <cuas_msgs/msg/predicted_track.hpp>
@@ -18,19 +19,19 @@ public:
     {
         sub_kin_pred_ = create_subscription<cuas_msgs::msg::PredictedTrack>(
             "/predicted_tracks/kinematic", 10,
-            std::bind(&PredictionMuxNode::kinPredCallback, this, std::placeholders::_1));
+            std::bind(&PredictionMuxNode::kin_pred_callback, this, std::placeholders::_1));
 
         sub_occ_pred_ = create_subscription<cuas_msgs::msg::PredictedTrack>(
             "/predicted_tracks/occlusion", 10,
-            std::bind(&PredictionMuxNode::occPredCallback, this, std::placeholders::_1));
+            std::bind(&PredictionMuxNode::occ_pred_callback, this, std::placeholders::_1));
 
         sub_kin_traj_ = create_subscription<cuas_msgs::msg::TrajectoryWaypoints>(
             "/trajectory_waypoints/kinematic", 10,
-            std::bind(&PredictionMuxNode::kinTrajCallback, this, std::placeholders::_1));
+            std::bind(&PredictionMuxNode::kin_traj_callback, this, std::placeholders::_1));
 
         sub_occ_traj_ = create_subscription<cuas_msgs::msg::TrajectoryWaypoints>(
             "/trajectory_waypoints/occlusion", 10,
-            std::bind(&PredictionMuxNode::occTrajCallback, this, std::placeholders::_1));
+            std::bind(&PredictionMuxNode::occ_traj_callback, this, std::placeholders::_1));
 
         pub_pred_ = create_publisher<cuas_msgs::msg::PredictedTrack>(
             "/predicted_tracks", 10);
@@ -39,33 +40,33 @@ public:
 
         timer_ = create_wall_timer(
             std::chrono::milliseconds(50),
-            std::bind(&PredictionMuxNode::mergeTick, this));
+            std::bind(&PredictionMuxNode::merge_tick, this));
 
         RCLCPP_INFO(get_logger(), "Prediction mux node ready");
     }
 
 private:
-    void kinPredCallback(const cuas_msgs::msg::PredictedTrack::ConstSharedPtr& msg)
+    void kin_pred_callback(const cuas_msgs::msg::PredictedTrack::ConstSharedPtr& msg)
     {
         (void)kinematic_pred_.insert_or_assign(msg->track_id, *msg);
     }
 
-    void occPredCallback(const cuas_msgs::msg::PredictedTrack::ConstSharedPtr& msg)
+    void occ_pred_callback(const cuas_msgs::msg::PredictedTrack::ConstSharedPtr& msg)
     {
         (void)occlusion_pred_.insert_or_assign(msg->track_id, *msg);
     }
 
-    void kinTrajCallback(const cuas_msgs::msg::TrajectoryWaypoints::ConstSharedPtr& msg)
+    void kin_traj_callback(const cuas_msgs::msg::TrajectoryWaypoints::ConstSharedPtr& msg)
     {
         (void)kinematic_traj_.insert_or_assign(msg->track_id, *msg);
     }
 
-    void occTrajCallback(const cuas_msgs::msg::TrajectoryWaypoints::ConstSharedPtr& msg)
+    void occ_traj_callback(const cuas_msgs::msg::TrajectoryWaypoints::ConstSharedPtr& msg)
     {
         (void)occlusion_traj_.insert_or_assign(msg->track_id, *msg);
     }
 
-    void mergeTick()
+    void merge_tick()
     {
         FixedVector<uint32_t, TRACK_MAX_TRACKS * 2U> seen;
         for (uint32_t i = 0U; i < kinematic_pred_.slot_count(); ++i) {
@@ -100,8 +101,7 @@ private:
             const cuas_msgs::msg::PredictedTrack* chosen = nullptr;
 
             if ((kit != nullptr) && (oit != nullptr)) {
-                // Prefer occlusion stream while the track remains OCCLUDED
-                if (oit->track_state == "OCCLUDED") {
+                if (oit->track_state_id == cuas::track_state::kOccluded) {
                     chosen = oit;
                 } else {
                     chosen = kit;
@@ -126,7 +126,7 @@ private:
             const cuas_msgs::msg::TrajectoryWaypoints* chosen_t = nullptr;
 
             if ((kt != nullptr) && (ot != nullptr)) {
-                if ((oit != nullptr) && oit->track_state == "OCCLUDED") {
+                if ((oit != nullptr) && (oit->track_state_id == cuas::track_state::kOccluded)) {
                     chosen_t = ot;
                 } else {
                     chosen_t = kt;

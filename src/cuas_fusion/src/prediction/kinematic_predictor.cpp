@@ -10,14 +10,18 @@ namespace cuas {
 KinematicPredictor::TrajectoryResult KinematicPredictor::propagateForward(
     const Eigen::VectorXd& state,
     const Eigen::MatrixXd& covariance,
-    const std::array<float64_t, 3>& /*model_weights*/,
+    const std::array<float64_t, 3>& model_weights,
     const Eigen::MatrixXd& F_blended,
     const Eigen::MatrixXd& Q_blended,
     float64_t step_dt,
     int32_t n_steps)
 {
+    (void)model_weights;
     TrajectoryResult result;
-    const std::size_t reserve_n = (n_steps > 0) ? static_cast<std::size_t>(n_steps) : 0U;
+    uint32_t reserve_n = 0U;
+    if (n_steps > 0) {
+        reserve_n = static_cast<uint32_t>(n_steps);
+    }
     result.positions.reserve(reserve_n);
     result.timestamps_sec.reserve(reserve_n);
     result.uncertainty_radii_m.reserve(reserve_n);
@@ -55,6 +59,52 @@ KinematicPredictor::TrajectoryResult KinematicPredictor::propagateForward(
     }
 
     return result;
+}
+
+Eigen::VectorXd KinematicPredictor::build_state_from_position_speed(
+    float64_t x_m, float64_t y_m, float64_t z_m, float64_t speed_mps)
+{
+    Eigen::VectorXd state = Eigen::VectorXd::Zero(6);
+    state(0) = x_m;
+    state(1) = y_m;
+    state(2) = z_m;
+    if (speed_mps > 0.0) {
+        const float64_t bearing = std::atan2(y_m, x_m);
+        state(3) = speed_mps * std::cos(bearing);
+        state(4) = speed_mps * std::sin(bearing);
+    }
+    return state;
+}
+
+Eigen::MatrixXd KinematicPredictor::build_initial_covariance_6d()
+{
+    Eigen::MatrixXd P = Eigen::MatrixXd::Zero(6, 6);
+    P.diagonal() << 1.0, 1.0, 1.0, 0.25, 0.25, 0.25;
+    return P;
+}
+
+Eigen::MatrixXd KinematicPredictor::build_transition_matrix_6d(float64_t step_dt)
+{
+    Eigen::MatrixXd F = Eigen::MatrixXd::Identity(6, 6);
+    F(0, 3) = step_dt;
+    F(1, 4) = step_dt;
+    F(2, 5) = step_dt;
+    return F;
+}
+
+Eigen::MatrixXd KinematicPredictor::build_process_noise_6d(float64_t step_dt,
+                                                           float64_t sigma_a_sq)
+{
+    Eigen::MatrixXd Q = Eigen::MatrixXd::Zero(6, 6);
+    const float64_t dt2 = step_dt * step_dt;
+    for (uint32_t i = 0U; i < 3U; ++i) {
+        const int32_t ii = static_cast<int32_t>(i);
+        Q(ii, ii)         = 0.25 * dt2 * dt2 * sigma_a_sq;
+        Q(ii, ii + 3)     = 0.5  * dt2 * step_dt * sigma_a_sq;
+        Q(ii + 3, ii)     = 0.5  * dt2 * step_dt * sigma_a_sq;
+        Q(ii + 3, ii + 3) = dt2 * sigma_a_sq;
+    }
+    return Q;
 }
 
 } // namespace cuas

@@ -54,8 +54,14 @@ InterceptResult ReachabilityEngine::compute(
 
     const float32_t lambda_max = trace_half + sqrt_disc;
     const float32_t lambda_min = trace_half - sqrt_disc;
-    const float32_t lmax_clamped = (lambda_max > 0.0F) ? lambda_max : 0.0F;
-    const float32_t lmin_clamped = (lambda_min > 0.0F) ? lambda_min : 0.0F;
+    float32_t lmax_clamped = 0.0F;
+    if (lambda_max > 0.0F) {
+        lmax_clamped = lambda_max;
+    }
+    float32_t lmin_clamped = 0.0F;
+    if (lambda_min > 0.0F) {
+        lmin_clamped = lambda_min;
+    }
     result.ellipse_major_m = std::sqrt(lmax_clamped);
     result.ellipse_minor_m = std::sqrt(lmin_clamped);
 

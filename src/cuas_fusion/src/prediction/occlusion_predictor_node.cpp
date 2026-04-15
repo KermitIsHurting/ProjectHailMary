@@ -3,6 +3,8 @@
 #include "cuas_fusion/common/constants.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
+#include "cuas_fusion/common/track_state_ids.hpp"
+#include "cuas_fusion/prediction/kinematic_predictor.hpp"
 #include "cuas_fusion/prediction/occlusion_predictor.hpp"
 
 #include <rclcpp/rclcpp.hpp>
@@ -10,8 +12,6 @@
 #include <cuas_msgs/msg/track_array.hpp>
 #include <cuas_msgs/msg/predicted_track.hpp>
 #include <cuas_msgs/msg/trajectory_waypoints.hpp>
-
-#include <cmath>
 
 namespace cuas {
 
@@ -38,7 +38,7 @@ public:
 
         sub_ = create_subscription<cuas_msgs::msg::TrackArray>(
             "/tracks", 10,
-            std::bind(&OcclusionPredictorNode::trackCallback, this, std::placeholders::_1));
+            std::bind(&OcclusionPredictorNode::track_callback, this, std::placeholders::_1));
 
         pub_pred_ = create_publisher<cuas_msgs::msg::PredictedTrack>(
             "/predicted_tracks/occlusion", 10);
@@ -56,33 +56,29 @@ public:
     }
 
 private:
-    void trackCallback(const cuas_msgs::msg::TrackArray::ConstSharedPtr& msg)
+    static constexpr float64_t kSigmaASq = 0.25;
+
+    void track_callback(const cuas_msgs::msg::TrackArray::ConstSharedPtr& msg)
     {
         const float64_t now = clock_->now().seconds();
 
-        for (const auto& t : msg->tracks) {
+        const uint32_t n = static_cast<uint32_t>(msg->tracks.size());
+        for (uint32_t i = 0U; i < n; ++i) {
+            const cuas_msgs::msg::Track & t = msg->tracks[i];
             (void)horizon_cache_.insert_or_assign(t.track_id, t.prediction_horizon_s);
-            if (t.track_state == "OCCLUDED") {
+            if (t.track_state_id == cuas::track_state::kOccluded) {
                 if (ghost_tracks_.find(t.track_id) == nullptr) {
                     OcclusionPredictor::GhostTrack ghost;
                     ghost.track_id = t.track_id;
-                    ghost.state    = Eigen::VectorXd::Zero(6);
-                    ghost.state(0) = t.position_x_m;
-                    ghost.state(1) = t.position_y_m;
-                    ghost.state(2) = t.position_z_m;
-                    if (t.velocity_mps > 0.0F) {
-                        const float64_t bearing = std::atan2(
-                            static_cast<float64_t>(t.position_y_m),
-                            static_cast<float64_t>(t.position_x_m));
-                        ghost.state(3) = static_cast<float64_t>(t.velocity_mps) * std::cos(bearing);
-                        ghost.state(4) = static_cast<float64_t>(t.velocity_mps) * std::sin(bearing);
-                    }
-                    ghost.covariance = Eigen::MatrixXd::Zero(6, 6);
-                    ghost.covariance.diagonal() << 1.0, 1.0, 1.0, 0.25, 0.25, 0.25;
+                    ghost.state    = KinematicPredictor::build_state_from_position_speed(
+                        t.position_x_m, t.position_y_m, t.position_z_m,
+                        static_cast<float64_t>(t.velocity_mps));
+                    ghost.covariance = KinematicPredictor::build_initial_covariance_6d();
                     ghost.occlusion_start_time_sec = now;
                     (void)ghost_tracks_.insert_or_assign(t.track_id, ghost);
                 }
-            } else if (t.track_state == "CONFIRMED" || t.track_state == "REACQUIRED") {
+            } else if ((t.track_state_id == cuas::track_state::kConfirmed) ||
+                       (t.track_state_id == cuas::track_state::kReacquired)) {
                 OcclusionPredictor::GhostTrack* ghost = ghost_tracks_.find(t.track_id);
                 if (ghost != nullptr) {
                     if (predictor_.reacquire(*ghost,
@@ -92,9 +88,10 @@ private:
                         (void)ghost_tracks_.erase(t.track_id);
                     }
                 }
-            } else if (t.track_state == "LOST") {
+            } else if (t.track_state_id == cuas::track_state::kLost) {
                 (void)ghost_tracks_.erase(t.track_id);
             } else {
+                // intentionally empty: other states are no-ops
             }
         }
     }
@@ -103,20 +100,10 @@ private:
     {
         const float64_t now = clock_->now().seconds();
 
-        Eigen::MatrixXd F = Eigen::MatrixXd::Identity(6, 6);
-        F(0, 3) = step_dt_;
-        F(1, 4) = step_dt_;
-        F(2, 5) = step_dt_;
-
-        const float64_t sa2 = 0.25;
-        const float64_t dt2 = step_dt_ * step_dt_;
-        Eigen::MatrixXd Q = Eigen::MatrixXd::Zero(6, 6);
-        for (int32_t i = 0; i < 3; ++i) {
-            Q(i, i)         = 0.25 * dt2 * dt2 * sa2;
-            Q(i, i + 3)     = 0.5  * dt2 * step_dt_ * sa2;
-            Q(i + 3, i)     = 0.5  * dt2 * step_dt_ * sa2;
-            Q(i + 3, i + 3) = dt2 * sa2;
-        }
+        const Eigen::MatrixXd F =
+            KinematicPredictor::build_transition_matrix_6d(step_dt_);
+        const Eigen::MatrixXd Q =
+            KinematicPredictor::build_process_noise_6d(step_dt_, kSigmaASq);
 
         for (uint32_t s = 0U; s < ghost_tracks_.slot_count(); ++s) {
             auto& slot = ghost_tracks_.slots()[s];
@@ -147,9 +134,11 @@ private:
             pred.vel_y_mps = ghost.state(4);
             pred.vel_z_mps = ghost.state(5);
 
-            for (int32_t r = 0; r < 6; ++r) {
-                for (int32_t c = 0; c < 6; ++c) {
-                    pred.covariance[static_cast<uint32_t>(r * 6 + c)] = ghost.covariance(r, c);
+            for (uint32_t r = 0U; r < 6U; ++r) {
+                for (uint32_t c = 0U; c < 6U; ++c) {
+                    const int32_t ri = static_cast<int32_t>(r);
+                    const int32_t ci = static_cast<int32_t>(c);
+                    pred.covariance[(r * 6U) + c] = ghost.covariance(ri, ci);
                 }
             }
 
@@ -159,18 +148,23 @@ private:
             pred.model_weight_ca        = ghost.model_weights[1];
             pred.model_weight_ct        = ghost.model_weights[2];
             pred.track_state            = "OCCLUDED";
+            pred.track_state_id         = cuas::track_state::kOccluded;
             // WHY: prediction_horizon_s is stamped onto Track by the tracker
             // node which owns the single /threat/reports join — direct read
             // here, no policy ownership in the predictor.
             const float32_t* h_ptr = horizon_cache_.find(slot.key);
-            pred.prediction_horizon_sec = static_cast<float64_t>(
-                (h_ptr != nullptr) ? *h_ptr : 5.0F);
+            float32_t horizon_value = 5.0F;
+            if (h_ptr != nullptr) {
+                horizon_value = *h_ptr;
+            }
+            pred.prediction_horizon_sec = static_cast<float64_t>(horizon_value);
             pub_pred_->publish(pred);
 
             cuas_msgs::msg::TrajectoryWaypoints wp;
             wp.header   = pred.header;
             wp.track_id = slot.key;
-            for (std::size_t i = 0; i < traj.positions.size(); ++i) {
+            const uint32_t nwp = static_cast<uint32_t>(traj.positions.size());
+            for (uint32_t i = 0U; i < nwp; ++i) {
                 wp.waypoints_x_m.push_back(traj.positions[i].x());
                 wp.waypoints_y_m.push_back(traj.positions[i].y());
                 wp.waypoints_z_m.push_back(traj.positions[i].z());

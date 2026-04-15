@@ -4,6 +4,7 @@
 #include "cuas_fusion/common/constants.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 namespace cuas {
 
@@ -166,5 +167,19 @@ Eigen::MatrixXd IMMTracker::getMixedQ(float64_t dt) const
 }
 
 float64_t IMMTracker::lastUpdateTime() const { return last_update_time_; }
+
+float64_t IMMTracker::distance_to(float64_t px, float64_t py, float64_t pz) const
+{
+    const Eigen::VectorXd pos = imm_.getState().head(3);
+    const float64_t dx = pos(0) - px;
+    const float64_t dy = pos(1) - py;
+    const float64_t dz = pos(2) - pz;
+    return std::sqrt((dx * dx) + (dy * dy) + (dz * dz));
+}
+
+float64_t IMMTracker::speed() const
+{
+    return imm_.getState().tail(3).norm();
+}
 
 } // namespace cuas

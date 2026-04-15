@@ -3,6 +3,7 @@
 #include "cuas_fusion/common/constants.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
+#include "cuas_fusion/common/track_state_ids.hpp"
 #include "cuas_fusion/reachability_engine.hpp"
 
 #include <rclcpp/rclcpp.hpp>
@@ -15,13 +16,50 @@
 #include <cmath>
 #include <functional>
 #include <memory>
-#include <string>
 
 namespace cuas {
 
 // WHY: default per-axis position variance used when Track.msg carries no
 // covariance; downstream ellipse sizing stays bounded and non-degenerate.
 static constexpr float32_t kDefaultPositionVarianceM2 = 0.25F;
+
+// WHY: builder kept at file scope (not in node class) so all projection and
+// covariance scaffolding lives in one named helper outside the callback body
+// — node only delegates to it and to ReachabilityEngine.
+static ReachabilityTrackState build_track_state(
+    const cuas_msgs::msg::Track & t,
+    float32_t cv_weight)
+{
+    ReachabilityTrackState rstate;
+    rstate.x_m = t.position_x_m;
+    rstate.y_m = t.position_y_m;
+
+    const float64_t bearing = std::atan2(
+        static_cast<float64_t>(t.position_y_m),
+        static_cast<float64_t>(t.position_x_m));
+    const float32_t vmag = t.velocity_mps;
+    rstate.vx_mps = vmag * static_cast<float32_t>(std::cos(bearing));
+    rstate.vy_mps = vmag * static_cast<float32_t>(std::sin(bearing));
+
+    for (uint32_t r = 0U; r < 4U; ++r) {
+        for (uint32_t c = 0U; c < 4U; ++c) {
+            rstate.P[r][c] = 0.0F;
+        }
+    }
+    rstate.P[0][0] = kDefaultPositionVarianceM2;
+    rstate.P[1][1] = kDefaultPositionVarianceM2;
+
+    float32_t clamped_cv = cv_weight;
+    if (clamped_cv < 0.0F) {
+        clamped_cv = 0.0F;
+    }
+    if (clamped_cv > 1.0F) {
+        clamped_cv = 1.0F;
+    }
+    rstate.imm_cv_weight = clamped_cv;
+
+    return rstate;
+}
 
 class ReachabilityNode : public rclcpp::Node
 {
@@ -65,12 +103,12 @@ public:
     }
 
 private:
-    static int32_t threat_priority_from_string(const std::string& level)
+    static int32_t threat_priority_from_id(uint8_t level_id)
     {
-        if (level == "THREAT") {
+        if (level_id == cuas::threat_level::kThreatening) {
             return 2;
         }
-        if (level == "SUSPECT") {
+        if (level_id == cuas::threat_level::kSuspect) {
             return 1;
         }
         return 0;
@@ -84,9 +122,10 @@ private:
     void threats_callback(
         const cuas_msgs::msg::ThreatReportArray::ConstSharedPtr& msg)
     {
-        for (std::size_t i = 0U; i < msg->reports.size(); ++i) {
+        const uint32_t n = static_cast<uint32_t>(msg->reports.size());
+        for (uint32_t i = 0U; i < n; ++i) {
             const cuas_msgs::msg::ThreatReport& r = msg->reports[i];
-            const int32_t pri = threat_priority_from_string(r.threat_level);
+            const int32_t pri = threat_priority_from_id(r.threat_level_id);
             (void)threat_priorities_.insert_or_assign(r.track_id, pri);
         }
     }
@@ -96,43 +135,22 @@ private:
         cuas_msgs::msg::InterceptReportArray out;
         out.stamp = this->now();
 
-        for (std::size_t ti = 0U; ti < latest_tracks_.tracks.size(); ++ti) {
+        const uint32_t n_tracks = static_cast<uint32_t>(latest_tracks_.tracks.size());
+        for (uint32_t ti = 0U; ti < n_tracks; ++ti) {
             const cuas_msgs::msg::Track& tr = latest_tracks_.tracks[ti];
             const int32_t* pri_ptr = threat_priorities_.find(tr.track_id);
-            const int32_t pri = (pri_ptr != nullptr) ? *pri_ptr : 0;
+            int32_t pri = 0;
+            if (pri_ptr != nullptr) {
+                pri = *pri_ptr;
+            }
             if (pri < min_threat_level_) {
                 continue;
             }
 
-            ReachabilityTrackState rstate;
-            rstate.x_m    = tr.position_x_m;
-            rstate.y_m    = tr.position_y_m;
-
-            const float64_t bearing = std::atan2(
-                static_cast<float64_t>(tr.position_y_m),
-                static_cast<float64_t>(tr.position_x_m));
-            const float32_t vmag = tr.velocity_mps;
-            rstate.vx_mps = vmag * static_cast<float32_t>(std::cos(bearing));
-            rstate.vy_mps = vmag * static_cast<float32_t>(std::sin(bearing));
-
-            for (uint32_t r = 0U; r < 4U; ++r) {
-                for (uint32_t c = 0U; c < 4U; ++c) {
-                    rstate.P[r][c] = 0.0F;
-                }
-            }
-            rstate.P[0][0] = kDefaultPositionVarianceM2;
-            rstate.P[1][1] = kDefaultPositionVarianceM2;
-
             const float32_t ct_prob = tr.imm_ct_probability;
-            float32_t cv_weight = 1.0F - ct_prob;
-            if (cv_weight < 0.0F) {
-                cv_weight = 0.0F;
-            }
-            if (cv_weight > 1.0F) {
-                cv_weight = 1.0F;
-            }
-            rstate.imm_cv_weight = cv_weight;
+            const float32_t cv_weight = 1.0F - ct_prob;
 
+            const ReachabilityTrackState rstate = build_track_state(tr, cv_weight);
             const InterceptResult res = engine_.compute(rstate);
 
             cuas_msgs::msg::InterceptReport rep;

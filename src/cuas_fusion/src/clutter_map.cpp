@@ -27,7 +27,11 @@ void ClutterMap::reset()
 
 void ClutterMap::set_learn_frames(const uint32_t frames)
 {
-    learn_frames_ = (frames == 0U) ? 1U : frames;
+    if (frames == 0U) {
+        learn_frames_ = 1U;
+    } else {
+        learn_frames_ = frames;
+    }
 }
 
 void ClutterMap::set_threshold(const float32_t threshold)
@@ -72,7 +76,10 @@ void ClutterMap::add_frame(const FixedVector<float32_t, kClutterMapMaxPoints> & 
         return;
     }
 
-    const uint32_t n = (xs.size() < ys.size()) ? xs.size() : ys.size();
+    uint32_t n = ys.size();
+    if (xs.size() < ys.size()) {
+        n = xs.size();
+    }
     for (uint32_t i = 0U; i < n; ++i) {
         uint32_t col = 0U;
         uint32_t row = 0U;

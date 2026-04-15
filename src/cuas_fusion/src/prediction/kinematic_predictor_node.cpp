@@ -3,6 +3,7 @@
 #include "cuas_fusion/common/constants.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
+#include "cuas_fusion/common/track_state_ids.hpp"
 #include "cuas_fusion/estimation/imm_filter.hpp"
 #include "cuas_fusion/prediction/kinematic_predictor.hpp"
 
@@ -38,7 +39,7 @@ public:
 
         sub_ = create_subscription<cuas_msgs::msg::TrackArray>(
             "/tracks", 10,
-            std::bind(&KinematicPredictorNode::trackCallback, this, std::placeholders::_1));
+            std::bind(&KinematicPredictorNode::track_callback, this, std::placeholders::_1));
 
         pub_pred_ = create_publisher<cuas_msgs::msg::PredictedTrack>(
             "/predicted_tracks/kinematic", 10);
@@ -55,15 +56,18 @@ public:
     }
 
 private:
-    void trackCallback(const cuas_msgs::msg::TrackArray::ConstSharedPtr& msg)
+    static constexpr float64_t kSigmaASq = 0.25;
+
+    void track_callback(const cuas_msgs::msg::TrackArray::ConstSharedPtr& msg)
     {
         latest_tracks_ = *msg;
 
-        for (const auto& t : msg->tracks) {
+        const uint32_t n = static_cast<uint32_t>(msg->tracks.size());
+        for (uint32_t i = 0U; i < n; ++i) {
+            const cuas_msgs::msg::Track & t = msg->tracks[i];
             if (cov_cache_.find(t.track_id) == nullptr) {
                 CovarianceCache fresh;
-                fresh.P = Eigen::Matrix<float64_t, 6, 6>::Zero();
-                fresh.P.diagonal() << 1.0, 1.0, 1.0, 0.25, 0.25, 0.25;
+                fresh.P = KinematicPredictor::build_initial_covariance_6d();
                 fresh.weights = {0.33, 0.33, 0.34};
                 (void)cov_cache_.insert_or_assign(t.track_id, fresh);
             }
@@ -72,22 +76,18 @@ private:
 
     void publish()
     {
-        for (const auto& t : latest_tracks_.tracks) {
-            if (t.track_state != "CONFIRMED" && t.track_state != "REACQUIRED") {
+        const uint32_t n = static_cast<uint32_t>(latest_tracks_.tracks.size());
+        for (uint32_t ti = 0U; ti < n; ++ti) {
+            const cuas_msgs::msg::Track & t = latest_tracks_.tracks[ti];
+            if ((t.track_state_id != cuas::track_state::kConfirmed) &&
+                (t.track_state_id != cuas::track_state::kReacquired)) {
                 continue;
             }
 
-            Eigen::VectorXd state(6);
-            state << t.position_x_m, t.position_y_m, t.position_z_m,
-                     0.0, 0.0, 0.0;
-
-            if (t.velocity_mps > 0.0F) {
-                const float64_t bearing = std::atan2(
-                    static_cast<float64_t>(t.position_y_m),
-                    static_cast<float64_t>(t.position_x_m));
-                state(3) = static_cast<float64_t>(t.velocity_mps) * std::cos(bearing);
-                state(4) = static_cast<float64_t>(t.velocity_mps) * std::sin(bearing);
-            }
+            const Eigen::VectorXd state =
+                KinematicPredictor::build_state_from_position_speed(
+                    t.position_x_m, t.position_y_m, t.position_z_m,
+                    static_cast<float64_t>(t.velocity_mps));
 
             CovarianceCache* cache = cov_cache_.find(t.track_id);
             if (cache == nullptr) {
@@ -96,25 +96,16 @@ private:
             Eigen::MatrixXd P = cache->P;
             const std::array<float64_t, 3> weights = cache->weights;
 
-            Eigen::MatrixXd F = Eigen::MatrixXd::Identity(6, 6);
-            F(0, 3) = step_dt_;
-            F(1, 4) = step_dt_;
-            F(2, 5) = step_dt_;
+            const Eigen::MatrixXd F =
+                KinematicPredictor::build_transition_matrix_6d(step_dt_);
+            const Eigen::MatrixXd Q =
+                KinematicPredictor::build_process_noise_6d(step_dt_, kSigmaASq);
 
-            const float64_t sa2 = 0.25;
-            const float64_t dt2 = step_dt_ * step_dt_;
-            Eigen::MatrixXd Q = Eigen::MatrixXd::Zero(6, 6);
-            for (int32_t i = 0; i < 3; ++i) {
-                Q(i, i)         = 0.25 * dt2 * dt2 * sa2;
-                Q(i, i + 3)     = 0.5  * dt2 * step_dt_ * sa2;
-                Q(i + 3, i)     = 0.5  * dt2 * step_dt_ * sa2;
-                Q(i + 3, i + 3) = dt2 * sa2;
-            }
-
-            auto traj = predictor_.propagateForward(state, P, weights, F, Q, step_dt_, n_steps_);
+            auto traj = predictor_.propagateForward(state, P, weights, F, Q,
+                                                    step_dt_, n_steps_);
 
             if (!traj.positions.empty()) {
-                const Eigen::MatrixXd P_prop = F * P * F.transpose() + Q;
+                const Eigen::MatrixXd P_prop = (F * P * F.transpose()) + Q;
                 cache->P = P_prop;
             }
 
@@ -134,9 +125,11 @@ private:
             pred.vel_z_mps = state(5);
 
             const Eigen::MatrixXd Pcov = cache->P;
-            for (int32_t r = 0; r < 6; ++r) {
-                for (int32_t c = 0; c < 6; ++c) {
-                    pred.covariance[static_cast<uint32_t>(r * 6 + c)] = Pcov(r, c);
+            for (uint32_t r = 0U; r < 6U; ++r) {
+                for (uint32_t c = 0U; c < 6U; ++c) {
+                    const int32_t ri = static_cast<int32_t>(r);
+                    const int32_t ci = static_cast<int32_t>(c);
+                    pred.covariance[(r * 6U) + c] = Pcov(ri, ci);
                 }
             }
 
@@ -146,6 +139,7 @@ private:
             pred.model_weight_ca        = weights[1];
             pred.model_weight_ct        = weights[2];
             pred.track_state            = t.track_state;
+            pred.track_state_id         = t.track_state_id;
             // WHY: prediction_horizon_s is stamped onto Track by the tracker
             // node which owns the single /threat/reports join — direct read
             // here, no policy ownership in the predictor.
@@ -155,7 +149,8 @@ private:
             cuas_msgs::msg::TrajectoryWaypoints wp;
             wp.header   = pred.header;
             wp.track_id = t.track_id;
-            for (std::size_t i = 0; i < traj.positions.size(); ++i) {
+            const uint32_t nwp = static_cast<uint32_t>(traj.positions.size());
+            for (uint32_t i = 0U; i < nwp; ++i) {
                 wp.waypoints_x_m.push_back(traj.positions[i].x());
                 wp.waypoints_y_m.push_back(traj.positions[i].y());
                 wp.waypoints_z_m.push_back(traj.positions[i].z());

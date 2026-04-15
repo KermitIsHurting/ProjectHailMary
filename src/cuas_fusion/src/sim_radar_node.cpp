@@ -57,9 +57,6 @@ public:
         t1.active = true;
         sim_.set_target(1U, t1);
 
-        target_0_ = t0;
-        target_1_ = t1;
-
         pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(
             "/radar/detections", 10);
 
@@ -95,13 +92,7 @@ private:
         }
         last_tick_sec_ = now;
 
-        target_0_.x_m += target_0_.vx_mps * dt;
-        target_0_.y_m += target_0_.vy_mps * dt;
-        sim_.set_target(0U, target_0_);
-
-        target_1_.x_m += target_1_.vx_mps * dt;
-        target_1_.y_m += target_1_.vy_mps * dt;
-        sim_.set_target(1U, target_1_);
+        sim_.step(dt);
 
         FixedVector<SimPoint, kRadarSimMaxPoints> pts;
         const uint32_t n = sim_.generate(dt, pts);
@@ -148,8 +139,6 @@ private:
     }
 
     RadarSim                       sim_;
-    SimTarget                      target_0_{};
-    SimTarget                      target_1_{};
     float32_t                      last_tick_sec_;
     std::shared_ptr<rclcpp::Clock> clock_;
 

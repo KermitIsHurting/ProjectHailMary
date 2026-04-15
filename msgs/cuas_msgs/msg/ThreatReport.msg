@@ -15,3 +15,5 @@ float32 predicted_impact_x_m
 float32 predicted_impact_y_m
 geometry_msgs/Point[] exclusion_zones_violated
 float32 prediction_horizon_s
+uint8 threat_level_id
+

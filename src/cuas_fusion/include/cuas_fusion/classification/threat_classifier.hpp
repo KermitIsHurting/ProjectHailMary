@@ -51,6 +51,18 @@ public:
 
     void pruneStale(float64_t current_time_s, float64_t timeout_s = 5.0);
 
+    struct ImpactPoint {
+        float32_t x_m;
+        float32_t y_m;
+    };
+
+    float32_t bearing_deg(float32_t x_m, float32_t y_m) const;
+    float32_t predicted_range(float32_t x_m, float32_t y_m,
+                              float32_t doppler_mps, float32_t horizon_s) const;
+    ImpactPoint predicted_impact(float32_t x_m, float32_t y_m,
+                                 float32_t doppler_mps,
+                                 float32_t horizon_s) const;
+
 private:
     struct PerTrackState {
         EscalationState state          = EscalationState::UNKNOWN;

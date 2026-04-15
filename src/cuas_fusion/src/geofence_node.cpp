@@ -3,6 +3,7 @@
 #include "cuas_fusion/common/constants.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
+#include "cuas_fusion/common/track_state_ids.hpp"
 #include "cuas_fusion/geofence_engine.hpp"
 
 #include <rclcpp/rclcpp.hpp>
@@ -31,7 +32,7 @@ public:
     : Node("geofence_node")
     , engine_()
     , zone_membership_()
-    , threat_levels_()
+    , threat_priorities_()
     , latest_tracks_()
     {
         (void)declare_parameter<std::string>("geofence_config_path", std::string{});
@@ -87,18 +88,20 @@ private:
             return false;
         }
 
-        for (std::size_t zi = 0U; zi < zones_node.size(); ++zi) {
+        const uint32_t n_zones = static_cast<uint32_t>(zones_node.size());
+        for (uint32_t zi = 0U; zi < n_zones; ++zi) {
             const YAML::Node zn = zones_node[zi];
             ZoneConfig cfg;
 
             if (zn["id"]) {
                 const std::string id_str = zn["id"].as<std::string>();
-                const std::size_t id_len_raw = id_str.size();
-                const std::size_t max_copy = static_cast<std::size_t>(
-                    GEOFENCE_ZONE_ID_LEN - 1U);
-                const std::size_t n_copy =
-                    (id_len_raw < max_copy) ? id_len_raw : max_copy;
-                for (std::size_t i = 0U; i < n_copy; ++i) {
+                const uint32_t id_len_raw = static_cast<uint32_t>(id_str.size());
+                const uint32_t max_copy = GEOFENCE_ZONE_ID_LEN - 1U;
+                uint32_t n_copy = max_copy;
+                if (id_len_raw < max_copy) {
+                    n_copy = id_len_raw;
+                }
+                for (uint32_t i = 0U; i < n_copy; ++i) {
                     cfg.id[i] = id_str[i];
                 }
             }
@@ -127,7 +130,8 @@ private:
 
             if (zn["vertices"] && zn["vertices"].IsSequence()) {
                 const YAML::Node verts = zn["vertices"];
-                for (std::size_t vi = 0U; vi < verts.size(); ++vi) {
+                const uint32_t nv = static_cast<uint32_t>(verts.size());
+                for (uint32_t vi = 0U; vi < nv; ++vi) {
                     const YAML::Node v = verts[vi];
                     if (v.IsSequence() && (v.size() == 2U)) {
                         (void)cfg.vertices_x.push_back(v[0].as<float32_t>());
@@ -151,22 +155,19 @@ private:
     void threats_callback(
         const cuas_msgs::msg::ThreatReportArray::ConstSharedPtr& msg)
     {
-        for (std::size_t i = 0U; i < msg->reports.size(); ++i) {
+        const uint32_t n = static_cast<uint32_t>(msg->reports.size());
+        for (uint32_t i = 0U; i < n; ++i) {
             const cuas_msgs::msg::ThreatReport& r = msg->reports[i];
-            const uint8_t pri = threat_priority(r.threat_level);
-            (void)threat_levels_.insert_or_assign(r.track_id, pri);
+            uint8_t pri = 0U;
+            if (r.threat_level_id == cuas::threat_level::kThreatening) {
+                pri = 2U;
+            } else if (r.threat_level_id == cuas::threat_level::kSuspect) {
+                pri = 1U;
+            } else {
+                pri = 0U;
+            }
+            (void)threat_priorities_.insert_or_assign(r.track_id, pri);
         }
-    }
-
-    static uint8_t threat_priority(const std::string& level)
-    {
-        if (level == "THREAT") {
-            return 2U;
-        }
-        if (level == "SUSPECT") {
-            return 1U;
-        }
-        return 0U;
     }
 
     uint8_t find_zone_index(const char* zone_id) const
@@ -216,9 +217,10 @@ private:
         cuas_msgs::msg::GeofenceEventArray out;
         out.stamp = this->now();
 
-        for (std::size_t ti = 0U; ti < latest_tracks_.tracks.size(); ++ti) {
+        const uint32_t n_tracks = static_cast<uint32_t>(latest_tracks_.tracks.size());
+        for (uint32_t ti = 0U; ti < n_tracks; ++ti) {
             const cuas_msgs::msg::Track& track = latest_tracks_.tracks[ti];
-            if (track.track_state != "CONFIRMED") {
+            if (track.track_state_id != cuas::track_state::kConfirmed) {
                 continue;
             }
 
@@ -227,10 +229,14 @@ private:
                 track.position_x_m, track.position_y_m, track.track_id, result);
 
             const uint8_t* prev_ptr = zone_membership_.find(track.track_id);
-            const uint8_t prev_zone_idx =
-                (prev_ptr != nullptr) ? *prev_ptr : kNoZoneIndex;
-            const uint8_t now_zone_idx =
-                triggered ? find_zone_index(result.zone_id) : kNoZoneIndex;
+            uint8_t prev_zone_idx = kNoZoneIndex;
+            if (prev_ptr != nullptr) {
+                prev_zone_idx = *prev_ptr;
+            }
+            uint8_t now_zone_idx = kNoZoneIndex;
+            if (triggered) {
+                now_zone_idx = find_zone_index(result.zone_id);
+            }
 
             if (prev_zone_idx != now_zone_idx) {
                 if (prev_zone_idx != kNoZoneIndex) {
@@ -247,8 +253,11 @@ private:
                 }
             } else {
                 if (now_zone_idx != kNoZoneIndex) {
-                    const uint8_t* pri_ptr = threat_levels_.find(track.track_id);
-                    const uint8_t pri = (pri_ptr != nullptr) ? *pri_ptr : 0U;
+                    const uint8_t* pri_ptr = threat_priorities_.find(track.track_id);
+                    uint8_t pri = 0U;
+                    if (pri_ptr != nullptr) {
+                        pri = *pri_ptr;
+                    }
                     if (pri >= 2U) {
                         append_event(out, track.track_id, now_zone_idx,
                                      GeofenceEventType::INSIDE_THREAT,
@@ -265,7 +274,7 @@ private:
 
     GeofenceEngine engine_;
     FixedMap<uint32_t, uint8_t, TRACK_MAX_TRACKS> zone_membership_;
-    FixedMap<uint32_t, uint8_t, TRACK_MAX_TRACKS> threat_levels_;
+    FixedMap<uint32_t, uint8_t, TRACK_MAX_TRACKS> threat_priorities_;
     cuas_msgs::msg::TrackArray latest_tracks_;
 
     rclcpp::Publisher<cuas_msgs::msg::GeofenceEventArray>::SharedPtr pub_events_;

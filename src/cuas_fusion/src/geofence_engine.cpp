@@ -132,7 +132,11 @@ bool GeofenceEngine::point_in_polygon(
     }
 
     const float32_t edge_dist = min_distance_to_polygon_edges(zone, x_m, y_m);
-    signed_distance_m = inside ? -edge_dist : edge_dist;
+    if (inside) {
+        signed_distance_m = -edge_dist;
+    } else {
+        signed_distance_m = edge_dist;
+    }
     return inside;
 }
 

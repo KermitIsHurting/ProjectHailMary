@@ -5,6 +5,7 @@
 #include "cuas_fusion/common/fixed_types.hpp"
 #include "cuas_fusion/common/constants.hpp"
 #include "cuas_fusion/common/types.hpp"
+#include "cuas_fusion/common/track_state_ids.hpp"
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
@@ -13,8 +14,8 @@
 #include <cuas_msgs/msg/track_array.hpp>
 #include <cuas_msgs/msg/threat_report_array.hpp>
 
-#include <cmath>
 #include <limits>
+#include <string>
 #include <utility>
 
 namespace cuas {
@@ -31,6 +32,18 @@ static float32_t horizon_for_track(
     return 5.0F;
 }
 
+// WHY: single chokepoint string->id translation at the ROS publish boundary
+// (DEV-005). All other code compares track_state_id, never the string.
+static uint8_t track_state_to_id(const std::string & s)
+{
+    if (s == "TENTATIVE")  { return cuas::track_state::kTentative; }
+    if (s == "CONFIRMED")  { return cuas::track_state::kConfirmed; }
+    if (s == "OCCLUDED")   { return cuas::track_state::kOccluded; }
+    if (s == "REACQUIRED") { return cuas::track_state::kReacquired; }
+    if (s == "LOST")       { return cuas::track_state::kLost; }
+    return cuas::track_state::kUnknown;
+}
+
 class IMMTrackerNode : public rclcpp::Node
 {
 public:
@@ -40,17 +53,17 @@ public:
     {
         sub_ = create_subscription<sensor_msgs::msg::PointCloud2>(
             "/radar/detections", 10,
-            std::bind(&IMMTrackerNode::radarCallback, this, std::placeholders::_1));
+            std::bind(&IMMTrackerNode::radar_callback, this, std::placeholders::_1));
 
         sub_threats_ = create_subscription<cuas_msgs::msg::ThreatReportArray>(
             "/threat/reports", 10,
-            std::bind(&IMMTrackerNode::threatsCallback, this, std::placeholders::_1));
+            std::bind(&IMMTrackerNode::threats_callback, this, std::placeholders::_1));
 
         pub_ = create_publisher<cuas_msgs::msg::TrackArray>("/tracks", 10);
 
         timer_ = create_wall_timer(
             std::chrono::milliseconds(50),
-            std::bind(&IMMTrackerNode::publishTracks, this));
+            std::bind(&IMMTrackerNode::publish_tracks, this));
 
         clock_ = std::make_shared<rclcpp::Clock>(RCL_STEADY_TIME);
         last_predict_time_ = clock_->now().seconds();
@@ -61,12 +74,12 @@ public:
 private:
     static constexpr float64_t kAssociationGate = 0.8;
 
-    void threatsCallback(const cuas_msgs::msg::ThreatReportArray::ConstSharedPtr& msg)
+    void threats_callback(const cuas_msgs::msg::ThreatReportArray::ConstSharedPtr& msg)
     {
         latest_threats_ = *msg;
     }
 
-    void radarCallback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg)
+    void radar_callback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg)
     {
         const float64_t now = clock_->now().seconds();
 
@@ -87,11 +100,7 @@ private:
                 if (!slot.occupied) {
                     continue;
                 }
-                const Eigen::VectorXd pos = slot.value.getPosition();
-                const float64_t dx = pos(0) - px;
-                const float64_t dy = pos(1) - py;
-                const float64_t dz = pos(2) - pz;
-                const float64_t d  = std::sqrt(dx * dx + dy * dy + dz * dz);
+                const float64_t d = slot.value.distance_to(px, py, pz);
                 if (d < best_dist) {
                     best_dist = d;
                     best_id   = slot.key;
@@ -116,7 +125,7 @@ private:
         }
     }
 
-    void publishTracks()
+    void publish_tracks()
     {
         const float64_t now = clock_->now().seconds();
         float64_t dt = now - last_predict_time_;
@@ -126,7 +135,8 @@ private:
         }
 
         active_tracks_.erase_if(
-            [&](uint32_t /*id*/, const IMMTracker& tracker) {
+            [&](uint32_t id, const IMMTracker& tracker) {
+                (void)id;
                 return (now - tracker.lastUpdateTime()) > 5.0;
             });
 
@@ -151,15 +161,15 @@ private:
             cuas_msgs::msg::Track t;
             t.track_id = tracker.getTrackId();
             const Eigen::VectorXd pos = tracker.getPosition();
-            const Eigen::VectorXd vel = tracker.getVelocity();
-            t.position_x_m = static_cast<float>(pos(0));
-            t.position_y_m = static_cast<float>(pos(1));
-            t.position_z_m = static_cast<float>(pos(2));
-            t.velocity_mps = static_cast<float>(vel.norm());
+            t.position_x_m = static_cast<float32_t>(pos(0));
+            t.position_y_m = static_cast<float32_t>(pos(1));
+            t.position_z_m = static_cast<float32_t>(pos(2));
+            t.velocity_mps = static_cast<float32_t>(tracker.speed());
             t.doppler_mps  = 0.0F;
             t.class_label  = "unknown";
             t.confidence   = tracker.getConfidence();
             t.track_state  = trackStateToString(tracker.getState());
+            t.track_state_id = track_state_to_id(t.track_state);
             t.timestamp_ns = static_cast<int64_t>(tracker.lastUpdateTime() * 1.0e9);
             t.is_maneuvering     = tracker.isManeuvering();
             t.imm_ct_probability = tracker.getCtProbability();

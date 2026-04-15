@@ -72,28 +72,33 @@ private:
         return static_cast<float32_t>(clock_->now().seconds());
     }
 
-    void radar_cb(const sensor_msgs::msg::PointCloud2::ConstSharedPtr & /*msg*/)
+    void radar_cb(const sensor_msgs::msg::PointCloud2::ConstSharedPtr & msg)
     {
+        (void)msg;
         monitor_.update(kTopicRadar, now_sec());
     }
 
-    void camera_cb(const sensor_msgs::msg::Image::ConstSharedPtr & /*msg*/)
+    void camera_cb(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
     {
+        (void)msg;
         monitor_.update(kTopicCamera, now_sec());
     }
 
-    void tracks_cb(const cuas_msgs::msg::TrackArray::ConstSharedPtr & /*msg*/)
+    void tracks_cb(const cuas_msgs::msg::TrackArray::ConstSharedPtr & msg)
     {
+        (void)msg;
         monitor_.update(kTopicTracker, now_sec());
     }
 
-    void threats_cb(const cuas_msgs::msg::ThreatReportArray::ConstSharedPtr & /*msg*/)
+    void threats_cb(const cuas_msgs::msg::ThreatReportArray::ConstSharedPtr & msg)
     {
+        (void)msg;
         monitor_.update(kTopicClassifier, now_sec());
     }
 
-    void predict_cb(const cuas_msgs::msg::PredictedTrack::ConstSharedPtr & /*msg*/)
+    void predict_cb(const cuas_msgs::msg::PredictedTrack::ConstSharedPtr & msg)
     {
+        (void)msg;
         monitor_.update(kTopicPredictor, now_sec());
     }
 
@@ -111,12 +116,12 @@ private:
         const TopicHealth predictor  = monitor_.query(kTopicPredictor);
 
         cuas_msgs::msg::SystemHealth msg;
-        msg.status            = monitor_.overall_status();
-        msg.radar_status      = radar.status;
-        msg.camera_status     = camera.status;
-        msg.tracker_status    = tracker.status;
-        msg.classifier_status = classifier.status;
-        msg.predictor_status  = predictor.status;
+        msg.status            = static_cast<uint8_t>(monitor_.overall_status());
+        msg.radar_status      = static_cast<uint8_t>(radar.status);
+        msg.camera_status     = static_cast<uint8_t>(camera.status);
+        msg.tracker_status    = static_cast<uint8_t>(tracker.status);
+        msg.classifier_status = static_cast<uint8_t>(classifier.status);
+        msg.predictor_status  = static_cast<uint8_t>(predictor.status);
         msg.radar_hz          = radar.measured_hz;
         msg.tracker_hz        = tracker.measured_hz;
         msg.classifier_hz     = classifier.measured_hz;

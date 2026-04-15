@@ -35,6 +35,9 @@ public:
     float32_t getCtProbability()       const { return imm_ct_probability_; }
     uint32_t  getVelocityRejectCount() const { return velocity_reject_count_; }
 
+    float64_t distance_to(float64_t px, float64_t py, float64_t pz) const;
+    float64_t speed() const;
+
 private:
     ImmFilter  imm_{};
     uint32_t   track_id_              = 0U;
