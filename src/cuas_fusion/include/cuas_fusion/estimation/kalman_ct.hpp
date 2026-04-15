@@ -20,6 +20,7 @@ public:
     float64_t likelihood(const Eigen::VectorXd& z, const Eigen::MatrixXd& R) const;
     Eigen::MatrixXd getF(float64_t dt) const;
     Eigen::MatrixXd getQ(float64_t dt) const;
+    void setVelocity(const Eigen::Vector3d& v) { x_.segment<3>(3) = v; }
 
     static constexpr int32_t kStateDim = 7;
 

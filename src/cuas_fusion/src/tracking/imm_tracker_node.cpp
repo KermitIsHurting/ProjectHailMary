@@ -11,12 +11,25 @@
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <cuas_msgs/msg/track.hpp>
 #include <cuas_msgs/msg/track_array.hpp>
+#include <cuas_msgs/msg/threat_report_array.hpp>
 
 #include <cmath>
 #include <limits>
 #include <utility>
 
 namespace cuas {
+
+static float32_t horizon_for_track(
+    uint32_t track_id,
+    const cuas_msgs::msg::ThreatReportArray & reports)
+{
+    for (uint32_t i = 0U; i < reports.reports.size(); ++i) {
+        if (reports.reports[i].track_id == track_id) {
+            return reports.reports[i].prediction_horizon_s;
+        }
+    }
+    return 5.0F;
+}
 
 class IMMTrackerNode : public rclcpp::Node
 {
@@ -28,6 +41,10 @@ public:
         sub_ = create_subscription<sensor_msgs::msg::PointCloud2>(
             "/radar/detections", 10,
             std::bind(&IMMTrackerNode::radarCallback, this, std::placeholders::_1));
+
+        sub_threats_ = create_subscription<cuas_msgs::msg::ThreatReportArray>(
+            "/threat/reports", 10,
+            std::bind(&IMMTrackerNode::threatsCallback, this, std::placeholders::_1));
 
         pub_ = create_publisher<cuas_msgs::msg::TrackArray>("/tracks", 10);
 
@@ -43,6 +60,11 @@ public:
 
 private:
     static constexpr float64_t kAssociationGate = 0.8;
+
+    void threatsCallback(const cuas_msgs::msg::ThreatReportArray::ConstSharedPtr& msg)
+    {
+        latest_threats_ = *msg;
+    }
 
     void radarCallback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg)
     {
@@ -141,6 +163,10 @@ private:
             t.timestamp_ns = static_cast<int64_t>(tracker.lastUpdateTime() * 1.0e9);
             t.is_maneuvering     = tracker.isManeuvering();
             t.imm_ct_probability = tracker.getCtProbability();
+            // WHY: tracker owns Track enrichment and is the single join point
+            // between threat policy and the Track message — predictors read
+            // prediction_horizon_s directly with no additional subscriptions.
+            t.prediction_horizon_s = horizon_for_track(t.track_id, latest_threats_);
             out.tracks.push_back(t);
         }
 
@@ -149,8 +175,10 @@ private:
 
     FixedMap<uint32_t, IMMTracker, TRACK_MAX_TRACKS> active_tracks_;
     uint32_t next_track_id_;
+    cuas_msgs::msg::ThreatReportArray latest_threats_;
 
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_;
+    rclcpp::Subscription<cuas_msgs::msg::ThreatReportArray>::SharedPtr sub_threats_;
     rclcpp::Publisher<cuas_msgs::msg::TrackArray>::SharedPtr pub_;
     rclcpp::TimerBase::SharedPtr timer_;
     std::shared_ptr<rclcpp::Clock> clock_;

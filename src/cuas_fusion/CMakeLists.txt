@@ -17,6 +17,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 set(OpenCV_DIR /usr/lib/aarch64-linux-gnu/cmake/opencv4)
 find_package(OpenCV REQUIRED)
@@ -260,6 +261,68 @@ target_include_directories(cuas_visualizer_node PRIVATE ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(cuas_visualizer_node ${OpenCV_LIBS})
 target_compile_options(cuas_visualizer_node PRIVATE ${CUAS_SAFETY_FLAGS})
 
+# cuas overlay node (downstream of visualizer; no cv_bridge — uses rosImageToBgr)
+add_executable(cuas_overlay_node
+  src/visualization/overlay_engine.cpp
+  src/visualization/cuas_overlay_node.cpp
+)
+ament_target_dependencies(cuas_overlay_node
+  rclcpp
+  sensor_msgs
+  cuas_msgs
+)
+target_include_directories(cuas_overlay_node PRIVATE ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(cuas_overlay_node ${OpenCV_LIBS})
+target_compile_options(cuas_overlay_node PRIVATE ${CUAS_SAFETY_FLAGS})
+
+# capture node (test-only frame grabber, not launched by full.launch.py)
+add_executable(capture_node
+  src/visualization/capture_node.cpp
+)
+ament_target_dependencies(capture_node
+  rclcpp
+  sensor_msgs
+)
+target_include_directories(capture_node PRIVATE ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(capture_node ${OpenCV_LIBS})
+target_compile_options(capture_node PRIVATE ${CUAS_SAFETY_FLAGS})
+
+# geofence engine library (no ROS dependency)
+add_library(geofence_engine STATIC
+  src/geofence_engine.cpp
+)
+target_include_directories(geofence_engine PUBLIC include)
+target_compile_options(geofence_engine PRIVATE ${CUAS_SAFETY_FLAGS})
+
+# geofence node
+add_executable(geofence_node
+  src/geofence_node.cpp
+)
+ament_target_dependencies(geofence_node
+  rclcpp
+  cuas_msgs
+)
+target_link_libraries(geofence_node geofence_engine yaml-cpp)
+target_compile_options(geofence_node PRIVATE ${CUAS_SAFETY_FLAGS})
+
+# reachability engine library (no ROS dependency)
+add_library(reachability_engine STATIC
+  src/reachability_engine.cpp
+)
+target_include_directories(reachability_engine PUBLIC include)
+target_compile_options(reachability_engine PRIVATE ${CUAS_SAFETY_FLAGS})
+
+# reachability node
+add_executable(reachability_node
+  src/reachability_node.cpp
+)
+ament_target_dependencies(reachability_node
+  rclcpp
+  cuas_msgs
+)
+target_link_libraries(reachability_node reachability_engine)
+target_compile_options(reachability_node PRIVATE ${CUAS_SAFETY_FLAGS})
+
 install(TARGETS
   radar_parser_node
   camera_node
@@ -272,7 +335,11 @@ install(TARGETS
   occlusion_predictor_node
   prediction_mux_node
   cuas_visualizer_node
+  cuas_overlay_node
+  capture_node
   cot_publisher_node
+  geofence_node
+  reachability_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

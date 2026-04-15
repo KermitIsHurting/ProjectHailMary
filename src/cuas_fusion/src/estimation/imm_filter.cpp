@@ -154,6 +154,16 @@ void ImmFilter::setModelNoise(uint32_t model_index, float64_t sigma)
     }
 }
 
+void ImmFilter::setVelocity(const Eigen::Vector3d& v)
+{
+    // Overwrites velocity across all three sub-filters so the next blended
+    // state is consistent with the override; higher-order terms (ca acc, ct
+    // omega) are left untouched so the IMM can still re-estimate them.
+    cv_.setVelocity(v);
+    ca_.setVelocity(v);
+    ct_.setVelocity(v);
+}
+
 Eigen::MatrixXd ImmFilter::getMixedF(float64_t dt) const
 {
     return mu_[0] * cv_.getF(dt) + mu_[1] * ca_.getF(dt) + mu_[2] * ct_.getF(dt);

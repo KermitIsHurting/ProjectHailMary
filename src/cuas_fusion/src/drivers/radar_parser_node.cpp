@@ -1,5 +1,6 @@
 // @file radar_parser_node.cpp
 // @brief IWR6843ISK frame parser with DBSCAN clustering and ROS publishing.
+#include "cuas_fusion/common/constants.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 
@@ -158,23 +159,38 @@ static std::vector<DetectedPoint> dbscanCluster(const std::vector<DetectedPoint>
 
     std::vector<DetectedPoint> centroids;
     for (int32_t c = 1; c <= cluster_id; ++c) {
-        float32_t sx = 0.0F;
-        float32_t sy = 0.0F;
-        float32_t sz = 0.0F;
-        float32_t sv = 0.0F;
-        int32_t   cnt = 0;
+        // Weighting position by |doppler| pulls the centroid toward torso-speed
+        // returns and away from slow limb/arm reflections inside the cluster.
+        float32_t sx           = 0.0F;
+        float32_t sy           = 0.0F;
+        float32_t sz           = 0.0F;
+        float32_t sum_weight   = 0.0F;
+        float32_t max_abs_dop  = -1.0F;
+        float32_t dominant_dop = 0.0F;
+        int32_t   cnt          = 0;
         for (int32_t i = 0; i < n; ++i) {
             if (label[static_cast<std::size_t>(i)] == c) {
-                sx += pts[static_cast<std::size_t>(i)].x;
-                sy += pts[static_cast<std::size_t>(i)].y;
-                sz += pts[static_cast<std::size_t>(i)].z;
-                sv += pts[static_cast<std::size_t>(i)].doppler;
+                const DetectedPoint& p = pts[static_cast<std::size_t>(i)];
+                const float32_t abs_dop = std::abs(p.doppler);
+                const float32_t w       = abs_dop + kDopplerWeightFloor;
+                sx         += w * p.x;
+                sy         += w * p.y;
+                sz         += w * p.z;
+                sum_weight += w;
+                // Keep the signed doppler of the fastest return so the sign
+                // convention (approach vs recede) survives the centroid merge.
+                if (abs_dop > max_abs_dop) {
+                    max_abs_dop  = abs_dop;
+                    dominant_dop = p.doppler;
+                }
                 ++cnt;
             }
         }
-        if (cnt > 0) {
-            const float32_t fn = static_cast<float32_t>(cnt);
-            centroids.push_back({sx / fn, sy / fn, sz / fn, sv / fn});
+        if (cnt > 0 && sum_weight > 0.0F) {
+            centroids.push_back({sx / sum_weight,
+                                 sy / sum_weight,
+                                 sz / sum_weight,
+                                 dominant_dop});
         }
     }
 

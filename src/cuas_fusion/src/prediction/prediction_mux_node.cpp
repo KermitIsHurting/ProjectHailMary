@@ -115,6 +115,8 @@ private:
             }
 
             if (chosen != nullptr) {
+                // WHY: horizon arrives pre-stamped from the predictors because the
+                // classifier owns threat policy; the mux only arbitrates streams.
                 pub_pred_->publish(*chosen);
             }
 

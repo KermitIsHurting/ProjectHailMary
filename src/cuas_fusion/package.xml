@@ -18,4 +18,5 @@
   <depend>visualization_msgs</depend>
   <depend>image_transport</depend>
   <depend>rviz2</depend>
+  <depend>yaml-cpp</depend>
 </package>

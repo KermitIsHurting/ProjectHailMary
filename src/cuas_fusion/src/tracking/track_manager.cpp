@@ -13,9 +13,6 @@ namespace cuas {
 
 namespace {
 
-// 99% chi-square threshold for 3 position DOFs; matches the prior 3 m radius
-// at nominal 1 m position uncertainty.
-constexpr float64_t kGateChi2      = 9.0;
 // Fresh tracks have no prior observation, so uncertainty starts at 1 m on each axis.
 constexpr float64_t kInitialPosVar = 1.0;
 // Without an explicit predict step, a missed frame grows uncertainty linearly
@@ -145,6 +142,14 @@ bool TrackManager::update(const FusedDetection* detections,
         };
         const Eigen::Matrix3d S = e.P + R_detection_;
 
+        // Confirmed tracks get a wider gate so arm/leg returns from the same
+        // body don't fall outside and spawn fragment tracks; tentative tracks
+        // keep the tight gate so clutter cannot promote itself to confirmed.
+        const float64_t gate_chi2 =
+            (e.track.state_ == TrackState::CONFIRMED)
+                ? kConfirmedGateChi2
+                : kTentativeGateChi2;
+
         for (uint32_t j = 0U; j < M; ++j) {
             const FusedDetection& det = detections[j];
             const Eigen::Vector3d det_pos{
@@ -156,7 +161,7 @@ bool TrackManager::update(const FusedDetection* detections,
 
             const Eigen::Index ri = static_cast<Eigen::Index>(i);
             const Eigen::Index cj = static_cast<Eigen::Index>(j);
-            if (mahalanobisGate(innovation, S, kGateChi2)) {
+            if (mahalanobisGate(innovation, S, gate_chi2)) {
                 cost_matrix_(ri, cj) = innovation.dot(S.inverse() * innovation);
             } else {
                 cost_matrix_(ri, cj) = HungarianSolver::kLargeCost;

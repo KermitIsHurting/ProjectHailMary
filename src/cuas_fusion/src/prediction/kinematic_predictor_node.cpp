@@ -146,7 +146,10 @@ private:
             pred.model_weight_ca        = weights[1];
             pred.model_weight_ct        = weights[2];
             pred.track_state            = t.track_state;
-            pred.prediction_horizon_sec = horizon_;
+            // WHY: prediction_horizon_s is stamped onto Track by the tracker
+            // node which owns the single /threat/reports join — direct read
+            // here, no policy ownership in the predictor.
+            pred.prediction_horizon_sec = static_cast<float64_t>(t.prediction_horizon_s);
             pub_pred_->publish(pred);
 
             cuas_msgs::msg::TrajectoryWaypoints wp;

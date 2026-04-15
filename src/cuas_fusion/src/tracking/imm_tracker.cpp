@@ -60,6 +60,26 @@ void IMMTracker::update(float64_t x, float64_t y, float64_t z, float64_t timesta
     // Gain uses time since last measurement, not predict dt, so bursts of
     // quick updates don't saturate confidence in a single tick.
     const float64_t dt_since_hit = std::max(0.0, timestamp - last_update_time_);
+
+    // Reject physically implausible velocity jumps (e.g. from arm-swing
+    // reflections) while keeping the position correction and the grown
+    // covariance from this update. Skip the gate on the first post-init
+    // measurement because the baseline prev_velocity_ is an arbitrary zero.
+    const Eigen::Vector3d new_velocity = imm_.getState().tail(3);
+    if (!has_prev_velocity_) {
+        prev_velocity_     = new_velocity;
+        has_prev_velocity_ = true;
+    } else {
+        const float64_t delta_v     = (new_velocity - prev_velocity_).norm();
+        const float64_t max_delta_v = kMaxPhysicalAcceleration * dt_since_hit;
+        if (delta_v > max_delta_v) {
+            imm_.setVelocity(prev_velocity_);
+            ++velocity_reject_count_;
+        } else {
+            prev_velocity_ = new_velocity;
+        }
+    }
+
     last_update_time_ = timestamp;
     ++consecutive_hit_count_;
 

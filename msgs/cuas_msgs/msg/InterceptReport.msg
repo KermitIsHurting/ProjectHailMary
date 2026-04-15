@@ -1,0 +1,8 @@
+uint32 track_id
+float32 time_to_intercept_s
+float32 intercept_confidence
+float32 covariance_ellipse_major_m
+float32 covariance_ellipse_minor_m
+float32 covariance_ellipse_heading_rad
+bool intercept_possible
+builtin_interfaces/Time stamp

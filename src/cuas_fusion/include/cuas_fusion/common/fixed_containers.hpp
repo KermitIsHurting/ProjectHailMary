@@ -39,7 +39,7 @@ public:
     const T* data() const { return &data_[0]; }
 
 private:
-    std::array<T, Capacity> data_{};
+    std::array<T, Capacity> data_;
     uint32_t size_ = 0;
 };
 

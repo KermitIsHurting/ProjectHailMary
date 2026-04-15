@@ -21,6 +21,7 @@ public:
     Eigen::MatrixXd getF(float64_t dt) const;
     Eigen::MatrixXd getQ(float64_t dt) const;
     void setSigmaA(float64_t sigma) { sigma_a_ = sigma; }
+    void setVelocity(const Eigen::Vector3d& v) { x_.segment<3>(3) = v; }
 
     static constexpr int32_t kStateDim = 6;
 

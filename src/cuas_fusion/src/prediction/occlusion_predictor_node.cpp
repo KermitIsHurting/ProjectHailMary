@@ -61,6 +61,7 @@ private:
         const float64_t now = clock_->now().seconds();
 
         for (const auto& t : msg->tracks) {
+            (void)horizon_cache_.insert_or_assign(t.track_id, t.prediction_horizon_s);
             if (t.track_state == "OCCLUDED") {
                 if (ghost_tracks_.find(t.track_id) == nullptr) {
                     OcclusionPredictor::GhostTrack ghost;
@@ -158,7 +159,12 @@ private:
             pred.model_weight_ca        = ghost.model_weights[1];
             pred.model_weight_ct        = ghost.model_weights[2];
             pred.track_state            = "OCCLUDED";
-            pred.prediction_horizon_sec = horizon_;
+            // WHY: prediction_horizon_s is stamped onto Track by the tracker
+            // node which owns the single /threat/reports join — direct read
+            // here, no policy ownership in the predictor.
+            const float32_t* h_ptr = horizon_cache_.find(slot.key);
+            pred.prediction_horizon_sec = static_cast<float64_t>(
+                (h_ptr != nullptr) ? *h_ptr : 5.0F);
             pub_pred_->publish(pred);
 
             cuas_msgs::msg::TrajectoryWaypoints wp;
@@ -183,6 +189,7 @@ private:
     int32_t   n_steps_ = 0;
 
     FixedMap<uint32_t, OcclusionPredictor::GhostTrack, TRACK_MAX_TRACKS> ghost_tracks_{};
+    FixedMap<uint32_t, float32_t, TRACK_MAX_TRACKS> horizon_cache_{};
 
     rclcpp::Subscription<cuas_msgs::msg::TrackArray>::SharedPtr sub_;
     rclcpp::Publisher<cuas_msgs::msg::PredictedTrack>::SharedPtr pub_pred_;

@@ -16,6 +16,23 @@
 
 namespace cuas {
 
+static float32_t horizonForLevelString(const std::string& level)
+{
+    if (level == "THREAT") {
+        return 10.0F;
+    }
+    if (level == "SUSPECT") {
+        return 7.0F;
+    }
+    if (level == "UNKNOWN") {
+        return 5.0F;
+    }
+    if (level == "BENIGN") {
+        return 3.0F;
+    }
+    return 5.0F;
+}
+
 class ClassifierNode : public rclcpp::Node
 {
 public:
@@ -156,6 +173,10 @@ private:
                 zone_pt.z = 0.0;
                 report.exclusion_zones_violated.push_back(zone_pt);
             }
+
+            // WHY: horizon is stamped here because this is the earliest point in the
+            // pipeline where threat level is known; classifier owns threat policy.
+            report.prediction_horizon_s = horizonForLevelString(report.threat_level);
 
             out.reports.push_back(report);
         }

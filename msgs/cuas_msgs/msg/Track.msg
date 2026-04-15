@@ -10,3 +10,4 @@ string  track_state
 int64   timestamp_ns
 bool    is_maneuvering       # true when CT model dominant 3+ frames
 float32 imm_ct_probability   # current CT model probability 0.0 to 1.0
+float32 prediction_horizon_s # adaptive per-track prediction horizon seconds

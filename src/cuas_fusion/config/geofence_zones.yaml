@@ -1,0 +1,15 @@
+zones:
+  - id: "perimeter"
+    type: circle
+    radius_m: 5.0
+    center_x_m: 0.0
+    center_y_m: 0.0
+    alert_on_entry: true
+  - id: "no_fly_left"
+    type: polygon
+    vertices:
+      - [-4.0, 0.0]
+      - [-4.0, 6.0]
+      - [-1.0, 6.0]
+      - [-1.0, 0.0]
+    alert_on_entry: true

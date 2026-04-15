@@ -30,9 +30,10 @@ public:
     Eigen::MatrixXd getMixedQ(float64_t dt) const;
     float64_t lastUpdateTime() const;
 
-    float32_t getConfidence()    const { return confidence_; }
-    bool      isManeuvering()    const { return is_maneuvering_; }
-    float32_t getCtProbability() const { return imm_ct_probability_; }
+    float32_t getConfidence()          const { return confidence_; }
+    bool      isManeuvering()          const { return is_maneuvering_; }
+    float32_t getCtProbability()       const { return imm_ct_probability_; }
+    uint32_t  getVelocityRejectCount() const { return velocity_reject_count_; }
 
 private:
     ImmFilter  imm_{};
@@ -45,6 +46,10 @@ private:
     uint32_t   ct_dominant_frames_   = 0U;
     float32_t  imm_ct_probability_   = 0.0F;
     float32_t  confidence_           = kInitConfidence;
+
+    Eigen::Vector3d prev_velocity_        = Eigen::Vector3d::Zero();
+    bool            has_prev_velocity_    = false;
+    uint32_t        velocity_reject_count_ = 0U;
 
     static constexpr int32_t   kConfirmHits     = 5;
     static constexpr float64_t kOccludedTimeout = 0.5;

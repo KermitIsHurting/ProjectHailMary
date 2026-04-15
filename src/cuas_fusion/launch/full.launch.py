@@ -10,6 +10,7 @@ def generate_launch_description():
     config = os.path.join(pkg_share, 'config', 'predictor_params.yaml')
     system_params = os.path.join(pkg_share, 'config', 'system_params.yaml')
     rviz_config = os.path.join(pkg_share, 'config', 'cuas_demo.rviz')
+    geofence_config = os.path.join(pkg_share, 'config', 'geofence_zones.yaml')
     radar_config_script = os.path.join(
         pkg_share, 'scripts', 'send_radar_config.sh')
     radar_profile = os.path.join(pkg_share, 'config', 'radar_profile.cfg')
@@ -102,9 +103,35 @@ def generate_launch_description():
         ),
         Node(
             package='cuas_fusion',
+            executable='geofence_node',
+            name='geofence_node',
+            parameters=[{
+                'use_sim_time': False,
+                'geofence_config_path': geofence_config,
+                'publish_rate_hz': 10.0,
+            }],
+        ),
+        Node(
+            package='cuas_fusion',
+            executable='reachability_node',
+            name='reachability_node',
+            parameters=[{
+                'use_sim_time': False,
+                'min_threat_level': 1,
+                'publish_rate_hz': 20.0,
+            }],
+        ),
+        Node(
+            package='cuas_fusion',
             executable='cuas_visualizer_node',
             name='cuas_visualizer_node',
             parameters=[system_params, {'use_sim_time': False}],
+        ),
+        Node(
+            package='cuas_fusion',
+            executable='cuas_overlay_node',
+            name='cuas_overlay_node',
+            parameters=[{'use_sim_time': False}],
         ),
         Node(
             package='rviz2',

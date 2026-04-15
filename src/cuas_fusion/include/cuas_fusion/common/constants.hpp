@@ -68,6 +68,19 @@ static constexpr float64_t kManeuverCaSigmaJ           = 0.3;
 static constexpr float64_t kNominalCvSigmaA            = 0.5;
 static constexpr float64_t kNominalCaSigmaJ            = 1.0;
 
+// Floors the centroid weight on near-stationary returns so they still contribute
+// position but get outvoted by torso-speed doppler returns inside the cluster.
+static constexpr float32_t kDopplerWeightFloor         = 0.1F;
+
+// Human locomotion acceleration cap, used to reject arm-swing velocity spikes
+// that leak into the IMM blended state between frames.
+static constexpr float64_t kMaxPhysicalAcceleration    = 3.0;
+
+// Tight gate for new tracks keeps clutter from initiating confirmed IDs;
+// wider gate for confirmed tracks absorbs extended body returns.
+static constexpr float64_t kTentativeGateChi2          = 9.0;
+static constexpr float64_t kConfirmedGateChi2          = 16.0;
+
 static constexpr float32_t THREAT_VELOCITY_SUSPECT_MPS   = 2.0F;
 static constexpr float32_t THREAT_VELOCITY_THREAT_MPS    = 5.0F;
 static constexpr float32_t THREAT_APPROACH_THRESHOLD_MPS = -0.5F;
@@ -85,5 +98,16 @@ static constexpr std::array<std::string_view, 3> THREAT_DRONE_CLASSES = {
 static constexpr std::array<std::string_view, 5> THREAT_BENIGN_CLASSES = {
     "0", "2", "7", "3", "1"  // person, car, truck, motorcycle, bicycle (COCO numeric IDs)
 };
+
+static constexpr float32_t kOverlayLabelFontScale   = 1.2F;
+static constexpr float32_t kOverlayTrackIdFontScale = 0.9F;
+static constexpr int32_t   kOverlayLabelPadding     = 6;
+static constexpr int32_t   kOverlayArcMaxWaypoints  = 8;
+static constexpr int32_t   kOverlayArcDotRadius     = 4;
+static constexpr int32_t   kOverlayArcThickness     = 2;
+
+static constexpr float32_t kOverlayConfirmedFontScale  = 0.85F;
+static constexpr float32_t kOverlayTentativeFontScale  = 0.45F;
+static constexpr float32_t kOverlayTentativeAlpha      = 0.50F;
 
 } // namespace cuas
