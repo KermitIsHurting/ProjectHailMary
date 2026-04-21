@@ -24,7 +24,6 @@
 #include <string>
 #include <thread>
 #include <utility>
-#include <vector>
 
 namespace cuas {
 
@@ -71,11 +70,11 @@ struct DetectedPoint {
 
 #pragma pack(pop)
 
-static std::vector<DetectedPoint> filterPoints(const std::vector<DetectedPoint>& raw)
+static FixedVector<DetectedPoint, TRACK_MAX_TRACKS> filterPoints(
+    const FixedVector<DetectedPoint, TRACK_MAX_TRACKS>& raw)
 {
-    std::vector<DetectedPoint> out;
-    out.reserve(raw.size());
-    for (std::size_t i = 0U; i < raw.size(); ++i) {
+    FixedVector<DetectedPoint, TRACK_MAX_TRACKS> out;
+    for (uint32_t i = 0U; i < raw.size(); ++i) {
         const DetectedPoint& p = raw[i];
         const float32_t range = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
         if (range > MAX_RANGE_M) {
@@ -84,7 +83,9 @@ static std::vector<DetectedPoint> filterPoints(const std::vector<DetectedPoint>&
         if (std::abs(p.doppler) < CLUTTER_VEL_THRESH) {
             continue;
         }
-        out.push_back(p);
+        if (!out.push_back(p)) {
+            break;
+        }
     }
     return out;
 }
@@ -97,70 +98,71 @@ static float32_t pointDist(const DetectedPoint& a, const DetectedPoint& b)
     return std::sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-static std::vector<DetectedPoint> dbscanCluster(const std::vector<DetectedPoint>& pts)
+static FixedVector<DetectedPoint, TRACK_MAX_TRACKS> dbscanCluster(
+    const FixedVector<DetectedPoint, TRACK_MAX_TRACKS>& pts)
 {
     const int32_t n = static_cast<int32_t>(pts.size());
     if (n == 0) {
         return {};
     }
 
-    // label 0 marks noise, -1 means unvisited, >0 is a cluster id
-    std::vector<int32_t> label(static_cast<std::size_t>(n), -1);
+    FixedVector<int32_t, TRACK_MAX_TRACKS> label;
+    for (int32_t i = 0; i < n; ++i) {
+        (void)label.push_back(-1);
+    }
     int32_t cluster_id = 0;
 
     for (int32_t i = 0; i < n; ++i) {
-        if (label[static_cast<std::size_t>(i)] != -1) {
+        if (label[static_cast<uint32_t>(i)] != -1) {
             continue;
         }
 
-        std::vector<int32_t> neighbors;
+        FixedVector<int32_t, TRACK_MAX_TRACKS> neighbors;
         for (int32_t j = 0; j < n; ++j) {
-            if (pointDist(pts[static_cast<std::size_t>(i)],
-                          pts[static_cast<std::size_t>(j)]) <= DBSCAN_EPS) {
-                neighbors.push_back(j);
+            if (pointDist(pts[static_cast<uint32_t>(i)],
+                          pts[static_cast<uint32_t>(j)]) <= DBSCAN_EPS) {
+                (void)neighbors.push_back(j);
             }
         }
 
         if (static_cast<int32_t>(neighbors.size()) < DBSCAN_MIN_PTS) {
-            label[static_cast<std::size_t>(i)] = 0;
+            label[static_cast<uint32_t>(i)] = 0;
             continue;
         }
 
         ++cluster_id;
-        label[static_cast<std::size_t>(i)] = cluster_id;
+        label[static_cast<uint32_t>(i)] = cluster_id;
 
-        for (std::size_t qi = 0U; qi < neighbors.size(); ++qi) {
+        for (uint32_t qi = 0U; qi < neighbors.size(); ++qi) {
             const int32_t q = neighbors[qi];
-            if (label[static_cast<std::size_t>(q)] == 0) {
-                label[static_cast<std::size_t>(q)] = cluster_id;
+            if (label[static_cast<uint32_t>(q)] == 0) {
+                label[static_cast<uint32_t>(q)] = cluster_id;
             }
-            if (label[static_cast<std::size_t>(q)] != -1) {
+            if (label[static_cast<uint32_t>(q)] != -1) {
                 continue;
             }
-            label[static_cast<std::size_t>(q)] = cluster_id;
+            label[static_cast<uint32_t>(q)] = cluster_id;
 
             for (int32_t j = 0; j < n; ++j) {
-                if (pointDist(pts[static_cast<std::size_t>(q)],
-                              pts[static_cast<std::size_t>(j)]) <= DBSCAN_EPS) {
+                if (pointDist(pts[static_cast<uint32_t>(q)],
+                              pts[static_cast<uint32_t>(j)]) <= DBSCAN_EPS) {
                     bool already = false;
-                    for (std::size_t k = 0U; k < neighbors.size(); ++k) {
+                    for (uint32_t k = 0U; k < neighbors.size(); ++k) {
                         if (neighbors[k] == j) {
                             already = true;
                             break;
                         }
                     }
                     if (!already) {
-                        neighbors.push_back(j);
+                        (void)neighbors.push_back(j);
                     }
                 }
             }
         }
     }
 
-    std::vector<DetectedPoint> centroids;
+    FixedVector<DetectedPoint, TRACK_MAX_TRACKS> centroids;
     for (int32_t c = 1; c <= cluster_id; ++c) {
-        // Weighting position by |doppler| pulls the centroid toward torso-speed
-        // returns and away from slow limb/arm reflections inside the cluster.
         float32_t sx           = 0.0F;
         float32_t sy           = 0.0F;
         float32_t sz           = 0.0F;
@@ -169,16 +171,14 @@ static std::vector<DetectedPoint> dbscanCluster(const std::vector<DetectedPoint>
         float32_t dominant_dop = 0.0F;
         int32_t   cnt          = 0;
         for (int32_t i = 0; i < n; ++i) {
-            if (label[static_cast<std::size_t>(i)] == c) {
-                const DetectedPoint& p = pts[static_cast<std::size_t>(i)];
+            if (label[static_cast<uint32_t>(i)] == c) {
+                const DetectedPoint& p = pts[static_cast<uint32_t>(i)];
                 const float32_t abs_dop = std::abs(p.doppler);
                 const float32_t w       = abs_dop + kDopplerWeightFloor;
                 sx         += w * p.x;
                 sy         += w * p.y;
                 sz         += w * p.z;
                 sum_weight += w;
-                // Keep the signed doppler of the fastest return so the sign
-                // convention (approach vs recede) survives the centroid merge.
                 if (abs_dop > max_abs_dop) {
                     max_abs_dop  = abs_dop;
                     dominant_dop = p.doppler;
@@ -187,18 +187,17 @@ static std::vector<DetectedPoint> dbscanCluster(const std::vector<DetectedPoint>
             }
         }
         if (cnt > 0 && sum_weight > 0.0F) {
-            centroids.push_back({sx / sum_weight,
-                                 sy / sum_weight,
-                                 sz / sum_weight,
-                                 dominant_dop});
+            (void)centroids.push_back({sx / sum_weight,
+                                       sy / sum_weight,
+                                       sz / sum_weight,
+                                       dominant_dop});
         }
     }
 
-    // Fall back to noise singletons when no clusters formed so the stage never drops frames silently
     if (centroids.empty()) {
         for (int32_t i = 0; i < n; ++i) {
-            if (label[static_cast<std::size_t>(i)] == 0) {
-                centroids.push_back(pts[static_cast<std::size_t>(i)]);
+            if (label[static_cast<uint32_t>(i)] == 0) {
+                (void)centroids.push_back(pts[static_cast<uint32_t>(i)]);
             }
         }
     }
@@ -264,7 +263,7 @@ public:
 private:
     std::pair<std::string, std::string> detectRadarPorts()
     {
-        std::vector<std::string> radar_ports;
+        FixedVector<std::string, 10U> radar_ports;
         for (int32_t i = 0; i <= 9; ++i) {
             const std::string port = "/dev/ttyUSB" + std::to_string(i);
             if (access(port.c_str(), F_OK) != 0) {
@@ -279,7 +278,7 @@ private:
             // CP210x on the IWR6843ISK reports VID=10c4 PID=ea70
             if ((vid_file >> vid) && (pid_file >> pid)
                 && vid == "10c4" && pid == "ea70") {
-                radar_ports.push_back(port);
+                (void)radar_ports.push_back(port);
             }
         }
         if (radar_ports.size() < 2U) {
@@ -371,7 +370,11 @@ private:
                 }
             } else {
                 // Mismatched byte might itself start a new magic sequence
-                matched = (byte == MAGIC_WORD[0]) ? 1U : 0U;
+                if (byte == MAGIC_WORD[0]) {
+                    matched = 1U;
+                } else {
+                    matched = 0U;
+                }
             }
         }
         return false;
@@ -417,14 +420,19 @@ private:
 
             const uint32_t payload_len = hdr.totalPacketLen - HEADER_SIZE;
 
-            std::vector<uint8_t> payload(payload_len);
+            // WHY: payload buffer size is unknown at compile time and bounded by
+            // MAX_PACKET_BYTES; stack array avoids heap (DEV-005).
+            std::array<uint8_t, MAX_PACKET_BYTES> payload{};
+            if (payload_len > MAX_PACKET_BYTES) {
+                break;
+            }
             if (!read_exact(payload.data(), payload_len)) {
                 break;
             }
 
             const auto stamp = monotonic_stamp();
 
-            std::vector<DetectedPoint> points;
+            FixedVector<DetectedPoint, TRACK_MAX_TRACKS> points;
             std::size_t offset = 0U;
 
             for (uint32_t tlv_idx = 0U;
@@ -441,7 +449,7 @@ private:
                          i < num_pts && offset + sizeof(DetectedPoint) <= payload_len;
                          ++i)
                     {
-                        points.push_back(
+                        (void)points.push_back(
                             *reinterpret_cast<const DetectedPoint *>(
                                 payload.data() + offset));
                         offset += sizeof(DetectedPoint);
@@ -458,7 +466,7 @@ private:
             const auto clusters = dbscanCluster(filtered);
 
             RCLCPP_DEBUG(get_logger(),
-                "[Frame %5u] raw=%zu filtered=%zu clusters=%zu",
+                "[Frame %5u] raw=%u filtered=%u clusters=%u",
                 hdr.frameNumber, points.size(), filtered.size(), clusters.size());
 
             if (!clusters.empty()) {
@@ -469,7 +477,7 @@ private:
         RCLCPP_INFO(get_logger(), "Parse thread exited");
     }
 
-    void publish_cloud(const std::vector<DetectedPoint> & points,
+    void publish_cloud(const FixedVector<DetectedPoint, TRACK_MAX_TRACKS> & points,
                        const builtin_interfaces::msg::Time & stamp)
     {
         sensor_msgs::msg::PointCloud2 msg;

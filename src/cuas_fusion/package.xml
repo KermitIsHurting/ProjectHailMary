@@ -19,4 +19,5 @@
   <depend>image_transport</depend>
   <depend>rviz2</depend>
   <depend>yaml-cpp</depend>
+  <test_depend>ament_cmake_gtest</test_depend>
 </package>

@@ -63,14 +63,36 @@ private:
         latest_tracks_ = *msg;
 
         const uint32_t n = static_cast<uint32_t>(msg->tracks.size());
+
+        // WHY: imm_tracker_node auto-increments next_track_id_ without bound
+        // while cov_cache_ is a FixedMap capped at TRACK_MAX_TRACKS. Old keys
+        // are never evicted by insert_or_assign, so after enough track churn
+        // the map saturates and insertions for new IDs silently fail, leaving
+        // publish() to skip them via the cov_cache_.find == nullptr branch
+        // and halting /trajectory_waypoints/kinematic output. Prune keys not
+        // present in the current /tracks snapshot before inserting.
+        cov_cache_.erase_if(
+            [&msg](const uint32_t& id, const CovarianceCache&) -> bool {
+                const uint32_t m = static_cast<uint32_t>(msg->tracks.size());
+                for (uint32_t k = 0U; k < m; ++k) {
+                    if (msg->tracks[k].track_id == id) {
+                        return false;
+                    }
+                }
+                return true;
+            });
+
         for (uint32_t i = 0U; i < n; ++i) {
             const cuas_msgs::msg::Track & t = msg->tracks[i];
-            if (cov_cache_.find(t.track_id) == nullptr) {
-                CovarianceCache fresh;
-                fresh.P = KinematicPredictor::build_initial_covariance_6d();
-                fresh.weights = {0.33, 0.33, 0.34};
-                (void)cov_cache_.insert_or_assign(t.track_id, fresh);
-            }
+            // WHY: Track.msg has no covariance field, so each arriving track
+            // is treated as a fresh radar measurement that collapses our
+            // positional belief back to the initial uncertainty. Without this
+            // reset, cache->P grows unboundedly across publish ticks because
+            // there is no Kalman update to bound the open-loop propagation.
+            CovarianceCache fresh;
+            fresh.P = KinematicPredictor::build_initial_covariance_6d();
+            fresh.weights = {0.33, 0.33, 0.34};
+            (void)cov_cache_.insert_or_assign(t.track_id, fresh);
         }
     }
 
@@ -104,10 +126,10 @@ private:
             auto traj = predictor_.propagateForward(state, P, weights, F, Q,
                                                     step_dt_, n_steps_);
 
-            if (!traj.positions.empty()) {
-                const Eigen::MatrixXd P_prop = (F * P * F.transpose()) + Q;
-                cache->P = P_prop;
-            }
+            // WHY: cache->P is reset per measurement in track_callback; no
+            // inter-tick propagation here — each forecast starts from the
+            // bounded measurement-scale covariance, so uncertainty_radii_m
+            // reflects only the horizon-local growth inside propagateForward.
 
             cuas_msgs::msg::PredictedTrack pred;
             pred.header.stamp = this->now();

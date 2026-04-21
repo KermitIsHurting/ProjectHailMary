@@ -12,4 +12,6 @@ bool    is_maneuvering       # true when CT model dominant 3+ frames
 float32 imm_ct_probability   # current CT model probability 0.0 to 1.0
 float32 prediction_horizon_s # adaptive per-track prediction horizon seconds
 uint8 track_state_id
+float32 vx_mps               # velocity x component in base_link frame
+float32 vy_mps               # velocity y component in base_link frame
 

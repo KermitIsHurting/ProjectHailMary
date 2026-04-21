@@ -10,7 +10,6 @@
 
 #include <cstdlib>
 #include <string>
-#include <vector>
 
 namespace cuas {
 
@@ -21,8 +20,12 @@ public:
     : Node("inference_node")
     {
         const char* home = std::getenv("HOME");
+        const char* home_dir = "/root";
+        if (home != nullptr) {
+            home_dir = home;
+        }
         const std::string default_path =
-            std::string(home != nullptr ? home : "/root")
+            std::string(home_dir)
             + "/ProjectHailMarry/models/yolov8s_int8.engine";
         declare_parameter<std::string>("engine_path", default_path);
 
@@ -55,7 +58,7 @@ private:
             return;
         }
 
-        std::vector<BoundingBox> detections;
+        FixedVector<BoundingBox, 128U> detections;
         if (!detector_.infer(frame, detections)) {
             return;
         }

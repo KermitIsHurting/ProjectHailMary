@@ -1,3 +1,5 @@
+# WHY: replaces hardware radar with SimRadar for software-in-the-loop testing
+# so the full pipeline can run without an IWR6843ISK attached.
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
@@ -21,7 +23,12 @@ def generate_launch_description():
             package='cuas_fusion',
             executable='sim_radar_node',
             name='sim_radar_node',
-            parameters=[{'use_sim_time': False}],
+            parameters=[{
+                'use_sim_time': False,
+                'scenario': 'approach',
+                'publish_rate_hz': 16.0,
+                'noise_seed': 42,
+            }],
         ),
         Node(
             package='cuas_fusion',
@@ -112,6 +119,12 @@ def generate_launch_description():
             executable='health_monitor_node',
             name='health_monitor_node',
             parameters=[{'use_sim_time': False, 'publish_rate_hz': 1.0}],
+        ),
+        Node(
+            package='cuas_fusion',
+            executable='intent_classifier_node',
+            name='intent_classifier_node',
+            parameters=[{'use_sim_time': False, 'publish_rate_hz': 10.0}],
         ),
         Node(
             package='cuas_fusion',

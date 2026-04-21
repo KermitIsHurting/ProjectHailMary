@@ -25,7 +25,17 @@ public:
     void clear() { size_ = 0; }
     uint32_t size() const { return size_; }
     bool empty() const { return size_ == 0U; }
+    bool full() const { return size_ >= Capacity; }
     static constexpr uint32_t capacity() { return Capacity; }
+
+    T& back() { return data_[size_ - 1U]; }
+    const T& back() const { return data_[size_ - 1U]; }
+
+    void resize(uint32_t new_size) {
+        if (new_size <= Capacity) {
+            size_ = new_size;
+        }
+    }
 
     T& operator[](uint32_t idx) { return data_[idx]; }
     const T& operator[](uint32_t idx) const { return data_[idx]; }

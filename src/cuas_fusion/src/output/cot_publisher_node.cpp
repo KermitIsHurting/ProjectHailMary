@@ -57,7 +57,7 @@ public:
     }
 
 private:
-    static std::string isoTimestamp(double offset_s = 0.0)
+    static std::string isoTimestamp(float64_t offset_s = 0.0)
     {
         auto now = std::chrono::system_clock::now();
         now += std::chrono::milliseconds(static_cast<int64_t>(offset_s * 1000.0));
@@ -87,7 +87,7 @@ private:
             << "<detail>"
             << "<track speed=\"" << std::fixed << std::setprecision(2) << report.velocity_mps << "\""
             << " course=\"" << std::fixed << std::setprecision(1)
-            << std::atan2(report.position_x_m, report.position_y_m) * 180.0f / static_cast<float>(M_PI) << "\"/>"
+            << std::atan2(report.position_x_m, report.position_y_m) * 180.0F / static_cast<float32_t>(M_PI) << "\"/>"
             << "<status readiness=\"true\"/>"
             << "<remarks>ThreatLevel:" << report.threat_level
             << " Quality:" << std::fixed << std::setprecision(2) << report.quality_score
@@ -111,8 +111,8 @@ private:
     void threatCallback(const cuas_msgs::msg::ThreatReportArray::ConstSharedPtr& msg)
     {
         auto now = std::chrono::steady_clock::now();
-        double elapsed_s = std::chrono::duration<double>(now - last_threatening_send_).count();
-        double full_elapsed_s = std::chrono::duration<double>(now - last_full_send_).count();
+        float64_t elapsed_s = std::chrono::duration<float64_t>(now - last_threatening_send_).count();
+        float64_t full_elapsed_s = std::chrono::duration<float64_t>(now - last_full_send_).count();
 
         // Threatening events fire at 1 Hz; a full sweep fires every 5 s
         if (elapsed_s >= 1.0) {

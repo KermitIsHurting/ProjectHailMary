@@ -13,7 +13,11 @@ ImmFilter::ImmFilter()
 {
     for (int32_t i = 0; i < 3; ++i) {
         for (int32_t j = 0; j < 3; ++j) {
-            tp_[i][j] = (i == j) ? 0.90 : 0.05;
+            if (i == j) {
+                tp_[i][j] = 0.90;
+            } else {
+                tp_[i][j] = 0.05;
+            }
         }
     }
 }
@@ -172,6 +176,31 @@ Eigen::MatrixXd ImmFilter::getMixedF(float64_t dt) const
 Eigen::MatrixXd ImmFilter::getMixedQ(float64_t dt) const
 {
     return mu_[0] * cv_.getQ(dt) + mu_[1] * ca_.getQ(dt) + mu_[2] * ct_.getQ(dt);
+}
+
+Eigen::VectorXd ImmFilter::getModelState(uint32_t index) const
+{
+    switch (index) {
+        case 0U: { return cv_.getState(); }
+        case 1U: { return ca_.getState(); }
+        case 2U: { return ct_.getState(); }
+        default: { return Eigen::VectorXd::Zero(6); }
+    }
+}
+
+Eigen::MatrixXd ImmFilter::getCvTransitionMatrix(float64_t dt) const
+{
+    return cv_.getF(dt);
+}
+
+Eigen::MatrixXd ImmFilter::getCaTransitionMatrix(float64_t dt) const
+{
+    return ca_.getF(dt);
+}
+
+Eigen::MatrixXd ImmFilter::getCtTransitionMatrix(float64_t dt) const
+{
+    return ct_.getF(dt);
 }
 
 } // namespace cuas

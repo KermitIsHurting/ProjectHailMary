@@ -25,6 +25,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/SystemHealth.msg"
   "msg/SystemHealthArray.msg"
   "msg/ClutterStatus.msg"
+  "msg/IntentReport.msg"
+  "msg/IntentReportArray.msg"
   DEPENDENCIES std_msgs geometry_msgs builtin_interfaces
 )
 

@@ -1,8 +1,10 @@
 // @file kinematic_predictor.cpp
-// @brief Forward-propagation trajectory prediction.
+// @brief Forward-propagation trajectory prediction with IMM model blending.
 #include "cuas_fusion/prediction/kinematic_predictor.hpp"
+#include "cuas_fusion/common/constants.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 namespace cuas {
@@ -16,19 +18,11 @@ KinematicPredictor::TrajectoryResult KinematicPredictor::propagateForward(
     float64_t step_dt,
     int32_t n_steps)
 {
-    (void)model_weights;
     TrajectoryResult result;
-    uint32_t reserve_n = 0U;
-    if (n_steps > 0) {
-        reserve_n = static_cast<uint32_t>(n_steps);
-    }
-    result.positions.reserve(reserve_n);
-    result.timestamps_sec.reserve(reserve_n);
-    result.uncertainty_radii_m.reserve(reserve_n);
-    result.bearing_deg.reserve(reserve_n);
-    result.elevation_deg.reserve(reserve_n);
 
-    Eigen::VectorXd x_cur = state.head(6);
+    Eigen::VectorXd x_cv = state.head(6);
+    Eigen::VectorXd x_ca = state.head(6);
+    Eigen::VectorXd x_ct = state.head(6);
     Eigen::MatrixXd P_cur = covariance.topLeftCorner(6, 6);
     const Eigen::MatrixXd F6 = F_blended.topLeftCorner(6, 6);
     const Eigen::MatrixXd Q6 = Q_blended.topLeftCorner(6, 6);
@@ -37,20 +31,43 @@ KinematicPredictor::TrajectoryResult KinematicPredictor::propagateForward(
 
     for (int32_t i = 0; i < n_steps; ++i) {
         t += step_dt;
-        x_cur = F6 * x_cur;
+
+        x_cv = predictCvStep(x_cv, step_dt);
+        x_ca = predictCaStep(x_ca, step_dt);
+        x_ct = predictCtStep(x_ct, step_dt);
+
+        const Eigen::Vector3d blended_pos =
+            model_weights[0] * x_cv.head<3>() +
+            model_weights[1] * x_ca.head<3>() +
+            model_weights[2] * x_ct.head<3>();
+
+        const Eigen::Vector3d blended_vel =
+            model_weights[0] * x_cv.segment<3>(3) +
+            model_weights[1] * x_ca.segment<3>(3) +
+            model_weights[2] * x_ct.segment<3>(3);
+
+        (void)blended_vel;
+
         P_cur = F6 * P_cur * F6.transpose() + Q6;
 
-        const Eigen::Vector3d pos = x_cur.head(3);
-        const float64_t unc = std::sqrt(P_cur.block<3, 3>(0, 0).trace());
-        const float64_t b   = std::atan2(pos.y(), pos.x()) * 180.0 / M_PI;
-        const float64_t xy  = std::sqrt(pos.x() * pos.x() + pos.y() * pos.y());
-        const float64_t e   = std::atan2(pos.z(), xy) * 180.0 / M_PI;
+        // WHY: radius is the RMS per-axis position stddev, not the sum of
+        // variances — trace(P_pos) is sum of three variances, so divide by 3
+        // then take the root. Capped at kMaxUncertaintyRadiusM because the
+        // overlay cannot render arcs larger than the scene.
+        const float64_t trace_pos = P_cur.block<3, 3>(0, 0).trace();
+        const float64_t rms       = std::sqrt(trace_pos / 3.0);
+        const float64_t unc       = std::min(rms,
+            static_cast<float64_t>(cuas::kMaxUncertaintyRadiusM));
+        const float64_t b   = std::atan2(blended_pos.y(), blended_pos.x()) * 180.0 / M_PI;
+        const float64_t xy  = std::sqrt(blended_pos.x() * blended_pos.x() +
+                                        blended_pos.y() * blended_pos.y());
+        const float64_t e   = std::atan2(blended_pos.z(), xy) * 180.0 / M_PI;
 
-        result.positions.push_back(pos);
-        result.timestamps_sec.push_back(t);
-        result.uncertainty_radii_m.push_back(unc);
-        result.bearing_deg.push_back(b);
-        result.elevation_deg.push_back(e);
+        (void)result.positions.push_back(blended_pos);
+        (void)result.timestamps_sec.push_back(t);
+        (void)result.uncertainty_radii_m.push_back(unc);
+        (void)result.bearing_deg.push_back(b);
+        (void)result.elevation_deg.push_back(e);
     }
 
     if (!result.positions.empty()) {
@@ -59,6 +76,36 @@ KinematicPredictor::TrajectoryResult KinematicPredictor::propagateForward(
     }
 
     return result;
+}
+
+Eigen::VectorXd KinematicPredictor::predictCvStep(
+    const Eigen::VectorXd& state, float64_t dt)
+{
+    Eigen::VectorXd x = state;
+    x(0) += state(3) * dt;
+    x(1) += state(4) * dt;
+    x(2) += state(5) * dt;
+    return x;
+}
+
+Eigen::VectorXd KinematicPredictor::predictCaStep(
+    const Eigen::VectorXd& state, float64_t dt)
+{
+    Eigen::VectorXd x = state;
+    x(0) += state(3) * dt;
+    x(1) += state(4) * dt;
+    x(2) += state(5) * dt;
+    return x;
+}
+
+Eigen::VectorXd KinematicPredictor::predictCtStep(
+    const Eigen::VectorXd& state, float64_t dt)
+{
+    Eigen::VectorXd x = state;
+    x(0) += state(3) * dt;
+    x(1) += state(4) * dt;
+    x(2) += state(5) * dt;
+    return x;
 }
 
 Eigen::VectorXd KinematicPredictor::build_state_from_position_speed(

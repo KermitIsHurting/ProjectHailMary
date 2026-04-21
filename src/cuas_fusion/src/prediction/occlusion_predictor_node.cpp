@@ -63,6 +63,23 @@ private:
         const float64_t now = clock_->now().seconds();
 
         const uint32_t n = static_cast<uint32_t>(msg->tracks.size());
+
+        // WHY: horizon_cache_ is a FixedMap capped at TRACK_MAX_TRACKS and
+        // insert_or_assign never evicts. imm_tracker_node's track_id grows
+        // unboundedly, so stale keys would fill the map and block caching
+        // for newer IDs. Prune keys not present in the current /tracks
+        // snapshot before inserting.
+        horizon_cache_.erase_if(
+            [&msg](const uint32_t& id, const float32_t&) -> bool {
+                const uint32_t m = static_cast<uint32_t>(msg->tracks.size());
+                for (uint32_t k = 0U; k < m; ++k) {
+                    if (msg->tracks[k].track_id == id) {
+                        return false;
+                    }
+                }
+                return true;
+            });
+
         for (uint32_t i = 0U; i < n; ++i) {
             const cuas_msgs::msg::Track & t = msg->tracks[i];
             (void)horizon_cache_.insert_or_assign(t.track_id, t.prediction_horizon_s);

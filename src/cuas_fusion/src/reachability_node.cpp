@@ -79,7 +79,7 @@ public:
         min_threat_level_ = static_cast<int32_t>(mtl);
 
         pub_ = create_publisher<cuas_msgs::msg::InterceptReportArray>(
-            "/reachability/intercepts", 10);
+            "/reachability/warnings", 10);
 
         sub_tracks_ = create_subscription<cuas_msgs::msg::TrackArray>(
             "/tracks", 10,

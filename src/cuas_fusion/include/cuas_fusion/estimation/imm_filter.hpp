@@ -26,6 +26,10 @@ public:
     Eigen::MatrixXd getMixedQ(float64_t dt) const;
     void setModelNoise(uint32_t model_index, float64_t sigma);
     void setVelocity(const Eigen::Vector3d& v);
+    Eigen::VectorXd getModelState(uint32_t index) const;
+    Eigen::MatrixXd getCvTransitionMatrix(float64_t dt) const;
+    Eigen::MatrixXd getCaTransitionMatrix(float64_t dt) const;
+    Eigen::MatrixXd getCtTransitionMatrix(float64_t dt) const;
 
 private:
     KalmanCV cv_;

@@ -68,6 +68,34 @@ private:
 
     void merge_tick()
     {
+        // WHY: evict cached entries whose source predictor has stopped
+        // publishing for them (track exited /tracks). Without this the
+        // FixedMap accumulates dead IDs and keeps republishing them each
+        // tick, so downstream consumers see phantom track_ids that no
+        // longer exist in /tracks. Direct ns arithmetic (instead of
+        // rclcpp::Time subtraction) sidesteps the clock-type throw path
+        // since JSF forbids try/catch.
+        const int64_t now_ns = this->now().nanoseconds();
+        auto age_ns = [now_ns](const builtin_interfaces::msg::Time& s) -> int64_t {
+            const int64_t ts_ns = (static_cast<int64_t>(s.sec) * 1000000000LL) +
+                                   static_cast<int64_t>(s.nanosec);
+            return now_ns - ts_ns;
+        };
+        const int64_t stale_ns =
+            static_cast<int64_t>(cuas::kPredictionStaleSec * 1.0e9);
+        auto stale_pred = [&age_ns, stale_ns](const uint32_t&,
+                                              const cuas_msgs::msg::PredictedTrack& m) {
+            return age_ns(m.header.stamp) > stale_ns;
+        };
+        auto stale_traj = [&age_ns, stale_ns](const uint32_t&,
+                                              const cuas_msgs::msg::TrajectoryWaypoints& m) {
+            return age_ns(m.header.stamp) > stale_ns;
+        };
+        kinematic_pred_.erase_if(stale_pred);
+        occlusion_pred_.erase_if(stale_pred);
+        kinematic_traj_.erase_if(stale_traj);
+        occlusion_traj_.erase_if(stale_traj);
+
         FixedVector<uint32_t, TRACK_MAX_TRACKS * 2U> seen;
         for (uint32_t i = 0U; i < kinematic_pred_.slot_count(); ++i) {
             const auto& slot = kinematic_pred_.slots()[i];

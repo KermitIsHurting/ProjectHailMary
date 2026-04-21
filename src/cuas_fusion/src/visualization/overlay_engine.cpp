@@ -19,6 +19,25 @@ static constexpr float32_t kFullLabelAlpha           = 1.0F;
 static constexpr float64_t kArcAlphaDecayCoefficient = 0.7;
 static constexpr float64_t kLabelBgBlendRatio        = 0.6;
 static constexpr float64_t kLabelFgBlendRatio        = 0.4;
+static constexpr float64_t kArcDotFarRadiusFactor    = 0.5;
+
+constexpr int32_t clamp_int32(int32_t v, int32_t lo, int32_t hi)
+{
+    if (v < lo) {
+        return lo;
+    }
+    if (v > hi) {
+        return hi;
+    }
+    return v;
+}
+
+// WHY: dot_radius = velocity_arrow_thickness * 3 clamped to [min, max]. All
+// inputs are constexpr so the compiler folds this to a constant and the draw
+// loop does no runtime arithmetic for the near radius.
+static constexpr int32_t kArcDotNearRadiusPx =
+    clamp_int32(kVelocityArrowThicknessPx * 3,
+                kArcDotMinRadius, kArcDotMaxRadius);
 
 ThreatLevel threat_level_from_string(const std::string& s)
 {
@@ -98,23 +117,33 @@ void OverlayEngine::draw_trajectory_arc(
     const cuas_msgs::msg::TrajectoryWaypoints& wp,
     const cv::Scalar& color)
 {
-    FixedVector<cv::Point2i, static_cast<uint32_t>(kOverlayArcMaxWaypoints)> projected{};
+    FixedVector<cv::Point2i, static_cast<uint32_t>(kArcMaxWaypoints)> projected{};
 
     const std::size_t raw_count = std::min(
         std::min(wp.waypoints_x_m.size(), wp.waypoints_y_m.size()),
         wp.waypoints_z_m.size());
     const std::size_t count = std::min(
-        raw_count, static_cast<std::size_t>(kOverlayArcMaxWaypoints));
+        raw_count, static_cast<std::size_t>(kArcMaxWaypoints));
 
     for (std::size_t i = 0U; i < count; ++i) {
         const cv::Point2i pt = project_to_image(
             wp.waypoints_x_m[i], wp.waypoints_y_m[i], wp.waypoints_z_m[i]);
         if ((pt.x == kInvalidPx) && (pt.y == kInvalidPx)) {
-            continue;
+            break;
         }
-        if (!is_in_bounds(pt)) {
-            continue;
+
+        // WHY: stop the arc at the first waypoint inside the edge margin so a
+        // long forecast does not exit the frame and re-enter, which reads as
+        // a glitch. Skip-and-continue was tried and produced a visually
+        // broken arc; hard break keeps the arc monotonic.
+        const int32_t margin = kArcBoundsMarginPx;
+        const bool in_margin =
+            (pt.x >= margin) && (pt.x < (image_width_  - margin)) &&
+            (pt.y >= margin) && (pt.y < (image_height_ - margin));
+        if (!in_margin) {
+            break;
         }
+
         (void)projected.push_back(pt);
     }
 
@@ -122,21 +151,35 @@ void OverlayEngine::draw_trajectory_arc(
         return;
     }
 
-    const uint32_t total_segments = (projected.size() > 1U) ? (projected.size() - 1U) : 1U;
+    uint32_t seg_val = 1U;
+    if (projected.size() > 1U) {
+        seg_val = projected.size() - 1U;
+    }
+    const uint32_t total_segments = seg_val;
     const float64_t seg_total = static_cast<float64_t>(total_segments);
 
     for (uint32_t i = 0U; (i + 1U) < projected.size(); ++i) {
         const float64_t alpha = 1.0 - ((static_cast<float64_t>(i) / seg_total) * kArcAlphaDecayCoefficient);
         const cv::Scalar blended(
             color[0] * alpha, color[1] * alpha, color[2] * alpha, color[3]);
-        cv::line(image, projected[i], projected[i + 1U], blended, kOverlayArcThickness);
+        cv::line(image, projected[i], projected[i + 1U], blended, kArcLineThickness);
     }
 
+    // WHY: nearest dot at full radius/opacity, furthest at half radius and
+    // kArcDotMinAlpha opacity, intermediates linearly interpolated so the
+    // forecast reads "fading away" rather than as a uniform string of dots.
+    const float64_t dot_radius_near = static_cast<float64_t>(kArcDotNearRadiusPx);
+    const float64_t dot_radius_far  = dot_radius_near * kArcDotFarRadiusFactor;
+    const float64_t alpha_min       = static_cast<float64_t>(kArcDotMinAlpha);
+
     for (uint32_t i = 0U; i < projected.size(); ++i) {
-        const float64_t alpha = 1.0 - ((static_cast<float64_t>(i) / seg_total) * kArcAlphaDecayCoefficient);
+        const float64_t t = static_cast<float64_t>(i) / seg_total;
+        const float64_t radius_f = dot_radius_near + ((dot_radius_far - dot_radius_near) * t);
+        const float64_t alpha    = 1.0 + ((alpha_min - 1.0) * t);
         const cv::Scalar blended(
             color[0] * alpha, color[1] * alpha, color[2] * alpha, color[3]);
-        cv::circle(image, projected[i], kOverlayArcDotRadius, blended, cv::FILLED);
+        const int32_t radius_px = static_cast<int32_t>(std::lround(radius_f));
+        cv::circle(image, projected[i], radius_px, blended, cv::FILLED);
     }
 }
 
@@ -236,14 +279,26 @@ void OverlayEngine::render(
         const cv::Point2i threat_origin(track_pt.x, track_pt.y - kThreatLabelYOffsetPx);
 
         const cv::Scalar tentative_text_color(180.0, 180.0, 180.0);
-        const float32_t  label_font_scale = may_draw_arc
-            ? kOverlayConfirmedFontScale : kOverlayTentativeFontScale;
-        const int32_t    label_thickness = may_draw_arc
-            ? kConfirmedLabelThickness : kTentativeLabelThickness;
-        const cv::Scalar label_text_color = may_draw_arc ? white : tentative_text_color;
-        const bool       label_use_background = may_draw_arc;
-        const float32_t  label_alpha = may_draw_arc
-            ? kFullLabelAlpha : kOverlayTentativeAlpha;
+        float32_t font_val = kOverlayTentativeFontScale;
+        if (may_draw_arc) {
+            font_val = kOverlayConfirmedFontScale;
+        }
+        const float32_t label_font_scale = font_val;
+        int32_t thick_val = kTentativeLabelThickness;
+        if (may_draw_arc) {
+            thick_val = kConfirmedLabelThickness;
+        }
+        const int32_t label_thickness = thick_val;
+        cv::Scalar label_text_color = tentative_text_color;
+        if (may_draw_arc) {
+            label_text_color = white;
+        }
+        const bool label_use_background = may_draw_arc;
+        float32_t alpha_val = kOverlayTentativeAlpha;
+        if (may_draw_arc) {
+            alpha_val = kFullLabelAlpha;
+        }
+        const float32_t label_alpha = alpha_val;
 
         draw_scaled_label(image, threat_origin, track.class_label,
                           label_font_scale, label_thickness,

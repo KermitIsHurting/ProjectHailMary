@@ -27,6 +27,8 @@ bool TrtDetector::init(const std::string& engine_path)
     }
     const std::size_t file_size = static_cast<std::size_t>(file.tellg());
     file.seekg(0, std::ios::beg);
+    // WHY: TensorRT deserializeEngine requires contiguous char buffer of unknown
+    // size at load time; this is a one-shot init allocation (DEV-004).
     std::vector<char> engine_data(file_size);
     if (!file.read(engine_data.data(), static_cast<std::streamsize>(file_size))) {
         return false;
@@ -151,7 +153,7 @@ bool TrtDetector::preprocess(const cv::Mat& bgr_frame)
     return true;
 }
 
-bool TrtDetector::postprocess(std::vector<BoundingBox>& detections_out,
+bool TrtDetector::postprocess(FixedVector<BoundingBox, 128U>& detections_out,
                               int32_t orig_w, int32_t orig_h, int64_t timestamp_ns)
 {
     detections_out.clear();
@@ -161,8 +163,7 @@ bool TrtDetector::postprocess(std::vector<BoundingBox>& detections_out,
     const float32_t scale_x = static_cast<float32_t>(orig_w) / static_cast<float32_t>(INFERENCE_INPUT_W);
     const float32_t scale_y = static_cast<float32_t>(orig_h) / static_cast<float32_t>(INFERENCE_INPUT_H);
 
-    std::vector<BoundingBox> candidates;
-    candidates.reserve(512U);
+    FixedVector<BoundingBox, 128U> candidates;
 
     for (int32_t a = 0; a < INFERENCE_NUM_ANCHORS; ++a) {
         float32_t max_score = 0.0F;
@@ -193,16 +194,18 @@ bool TrtDetector::postprocess(std::vector<BoundingBox>& detections_out,
         det.class_id     = max_cls;
         det.timestamp_ns = timestamp_ns;
 
-        candidates.push_back(det);
+        if (!candidates.push_back(det)) {
+            break;
+        }
     }
 
     nms(candidates, INFERENCE_NMS_THRESH);
 
-    if (candidates.size() > static_cast<std::size_t>(INFERENCE_MAX_DET)) {
-        candidates.resize(static_cast<std::size_t>(INFERENCE_MAX_DET));
+    if (candidates.size() > static_cast<uint32_t>(INFERENCE_MAX_DET)) {
+        candidates.resize(static_cast<uint32_t>(INFERENCE_MAX_DET));
     }
 
-    detections_out = std::move(candidates);
+    detections_out = candidates;
     return true;
 }
 
@@ -218,42 +221,47 @@ float32_t TrtDetector::iou(const BoundingBox& a, const BoundingBox& b)
     const float32_t area_b = b.w * b.h;
     const float32_t union_area = area_a + area_b - inter;
 
-    return (union_area > 0.0F) ? (inter / union_area) : 0.0F;
+    if (union_area > 0.0F) {
+        return inter / union_area;
+    }
+    return 0.0F;
 }
 
-void TrtDetector::nms(std::vector<BoundingBox>& dets, float32_t thresh)
+void TrtDetector::nms(FixedVector<BoundingBox, 128U>& dets, float32_t thresh)
 {
     std::sort(dets.begin(), dets.end(),
               [](const BoundingBox& a, const BoundingBox& b) {
                   return a.confidence > b.confidence;
               });
 
-    std::vector<bool> suppressed(dets.size(), false);
-    std::vector<BoundingBox> kept;
-    kept.reserve(dets.size());
+    FixedVector<uint8_t, 128U> suppressed;
+    for (uint32_t i = 0U; i < dets.size(); ++i) {
+        (void)suppressed.push_back(0U);
+    }
 
-    for (std::size_t i = 0U; i < dets.size(); ++i) {
-        if (suppressed[i]) {
+    FixedVector<BoundingBox, 128U> kept;
+
+    for (uint32_t i = 0U; i < dets.size(); ++i) {
+        if (suppressed[i] != 0U) {
             continue;
         }
-        kept.push_back(dets[i]);
-        // NMS is per-class so suppression only affects boxes of the same class
-        for (std::size_t j = i + 1U; j < dets.size(); ++j) {
-            if (suppressed[j]) {
+        (void)kept.push_back(dets[i]);
+        for (uint32_t j = i + 1U; j < dets.size(); ++j) {
+            if (suppressed[j] != 0U) {
                 continue;
             }
             if (dets[i].class_id == dets[j].class_id &&
                 iou(dets[i], dets[j]) > thresh) {
-                suppressed[j] = true;
+                suppressed[j] = 1U;
             }
         }
     }
 
-    dets = std::move(kept);
+    dets = kept;
 }
 
 bool TrtDetector::infer(const cv::Mat& bgr_frame,
-                        std::vector<BoundingBox>& detections_out)
+                        FixedVector<BoundingBox, 128U>& detections_out)
 {
     detections_out.clear();
 

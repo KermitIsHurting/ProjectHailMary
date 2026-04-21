@@ -136,6 +136,12 @@ def generate_launch_description():
         ),
         Node(
             package='cuas_fusion',
+            executable='intent_classifier_node',
+            name='intent_classifier_node',
+            parameters=[{'use_sim_time': False, 'publish_rate_hz': 10.0}],
+        ),
+        Node(
+            package='cuas_fusion',
             executable='cuas_visualizer_node',
             name='cuas_visualizer_node',
             parameters=[system_params, {'use_sim_time': False}],

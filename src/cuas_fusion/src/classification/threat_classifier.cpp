@@ -23,7 +23,11 @@ ClassificationResult ThreatClassifier::classify(
         result.threat_level = ThreatLevel::UNKNOWN;
     } else if (track.class_label_ == "0") {
         const float32_t abs_vel = std::abs(track.velocity_mps_);
-        result.threat_level = (abs_vel <= 2.0F) ? ThreatLevel::BENIGN : ThreatLevel::SUSPECT;
+        if (abs_vel <= 2.0F) {
+            result.threat_level = ThreatLevel::BENIGN;
+        } else {
+            result.threat_level = ThreatLevel::SUSPECT;
+        }
     } else if (track.confidence_ > 0.5F) {
         result.threat_level = ThreatLevel::THREAT;
     } else {

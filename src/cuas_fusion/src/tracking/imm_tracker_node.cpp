@@ -161,10 +161,13 @@ private:
             cuas_msgs::msg::Track t;
             t.track_id = tracker.getTrackId();
             const Eigen::VectorXd pos = tracker.getPosition();
+            const Eigen::VectorXd vel = tracker.getVelocity();
             t.position_x_m = static_cast<float32_t>(pos(0));
             t.position_y_m = static_cast<float32_t>(pos(1));
             t.position_z_m = static_cast<float32_t>(pos(2));
             t.velocity_mps = static_cast<float32_t>(tracker.speed());
+            t.vx_mps       = static_cast<float32_t>(vel(0));
+            t.vy_mps       = static_cast<float32_t>(vel(1));
             t.doppler_mps  = 0.0F;
             t.class_label  = "unknown";
             t.confidence   = tracker.getConfidence();

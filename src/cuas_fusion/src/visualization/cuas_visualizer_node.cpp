@@ -4,6 +4,7 @@
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 #include "cuas_fusion/common/ros_image_adapter.hpp"
+#include "cuas_fusion/common/track_state_ids.hpp"
 #include "cuas_fusion/visualization/cuas_visualizer.hpp"
 
 #include <sensor_msgs/msg/image.hpp>
@@ -24,7 +25,7 @@ namespace {
 
 inline std::string formatLabeled(const char* prefix,
                                  cuas::float64_t value,
-                                 int precision,
+                                 int32_t precision,
                                  const char* suffix = "")
 {
     std::ostringstream oss;
@@ -220,10 +221,18 @@ void CuasVisualizerNode::imageCallback(
                 float32_t du = raw_u - cache_entry->smooth_u;
                 float32_t dv = raw_v - cache_entry->smooth_v;
                 if (std::abs(du) > kMaxJumpPx) {
-                    du = (du > 0.0F ? 1.0F : -1.0F) * kMaxJumpPx;
+                    float32_t du_sign = -1.0F;
+                    if (du > 0.0F) {
+                        du_sign = 1.0F;
+                    }
+                    du = du_sign * kMaxJumpPx;
                 }
                 if (std::abs(dv) > kMaxJumpPx) {
-                    dv = (dv > 0.0F ? 1.0F : -1.0F) * kMaxJumpPx;
+                    float32_t dv_sign = -1.0F;
+                    if (dv > 0.0F) {
+                        dv_sign = 1.0F;
+                    }
+                    dv = dv_sign * kMaxJumpPx;
                 }
                 draw_u = cache_entry->smooth_u + kAlpha * du;
                 draw_v = cache_entry->smooth_v + kAlpha * dv;
@@ -269,7 +278,10 @@ void CuasVisualizerNode::imageCallback(
                 bh = static_cast<int32_t>(fd.bbox_height_px);
             } else {
                 // Fallback size if YOLO box is missing — scales inversely with range
-                const float32_t range = fd.range_m > 0.1F ? fd.range_m : 2.0F;
+                float32_t range = 2.0F;
+                if (fd.range_m > 0.1F) {
+                    range = fd.range_m;
+                }
                 bw = static_cast<int32_t>(120.0F * (2.0F / range));
                 bh = static_cast<int32_t>(240.0F * (2.0F / range));
             }
@@ -428,7 +440,7 @@ void CuasVisualizerNode::imageCallback(
                 continue;
             }
 
-            std::vector<cv::Point> arc_pts;
+            FixedVector<cv::Point, 16U> arc_pts;
             for (std::size_t i = 0U; i < n; ++i) {
                 const float32_t z_cam = static_cast<float32_t>(traj.waypoints_y_m[i]);
                 if (z_cam <= 0.1F) {
@@ -441,7 +453,7 @@ void CuasVisualizerNode::imageCallback(
 
                 if (u >= 0.0F && u < static_cast<float32_t>(CAMERA_IMAGE_W) &&
                     v >= 0.0F && v < static_cast<float32_t>(CAMERA_IMAGE_H)) {
-                    arc_pts.emplace_back(static_cast<int32_t>(u), static_cast<int32_t>(v));
+                    (void)arc_pts.push_back(cv::Point(static_cast<int32_t>(u), static_cast<int32_t>(v)));
 
                     if (i < traj.uncertainty_radii_m.size()) {
                         float32_t r_px = static_cast<float32_t>(traj.uncertainty_radii_m[i])
@@ -461,7 +473,8 @@ void CuasVisualizerNode::imageCallback(
             }
 
             if (arc_pts.size() >= 2U) {
-                cv::polylines(annotated, arc_pts, false, cv::Scalar(0, 165, 255), 2, cv::LINE_AA);
+                const cv::Mat pts_mat(1, static_cast<int32_t>(arc_pts.size()), CV_32SC2, arc_pts.data());
+                cv::polylines(annotated, pts_mat, false, cv::Scalar(0, 165, 255), 2, cv::LINE_AA);
                 cv::circle(annotated, arc_pts.back(), 8, cv::Scalar(0, 165, 255), cv::FILLED);
             }
             break;
@@ -571,53 +584,152 @@ void CuasVisualizerNode::imageCallback(
     }
 
     if (show_ppi_) {
-        const int32_t sz         = 220;
-        const int32_t ox         = annotated.cols - sz - 10;
-        const int32_t oy         = annotated.rows - sz - 10;
-        // 20 px/m gives ~5.5 m visible radius inside the 220 px PPI
-        const float32_t px_per_m = 20.0F;
-        const int32_t cx         = ox + sz / 2;
-        const int32_t cy         = oy + sz / 2;
+        const int32_t sz = 220;
+        const int32_t ox = annotated.cols - sz - 10;
+        const int32_t oy = annotated.rows - sz - 10;
+
+        // WHY: sector radius constrained by PPI width so the 120 deg arc fits
+        const int32_t sector_radius = static_cast<int32_t>(
+            static_cast<float32_t>(sz) / (2.0F * std::sin(kPpiFovHalfRad)));
+        const int32_t apex_u = ox + sz / 2;
+        const int32_t apex_v = oy + sz;
+        const float32_t px_per_m =
+            static_cast<float32_t>(sector_radius) / kPpiMaxRangeM;
 
         cv::rectangle(annotated, cv::Point(ox, oy),
                       cv::Point(ox + sz, oy + sz),
                       cv::Scalar(0, 0, 0), cv::FILLED);
 
-        const cv::Scalar blue(255, 100, 0);
+        cv::ellipse(annotated, cv::Point(apex_u, apex_v),
+                    cv::Size(sector_radius, sector_radius),
+                    0.0, 210.0, 330.0,
+                    cv::Scalar(30, 30, 30), cv::FILLED);
 
-        // Range rings at 2, 4, 6, 8 metres
-        for (int32_t r_m = 2; r_m <= 8; r_m += 2) {
-            const int32_t r_px = static_cast<int32_t>(static_cast<float32_t>(r_m) * px_per_m);
-            cv::circle(annotated, cv::Point(cx, cy), r_px, blue, 1);
+        const cv::Scalar outline_color(80, 80, 80);
+        cv::ellipse(annotated, cv::Point(apex_u, apex_v),
+                    cv::Size(sector_radius, sector_radius),
+                    0.0, 210.0, 330.0,
+                    outline_color, 1);
+
+        const int32_t edge_left_u = apex_u - static_cast<int32_t>(
+            static_cast<float32_t>(sector_radius) * std::sin(kPpiFovHalfRad));
+        const int32_t edge_top_v = apex_v - static_cast<int32_t>(
+            static_cast<float32_t>(sector_radius) * std::cos(kPpiFovHalfRad));
+        const int32_t edge_right_u = apex_u + static_cast<int32_t>(
+            static_cast<float32_t>(sector_radius) * std::sin(kPpiFovHalfRad));
+
+        cv::line(annotated, cv::Point(apex_u, apex_v),
+                 cv::Point(edge_left_u, edge_top_v), outline_color, 1);
+        cv::line(annotated, cv::Point(apex_u, apex_v),
+                 cv::Point(edge_right_u, edge_top_v), outline_color, 1);
+
+        const cv::Scalar ring_color(60, 60, 60);
+        for (int32_t ri = 1; ri <= 2; ++ri) {
+            const float32_t ring_range =
+                kPpiMaxRangeM * static_cast<float32_t>(ri) / 3.0F;
+            const int32_t ring_r = static_cast<int32_t>(ring_range * px_per_m);
+            cv::ellipse(annotated, cv::Point(apex_u, apex_v),
+                        cv::Size(ring_r, ring_r),
+                        0.0, 210.0, 330.0,
+                        ring_color, 1);
+
+            const int32_t label_u = apex_u + static_cast<int32_t>(
+                static_cast<float32_t>(ring_r) * std::sin(kPpiFovHalfRad));
+            const int32_t label_v = apex_v - static_cast<int32_t>(
+                static_cast<float32_t>(ring_r) * std::cos(kPpiFovHalfRad));
+            const std::string range_str =
+                std::to_string(static_cast<int32_t>(ring_range)) + "m";
+            cv::putText(annotated, range_str, cv::Point(label_u + 2, label_v),
+                        cv::FONT_HERSHEY_SIMPLEX, 0.35,
+                        cv::Scalar(100, 100, 100), 1, cv::LINE_AA);
         }
 
-        // Azimuth spokes every 30 degrees
-        for (int32_t deg = 0; deg < 360; deg += 30) {
-            const float32_t rad = static_cast<float32_t>(deg) * static_cast<float32_t>(M_PI) / 180.0F;
-            const int32_t lx = cx + static_cast<int32_t>(100.0F * std::sin(rad));
-            const int32_t ly = cy - static_cast<int32_t>(100.0F * std::cos(rad));
-            cv::line(annotated, cv::Point(cx, cy), cv::Point(lx, ly), blue, 1);
+        const cv::Scalar boresight_color(70, 70, 100);
+        const int32_t dash_len = 8;
+        const int32_t gap_len  = 6;
+        int32_t y_cur = apex_v;
+        const int32_t y_end = apex_v - sector_radius;
+        while (y_cur > y_end) {
+            int32_t seg_end = y_cur - dash_len;
+            if (seg_end < y_end) {
+                seg_end = y_end;
+            }
+            cv::line(annotated, cv::Point(apex_u, y_cur),
+                     cv::Point(apex_u, seg_end), boresight_color, 1);
+            y_cur = seg_end - gap_len;
         }
 
-        if (latest_fused_detections_) {
-            for (std::size_t i = 0U; i < latest_fused_detections_->detections.size(); ++i) {
-                const auto& fd = latest_fused_detections_->detections[i];
-                const float32_t rad = fd.azimuth_deg * static_cast<float32_t>(M_PI) / 180.0F;
-                const int32_t dx = static_cast<int32_t>(fd.range_m * px_per_m * std::sin(rad));
-                const int32_t dy = static_cast<int32_t>(fd.range_m * px_per_m * std::cos(rad));
-                const int32_t px = cx + dx;
-                const int32_t py = cy - dy;
+        if (latest_tracks_) {
+            for (std::size_t ti = 0U; ti < latest_tracks_->tracks.size(); ++ti) {
+                const auto& track = latest_tracks_->tracks[ti];
 
-                if (px >= ox && px < ox + sz && py >= oy && py < oy + sz) {
-                    cv::line(annotated, cv::Point(cx, cy), cv::Point(px, py), blue, 1);
-                    cv::circle(annotated, cv::Point(px, py), 4,
-                               cv::Scalar(255, 255, 255), cv::FILLED);
+                const float32_t x_r = track.position_x_m;
+                const float32_t y_r = track.position_y_m;
+                const float32_t azimuth = std::atan2(x_r, y_r);
+                if (std::abs(azimuth) > kPpiFovHalfRad) {
+                    continue;
                 }
+
+                const float32_t range =
+                    std::sqrt(x_r * x_r + y_r * y_r);
+                const float32_t r_px = range * px_per_m;
+                const int32_t det_u = apex_u +
+                    static_cast<int32_t>(r_px * std::sin(azimuth));
+                const int32_t det_v = apex_v -
+                    static_cast<int32_t>(r_px * std::cos(azimuth));
+
+                if (det_u < ox || det_u >= ox + sz ||
+                    det_v < oy || det_v >= oy + sz) {
+                    continue;
+                }
+
+                const bool is_confirmed =
+                    (track.track_state_id == track_state::kConfirmed) ||
+                    (track.track_state_id == track_state::kReacquired);
+
+                cv::Scalar dot_color;
+                int32_t dot_radius = 0;
+
+                if (is_confirmed) {
+                    dot_radius = 5;
+                    const std::string* threat =
+                        threat_levels_.find(track.track_id);
+                    if (threat == nullptr) {
+                        dot_color = cv::Scalar(180, 180, 180);
+                    } else if (*threat == "BENIGN") {
+                        dot_color = cv::Scalar(0, 200, 0);
+                    } else if (*threat == "SUSPECT") {
+                        dot_color = cv::Scalar(0, 200, 200);
+                    } else if (*threat == "THREAT") {
+                        dot_color = cv::Scalar(0, 0, 220);
+                    } else {
+                        dot_color = cv::Scalar(180, 180, 180);
+                    }
+                } else {
+                    dot_radius = 3;
+                    dot_color = cv::Scalar(120, 120, 120);
+                }
+
+                cv::circle(annotated, cv::Point(det_u, det_v),
+                           dot_radius, dot_color, cv::FILLED);
+
+                const std::string id_str =
+                    std::to_string(track.track_id);
+                cv::putText(annotated, id_str,
+                            cv::Point(det_u + dot_radius + 2, det_v + 4),
+                            cv::FONT_HERSHEY_SIMPLEX, 0.35,
+                            dot_color, 1, cv::LINE_AA);
             }
         }
 
-        cv::putText(annotated, "RADAR", cv::Point(ox + 5, oy + 15),
-                    cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255, 255, 255), 1, cv::LINE_AA);
+        cv::rectangle(annotated, cv::Point(ox, oy),
+                      cv::Point(ox + sz, oy + sz),
+                      cv::Scalar(60, 60, 60), 1);
+
+        cv::putText(annotated, "RADAR 120",
+                    cv::Point(ox + 5, oy + 15),
+                    cv::FONT_HERSHEY_SIMPLEX, 0.40,
+                    cv::Scalar(150, 150, 150), 1, cv::LINE_AA);
     }
 
     // Construct the outgoing Image manually so cv_bridge exceptions can't escape
@@ -776,9 +888,12 @@ void CuasVisualizerNode::publishMarkers()
                     radius = std::min(radius, 0.5);
                     radius = std::max(radius, 0.05);
 
-                    // Fade the uncertainty spheres toward the far end of the horizon
+                    uint32_t denom = 1U;
+                    if (n > 1U) {
+                        denom = n - 1U;
+                    }
                     float64_t alpha = 0.3 - (static_cast<float64_t>(i)
-                        / static_cast<float64_t>(n > 1U ? n - 1U : 1U)) * 0.25;
+                        / static_cast<float64_t>(denom)) * 0.25;
                     if (alpha < 0.05) {
                         alpha = 0.05;
                     }

@@ -1,6 +1,7 @@
 // @file fusion_node.cpp
 // @brief ROS 2 node wrapping FusionEngine with track and YOLO subscriptions.
 #include "cuas_fusion/common/constants.hpp"
+#include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 #include "cuas_fusion/common/types.hpp"
 #include "cuas_fusion/fusion/fusion_engine.hpp"
@@ -18,7 +19,6 @@
 #include <mutex>
 #include <string>
 #include <system_error>
-#include <vector>
 
 namespace cuas {
 
@@ -96,8 +96,7 @@ public:
 private:
     void trackCallback(const cuas_msgs::msg::TrackArray::ConstSharedPtr& msg)
     {
-        std::vector<RadarDetection> radar_pts;
-        radar_pts.reserve(msg->tracks.size());
+        FixedVector<RadarDetection, TRACK_MAX_TRACKS> radar_pts;
 
         for (std::size_t i = 0U; i < msg->tracks.size(); ++i) {
             const auto& track = msg->tracks[i];
@@ -107,10 +106,12 @@ private:
             rd.z = track.position_z_m;
             rd.velocity = track.velocity_mps;
             rd.timestamp_ns = track.timestamp_ns;
-            radar_pts.push_back(rd);
+            if (!radar_pts.push_back(rd)) {
+                break;
+            }
         }
 
-        std::vector<BoundingBox> yolo_boxes;
+        FixedVector<BoundingBox, 128U> yolo_boxes;
         {
             std::lock_guard<std::mutex> lock(yolo_mutex_);
             if (latest_yolo_boxes_.empty()) {
@@ -119,7 +120,7 @@ private:
             yolo_boxes = latest_yolo_boxes_;
         }
 
-        std::vector<FusedDetection> fused;
+        FixedVector<FusedDetection, TRACK_MAX_TRACKS> fused;
         if (!engine_.projectAndAssociate(radar_pts, yolo_boxes, fused)) {
             return;
         }
@@ -184,7 +185,9 @@ private:
             }
             bb.timestamp_ns = ts_ns;
 
-            latest_yolo_boxes_.push_back(bb);
+            if (!latest_yolo_boxes_.push_back(bb)) {
+                break;
+            }
         }
     }
 
@@ -195,7 +198,7 @@ private:
     rclcpp::Subscription<vision_msgs::msg::Detection2DArray>::SharedPtr yolo_sub_;
 
     std::mutex yolo_mutex_;
-    std::vector<BoundingBox> latest_yolo_boxes_;
+    FixedVector<BoundingBox, 128U> latest_yolo_boxes_;
     int64_t latest_yolo_ts_ = 0;
 };
 

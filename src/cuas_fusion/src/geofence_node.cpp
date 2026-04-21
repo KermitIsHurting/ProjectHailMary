@@ -51,7 +51,7 @@ public:
         engine_.load_zones(configs);
 
         pub_events_ = create_publisher<cuas_msgs::msg::GeofenceEventArray>(
-            "/geofence/events", 10);
+            "/geofence/violations", 10);
 
         sub_tracks_ = create_subscription<cuas_msgs::msg::TrackArray>(
             "/tracks", 10,

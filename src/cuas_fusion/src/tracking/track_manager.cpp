@@ -127,7 +127,11 @@ bool TrackManager::update(const FusedDetection* detections,
         }
     }
 
-    const uint32_t M = (det_count > TRACK_MAX_TRACKS) ? TRACK_MAX_TRACKS : det_count;
+    uint32_t m_val = det_count;
+    if (det_count > TRACK_MAX_TRACKS) {
+        m_val = TRACK_MAX_TRACKS;
+    }
+    const uint32_t M = m_val;
     const uint32_t N = active_slots.size();
 
     cost_matrix_.resize(static_cast<Eigen::Index>(N),

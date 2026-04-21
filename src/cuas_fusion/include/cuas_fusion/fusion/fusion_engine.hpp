@@ -7,8 +7,6 @@
 #include "cuas_fusion/common/fixed_types.hpp"
 #include "cuas_fusion/common/types.hpp"
 
-#include <vector>
-
 namespace cuas {
 
 class FusionEngine {
@@ -18,9 +16,9 @@ public:
     bool init(const ExtrinsicTransform& extrinsic);
 
     bool projectAndAssociate(
-        const std::vector<RadarDetection>& radar_pts,
-        const std::vector<BoundingBox>& yolo_boxes,
-        std::vector<FusedDetection>& fused_out);
+        const FixedVector<RadarDetection, TRACK_MAX_TRACKS>& radar_pts,
+        const FixedVector<BoundingBox, 128U>& yolo_boxes,
+        FixedVector<FusedDetection, TRACK_MAX_TRACKS>& fused_out);
 
 private:
     static constexpr float32_t kEmaAlpha = 0.35F;

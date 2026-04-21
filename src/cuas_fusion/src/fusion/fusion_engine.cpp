@@ -18,9 +18,9 @@ bool FusionEngine::init(const ExtrinsicTransform& extrinsic)
 }
 
 bool FusionEngine::projectAndAssociate(
-    const std::vector<RadarDetection>& radar_pts,
-    const std::vector<BoundingBox>& yolo_boxes,
-    std::vector<FusedDetection>& fused_out)
+    const FixedVector<RadarDetection, TRACK_MAX_TRACKS>& radar_pts,
+    const FixedVector<BoundingBox, 128U>& yolo_boxes,
+    FixedVector<FusedDetection, TRACK_MAX_TRACKS>& fused_out)
 {
     if (!initialized_) {
         return false;
@@ -42,7 +42,7 @@ bool FusionEngine::projectAndAssociate(
 
     FixedMap<uint32_t, Accumulator, FUSION_MAX_DETECTIONS> accum_per_box{};
 
-    for (std::size_t rpti = 0U; rpti < radar_pts.size(); ++rpti) {
+    for (uint32_t rpti = 0U; rpti < radar_pts.size(); ++rpti) {
         const RadarDetection& rpt = radar_pts[rpti];
         // Radar frame (x right, y forward, z up) to camera frame (x right, y down, z forward)
         const float32_t x_cam = rpt.x + extrinsic_.x_m;
@@ -62,7 +62,7 @@ bool FusionEngine::projectAndAssociate(
         }
 
         bool matched = false;
-        for (std::size_t bi = 0U; bi < yolo_boxes.size(); ++bi) {
+        for (uint32_t bi = 0U; bi < yolo_boxes.size(); ++bi) {
             const BoundingBox& box = yolo_boxes[bi];
             // 25% padding accounts for YOLO box jitter between frames
             const float32_t pad_x = box.w * 0.25F;
@@ -156,7 +156,7 @@ bool FusionEngine::projectAndAssociate(
         fd.azimuth_deg  = std::atan2(rx, ry) * 180.0F / static_cast<float32_t>(M_PI);
         fd.bbox_width_px  = acc.box->w;
         fd.bbox_height_px = acc.box->h;
-        fused_out.push_back(fd);
+        (void)fused_out.push_back(fd);
     }
 
     return true;

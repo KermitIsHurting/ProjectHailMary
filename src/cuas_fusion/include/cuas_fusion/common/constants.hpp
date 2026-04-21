@@ -88,6 +88,16 @@ static constexpr float32_t THREAT_MIN_CONFIDENCE         = 0.25F;
 
 static constexpr uint32_t  PREDICTION_MAX_STEPS        = 128U;
 
+// WHY: cap on forecast position uncertainty — without a measurement update
+// the open-loop covariance trace inflates across ticks, producing nonsense
+// 50+ m radii for a target at 3-5 m range; 5 m is the overlay drawable ceiling.
+static constexpr float32_t kMaxUncertaintyRadiusM      = 5.0F;
+
+// WHY: max age of a cached mux entry before it is evicted. Predictors run at
+// 20 Hz (50 ms), so 500 ms tolerates ~10 missed ticks without dropping live
+// tracks, but purges stale IDs left behind when a track exits /tracks.
+static constexpr float64_t kPredictionStaleSec         = 0.5;
+
 static constexpr uint32_t  FUSION_MAX_DETECTIONS       = 128U;
 static constexpr uint32_t  FUSION_MAX_CLASSES          = 80U;
 
@@ -109,5 +119,40 @@ static constexpr int32_t   kOverlayArcThickness     = 2;
 static constexpr float32_t kOverlayConfirmedFontScale  = 0.85F;
 static constexpr float32_t kOverlayTentativeFontScale  = 0.45F;
 static constexpr float32_t kOverlayTentativeAlpha      = 0.50F;
+
+static constexpr float32_t kPpiFovDegrees               = 120.0F;
+static constexpr float32_t kPpiFovHalfRad               = 1.0472F;
+static constexpr float32_t kPpiMaxRangeM                = 15.0F;
+
+static constexpr float32_t kSimRadarMaxRangeM          = 15.0F;
+static constexpr float32_t kSimRadarNoiseSigmaM        = 0.10F;
+static constexpr uint32_t  kSimRadarMaxTargets         = 8U;
+static constexpr uint32_t  kSimRadarMaxPoints          = 64U;
+
+// WHY: mirrors the cv::arrowedLine thickness used for the velocity vector in
+// cuas_visualizer_node. Keeping them in lockstep means the forecast arc and
+// the velocity arrow read at the same visual weight instead of the arc
+// looking like a fainter, disconnected overlay.
+static constexpr int32_t   kVelocityArrowThicknessPx = 3;
+static constexpr int32_t   kArcLineThickness         = kVelocityArrowThicknessPx;
+
+// WHY: dot floor at 10 px so nearest waypoint stays visible at 1920x1080;
+// ceiling at 18 px so close-range dots do not dominate the track label.
+static constexpr int32_t   kArcDotMinRadius = 10;
+static constexpr int32_t   kArcDotMaxRadius = 18;
+
+// WHY: furthest dot fades to 30 % so the arc reads as "fading away" without
+// the far dot blending completely into background clutter.
+static constexpr float32_t kArcDotMinAlpha = 0.30F;
+
+// WHY: 5 steps keeps arc within frame at 2-5 m indoor range; longer forecasts
+// project off-screen and rejoin later in the sequence, which reads as a
+// rendering glitch at the overlay level.
+static constexpr int32_t   kArcMaxWaypoints = 5;
+
+// WHY: if a waypoint projects into this edge margin we stop drawing the arc.
+// Continuing past a margin violation produces an arc that exits the frame and
+// snaps back on a later waypoint.
+static constexpr int32_t   kArcBoundsMarginPx = 50;
 
 } // namespace cuas

@@ -19,6 +19,9 @@ find_package(image_transport REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GST REQUIRED gstreamer-1.0 gstreamer-app-1.0)
+
 set(OpenCV_DIR /usr/lib/aarch64-linux-gnu/cmake/opencv4)
 find_package(OpenCV REQUIRED)
 message(STATUS "OpenCV_LIBS: ${OpenCV_LIBS}")
@@ -84,8 +87,8 @@ ament_target_dependencies(camera_node
   sensor_msgs
   std_msgs
 )
-target_include_directories(camera_node PRIVATE ${OpenCV_INCLUDE_DIRS})
-target_link_libraries(camera_node ${OpenCV_LIBS})
+target_include_directories(camera_node PRIVATE ${OpenCV_INCLUDE_DIRS} ${GST_INCLUDE_DIRS})
+target_link_libraries(camera_node ${OpenCV_LIBS} ${GST_LIBRARIES})
 target_compile_options(camera_node PRIVATE ${CUAS_SAFETY_FLAGS})
 
 # TRT detector library (no ROS dependency — use stricter flags)
@@ -342,22 +345,22 @@ ament_target_dependencies(health_monitor_node
 target_link_libraries(health_monitor_node health_monitor_lib)
 target_compile_options(health_monitor_node PRIVATE ${CUAS_SAFETY_FLAGS})
 
-# radar sim library (no ROS dependency — use stricter flags)
-add_library(radar_sim_lib STATIC
-  src/radar_sim.cpp
+# sim radar library (no ROS dependency — use stricter flags)
+add_library(sim_radar_lib STATIC
+  src/drivers/sim_radar.cpp
 )
-target_include_directories(radar_sim_lib PUBLIC include)
-target_compile_options(radar_sim_lib PRIVATE ${CUAS_STRICT_FLAGS})
+target_include_directories(sim_radar_lib PUBLIC include)
+target_compile_options(sim_radar_lib PRIVATE ${CUAS_STRICT_FLAGS})
 
 # sim radar node
 add_executable(sim_radar_node
-  src/sim_radar_node.cpp
+  src/drivers/sim_radar_node.cpp
 )
 ament_target_dependencies(sim_radar_node
   rclcpp
   sensor_msgs
 )
-target_link_libraries(sim_radar_node radar_sim_lib)
+target_link_libraries(sim_radar_node sim_radar_lib)
 target_compile_options(sim_radar_node PRIVATE ${CUAS_SAFETY_FLAGS})
 
 # clutter map library (no ROS dependency — use stricter flags)
@@ -379,6 +382,24 @@ ament_target_dependencies(clutter_map_node
 target_link_libraries(clutter_map_node clutter_map_lib)
 target_compile_options(clutter_map_node PRIVATE ${CUAS_SAFETY_FLAGS})
 
+# intent classifier library (no ROS dependency — use stricter flags)
+add_library(intent_classifier_lib STATIC
+  src/intent_classifier.cpp
+)
+target_include_directories(intent_classifier_lib PUBLIC include)
+target_compile_options(intent_classifier_lib PRIVATE ${CUAS_STRICT_FLAGS})
+
+# intent classifier node
+add_executable(intent_classifier_node
+  src/intent_classifier_node.cpp
+)
+ament_target_dependencies(intent_classifier_node
+  rclcpp
+  cuas_msgs
+)
+target_link_libraries(intent_classifier_node intent_classifier_lib)
+target_compile_options(intent_classifier_node PRIVATE ${CUAS_SAFETY_FLAGS})
+
 install(TARGETS
   radar_parser_node
   camera_node
@@ -399,6 +420,7 @@ install(TARGETS
   health_monitor_node
   sim_radar_node
   clutter_map_node
+  intent_classifier_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -431,6 +453,31 @@ if(BUILD_TESTING)
     src/common/types.cpp
   )
   target_include_directories(test_threat_classifier PRIVATE include)
+
+  ament_add_gtest(test_geofence_engine
+    test/test_geofence_engine.cpp
+    src/geofence_engine.cpp)
+  target_include_directories(test_geofence_engine PRIVATE include)
+
+  ament_add_gtest(test_reachability_engine
+    test/test_reachability_engine.cpp
+    src/reachability_engine.cpp)
+  target_include_directories(test_reachability_engine PRIVATE include)
+
+  ament_add_gtest(test_health_monitor
+    test/test_health_monitor.cpp
+    src/health_monitor.cpp)
+  target_include_directories(test_health_monitor PRIVATE include)
+
+  ament_add_gtest(test_intent_classifier
+    test/test_intent_classifier.cpp
+    src/intent_classifier.cpp)
+  target_include_directories(test_intent_classifier PRIVATE include)
+
+  ament_add_gtest(test_clutter_map
+    test/test_clutter_map.cpp
+    src/clutter_map.cpp)
+  target_include_directories(test_clutter_map PRIVATE include)
 endif()
 
 ament_package()
