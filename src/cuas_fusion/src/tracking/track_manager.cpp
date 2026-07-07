@@ -77,13 +77,37 @@ void TrackManager::applyDetection(uint32_t slot, const FusedDetection& det)
     Track&      t = e.track;
 
     // Standard linear Kalman measurement update on the 3-DOF position block.
+    // The gain must be applied to the state: shrinking P while overwriting
+    // the state with the raw measurement made P overconfident about a
+    // full-noise state and tightened the gate around it (A1.9).
     const Eigen::Matrix3d S = e.P + R_detection_;
-    const Eigen::Matrix3d K = e.P * S.inverse();
-    e.P = (Eigen::Matrix3d::Identity() - K) * e.P;
-
-    t.position_x_m_ = det.position_x_m;
-    t.position_y_m_ = det.position_y_m;
-    t.position_z_m_ = det.position_z_m;
+    const Eigen::LLT<Eigen::Matrix3d> llt(S);
+    if (llt.info() == Eigen::Success) {
+        const Eigen::Matrix3d K =
+            e.P * llt.solve(Eigen::Matrix3d::Identity());
+        const Eigen::Vector3d pos{
+            static_cast<float64_t>(t.position_x_m_),
+            static_cast<float64_t>(t.position_y_m_),
+            static_cast<float64_t>(t.position_z_m_)
+        };
+        const Eigen::Vector3d meas{
+            static_cast<float64_t>(det.position_x_m),
+            static_cast<float64_t>(det.position_y_m),
+            static_cast<float64_t>(det.position_z_m)
+        };
+        const Eigen::Vector3d updated = pos + K * (meas - pos);
+        e.P = (Eigen::Matrix3d::Identity() - K) * e.P;
+        t.position_x_m_ = static_cast<float32_t>(updated.x());
+        t.position_y_m_ = static_cast<float32_t>(updated.y());
+        t.position_z_m_ = static_cast<float32_t>(updated.z());
+    } else {
+        // S is PD by construction, so a failed factorization means the
+        // covariance is corrupt (NaN): re-anchor on the measurement.
+        e.P = Eigen::Matrix3d::Identity() * kInitialPosVar;
+        t.position_x_m_ = det.position_x_m;
+        t.position_y_m_ = det.position_y_m;
+        t.position_z_m_ = det.position_z_m;
+    }
     t.velocity_mps_ = std::abs(det.velocity_mps);
     t.doppler_mps_  = det.velocity_mps;
     t.class_label_  = det.class_label;
