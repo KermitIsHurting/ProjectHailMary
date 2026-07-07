@@ -188,6 +188,9 @@ add_library(tracking_lib STATIC
 )
 target_include_directories(tracking_lib PUBLIC include)
 target_compile_options(tracking_lib PRIVATE ${CUAS_STRICT_FLAGS})
+# DEV-002 enforcement: any Eigen heap allocation in the tracking math aborts
+# in Debug builds — the fixed-size claim is checked, not aspirational.
+target_compile_definitions(tracking_lib PRIVATE $<$<CONFIG:Debug>:EIGEN_NO_MALLOC>)
 
 # tracker node
 add_executable(tracker_node
