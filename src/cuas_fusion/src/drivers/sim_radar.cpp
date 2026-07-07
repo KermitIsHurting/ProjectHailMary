@@ -104,6 +104,13 @@ FixedVector<SimRadarPoint, kSimRadarMaxPoints> SimRadar::getPoints() const
 
 ScenarioTarget& SimRadar::getTarget(uint32_t index)
 {
+    // Out-of-range access into the FixedVector is UB by its contract; hand
+    // back an inert dummy instead (A2.9). The node is single-threaded.
+    if (index >= targets_.size()) {
+        static ScenarioTarget dummy{};
+        dummy = ScenarioTarget{};
+        return dummy;
+    }
     return targets_[index];
 }
 

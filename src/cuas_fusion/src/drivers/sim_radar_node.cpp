@@ -54,7 +54,20 @@ public:
 private:
     void load_scenario(const std::string& name)
     {
-        if (name == "approach") {
+        // Normalize first, dispatch once: the unknown-name branch used to
+        // call load_scenario recursively — the only recursion in the
+        // codebase (MISRA 8.2.10, JPL P1 acyclic call graph).
+        std::string scenario = name;
+        if ((scenario != "approach") && (scenario != "lateral") &&
+            (scenario != "circle") && (scenario != "two_targets"))
+        {
+            RCLCPP_WARN(get_logger(),
+                        "Unknown scenario '%s', defaulting to approach",
+                        name.c_str());
+            scenario = "approach";
+        }
+
+        if (scenario == "approach") {
             ScenarioTarget t;
             t.x_m      = 8.0F;
             t.y_m      = 0.0F;
@@ -65,7 +78,7 @@ private:
             t.rcs_dbsm = 10.0F;
             t.target_id = 1U;
             sim_radar_.addTarget(t);
-        } else if (name == "lateral") {
+        } else if (scenario == "lateral") {
             ScenarioTarget t;
             t.x_m      = -5.0F;
             t.y_m      = 4.0F;
@@ -76,7 +89,7 @@ private:
             t.rcs_dbsm = 10.0F;
             t.target_id = 1U;
             sim_radar_.addTarget(t);
-        } else if (name == "circle") {
+        } else if (scenario == "circle") {
             ScenarioTarget t;
             t.x_m      = 3.0F;
             t.y_m      = 0.0F;
@@ -88,7 +101,7 @@ private:
             t.target_id = 1U;
             sim_radar_.addTarget(t);
             is_circle_ = true;
-        } else if (name == "two_targets") {
+        } else if (scenario == "two_targets") {
             ScenarioTarget t1;
             t1.x_m      = 6.0F;
             t1.y_m      = 1.0F;
@@ -110,10 +123,6 @@ private:
             t2.rcs_dbsm = 10.0F;
             t2.target_id = 2U;
             sim_radar_.addTarget(t2);
-        } else {
-            RCLCPP_WARN(get_logger(), "Unknown scenario '%s', defaulting to approach",
-                        name.c_str());
-            load_scenario("approach");
         }
     }
 
