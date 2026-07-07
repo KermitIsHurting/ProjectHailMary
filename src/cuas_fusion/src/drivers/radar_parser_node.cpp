@@ -457,23 +457,29 @@ private:
                 std::memcpy(&tlv, payload.data() + offset, sizeof(tlv));
                 offset += sizeof(TlvHeader);
 
+                if (tlv.length > payload_len - offset) {
+                    RCLCPP_WARN(get_logger(),
+                        "Frame %u: TLV type=%u length=%u exceeds remaining "
+                        "payload %zu — dropping rest of frame",
+                        hdr.frameNumber, tlv.type, tlv.length,
+                        payload_len - offset);
+                    break;
+                }
+
                 if (tlv.type == TLV_TYPE_DETECTED_POINTS) {
                     const std::size_t num_pts = tlv.length / sizeof(DetectedPoint);
-                    for (std::size_t i = 0U;
-                         i < num_pts && offset + sizeof(DetectedPoint) <= payload_len;
-                         ++i)
-                    {
+                    std::size_t pt_off = offset;
+                    for (std::size_t i = 0U; i < num_pts; ++i) {
                         DetectedPoint pt;
-                        std::memcpy(&pt, payload.data() + offset, sizeof(pt));
+                        std::memcpy(&pt, payload.data() + pt_off, sizeof(pt));
                         (void)points.push_back(pt);
-                        offset += sizeof(DetectedPoint);
+                        pt_off += sizeof(DetectedPoint);
                     }
-                } else {
-                    if (offset + tlv.length > payload_len) {
-                        break;
-                    }
-                    offset += tlv.length;
                 }
+                // Advance by exactly tlv.length for every type: a length that
+                // is not a multiple of sizeof(DetectedPoint) must not desync
+                // the next TlvHeader read.
+                offset += tlv.length;
             }
 
             const auto filtered = filterPoints(points);
