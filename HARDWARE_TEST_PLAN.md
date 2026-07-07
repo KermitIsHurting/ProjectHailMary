@@ -88,7 +88,18 @@ ros2 launch cuas_fusion full.launch.py
   (The float32 uptime-quantization defect in the health monitor is NOT yet
   fixed — RESUME_PLAN item R7 — it only matters after ~11 days uptime.)
 
-## 7. PROTECTED-files invariant (30 s, run before merging)
+## 7. PROTECTED-files invariant — **OBSOLETE as of R12**
+
+> Owner authorized camera-file edits (RESUME_PLAN R12); this
+> diff-must-be-empty check is intentionally obsolete for those files.
+> Replacement check: (1) `ROLLBACK.md` exists at repo root with a
+> per-commit log and restore commands, and (2) the camera-file diff
+> against main has been reviewed by the owner. Register/format values
+> (device path, 1920x1080@30, BA10, black level 2752, WB gains,
+> intrinsics, V4L2 S_FMT/S_PARM setup) remain byte-identical — verify
+> with the section 7b command below.
+
+### 7 (original, superseded)
 
 ```bash
 git diff main...misra-audit-fixes --stat -- \
@@ -106,6 +117,18 @@ git diff main...misra-audit-fixes --stat -- \
   only the main() catch-all wrapper (b3a97df) — if you consider that file
   strictly PROTECTED, revert that one hunk with:
   `git checkout main -- src/cuas_fusion/src/cuas_color_correct_node.cpp && git commit`
+
+## 7b. Register/format-values invariant (replacement check)
+
+```bash
+git diff main...misra-audit-fixes -- \
+  src/cuas_fusion/include/cuas_fusion/common/constants.hpp | grep '^[-+]' | \
+  grep -E 'CAMERA_(WIDTH|HEIGHT|FPS|BLACK_LEVEL|WB_GAIN|TONE_SCALE|FX|FY|CX|CY|DEVICE)'
+```
+- PASS: no changed *values* (R12g re-expresses CAMERA_IMAGE_W/H as
+  `= CAMERA_WIDTH/HEIGHT`, values unchanged). Also confirm the V4L2
+  S_FMT/S_PARM block in camera_driver.cpp still sets the same
+  format/rate (`git diff main...misra-audit-fixes -- src/cuas_fusion/src/drivers/camera_driver.cpp`).
 
 ## Merge / discard
 

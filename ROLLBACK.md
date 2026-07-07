@@ -24,7 +24,18 @@ rebuild (`colcon build --packages-select cuas_fusion`).
 
 ## Per-commit log
 
-(One camera fix per commit; entries appended as commits land.)
+| Commit | Fix | Files touched | Hardware-verify? |
+|--------|-----|---------------|------------------|
+| 14e356e | R12a — explicit discards + logged teardown failures | camera_driver.cpp | no (zero behavioral risk) |
+| 14b14c5 | R12b — validate kernel buf.index after DQBUF | camera_driver.cpp | recommended |
+| 72463f6 | R12c — camera_node main() catch-all; NaN-gain clamp | camera_node.cpp, color_correct_engine.cpp | no |
+| d71de5f | R12d — color-correct preallocated double-buffer | cuas_color_correct_node.cpp | **yes** |
+| 6774651 | R12e — preallocated grabFrame Mats + hoisted Image msg | camera_driver.{cpp,hpp}, camera_node.cpp | **yes** |
+| 7d9cd7b | R12f — 500 ms poll() bound on DQBUF | camera_driver.cpp | **yes** (+ prompt Ctrl-C exit) |
+| dacc0e0 | R12g — CAMERA_IMAGE_W/H derived, values unchanged | constants.hpp | no |
+
+To revert any single fix: `git revert <commit>` (or the cp-restore in the
+table above, which restores the file to its pre-R12 state).
 
 ## Hardware verification procedure (after each of fixes d/e/f)
 
