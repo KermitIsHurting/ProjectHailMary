@@ -12,6 +12,7 @@
 #include <opencv2/core.hpp>
 
 #include <array>
+#include <cstdio>
 #include <memory>
 #include <string>
 
@@ -41,9 +42,17 @@ struct CudaFreeHostDeleter {
     }
 };
 
-using RuntimePtr    = std::unique_ptr<nvinfer1::IRuntime,  void(*)(nvinfer1::IRuntime*)>;
-using EnginePtr     = std::unique_ptr<nvinfer1::ICudaEngine, void(*)(nvinfer1::ICudaEngine*)>;
-using ContextPtr    = std::unique_ptr<nvinfer1::IExecutionContext, void(*)(nvinfer1::IExecutionContext*)>;
+// Stateless functor deleter: a function-pointer deleter doubles the smart
+// pointer's size and can be default-constructed null (dtor UB path).
+struct TrtDeleter {
+    void operator()(nvinfer1::IRuntime* p) const { delete p; }
+    void operator()(nvinfer1::ICudaEngine* p) const { delete p; }
+    void operator()(nvinfer1::IExecutionContext* p) const { delete p; }
+};
+
+using RuntimePtr    = std::unique_ptr<nvinfer1::IRuntime, TrtDeleter>;
+using EnginePtr     = std::unique_ptr<nvinfer1::ICudaEngine, TrtDeleter>;
+using ContextPtr    = std::unique_ptr<nvinfer1::IExecutionContext, TrtDeleter>;
 using CudaStreamPtr = std::unique_ptr<std::remove_pointer<cudaStream_t>::type, CudaStreamDeleter>;
 using DeviceBufPtr  = std::unique_ptr<void, CudaFreeDeleter>;
 using HostBufPtr    = std::unique_ptr<void, CudaFreeHostDeleter>;
@@ -65,10 +74,18 @@ public:
 private:
     class Logger : public nvinfer1::ILogger {
     public:
+        // TensorRT reports engine-load failures only through this callback;
+        // discarding them made every failure an anonymous nullptr return.
         void log(Severity severity, const char* msg) noexcept override {
-            (void)severity;
-            (void)msg;
+            if (severity <= Severity::kERROR) {
+                error_seen_ = true;
+                std::fprintf(stderr, "[TensorRT] %s\n", msg);
+            }
         }
+        bool errorSeen() const { return error_seen_; }
+
+    private:
+        bool error_seen_ = false;
     };
 
     bool preprocess(const cv::Mat& bgr_frame);
@@ -78,9 +95,9 @@ private:
     static void      nms(FixedVector<BoundingBox, 128U>& dets, float32_t thresh);
 
     Logger        logger_;
-    RuntimePtr    runtime_ {nullptr, [](nvinfer1::IRuntime* p)   { delete p; }};
-    EnginePtr     engine_  {nullptr, [](nvinfer1::ICudaEngine* p) { delete p; }};
-    ContextPtr    context_ {nullptr, [](nvinfer1::IExecutionContext* p) { delete p; }};
+    RuntimePtr    runtime_;
+    EnginePtr     engine_;
+    ContextPtr    context_;
     CudaStreamPtr stream_;
 
     HostBufPtr   input_host_;

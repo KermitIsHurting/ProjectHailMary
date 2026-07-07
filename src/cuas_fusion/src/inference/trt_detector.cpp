@@ -9,6 +9,7 @@
 #include <opencv2/imgproc.hpp>
 
 #include <algorithm>
+#include <cstdio>
 #include <cstring>
 #include <fstream>
 #include <vector>
@@ -39,27 +40,69 @@ bool TrtDetector::init(const std::string& engine_path)
     if (raw_runtime == nullptr) {
         return false;
     }
-    runtime_ = RuntimePtr(raw_runtime, [](nvinfer1::IRuntime* p) { delete p; });
+    runtime_ = RuntimePtr(raw_runtime);
 
     nvinfer1::ICudaEngine* raw_engine =
         runtime_->deserializeCudaEngine(engine_data.data(), file_size);
     if (raw_engine == nullptr) {
         return false;
     }
-    engine_ = EnginePtr(raw_engine, [](nvinfer1::ICudaEngine* p) { delete p; });
+    engine_ = EnginePtr(raw_engine);
 
+    // Exactly one input and one output (A2.8): a multi-tensor engine used
+    // to silently keep whichever tensor the loop saw last.
+    int32_t n_inputs  = 0;
+    int32_t n_outputs = 0;
     const int32_t nb_io = engine_->getNbIOTensors();
     for (int32_t i = 0; i < nb_io; ++i) {
         const char* name = engine_->getIOTensorName(i);
         const nvinfer1::TensorIOMode mode = engine_->getTensorIOMode(name);
         if (mode == nvinfer1::TensorIOMode::kINPUT) {
+            ++n_inputs;
             input_name_ = name;
         } else if (mode == nvinfer1::TensorIOMode::kOUTPUT) {
+            ++n_outputs;
             output_name_ = name;
         } else {
         }
     }
-    if ((input_name_ == nullptr) || (output_name_ == nullptr)) {
+    if ((n_inputs != 1) || (n_outputs != 1) ||
+        (input_name_ == nullptr) || (output_name_ == nullptr)) {
+        std::fprintf(stderr,
+            "TrtDetector: engine has %d inputs / %d outputs, expected 1/1\n",
+            n_inputs, n_outputs);
+        return false;
+    }
+
+    // Shape validation against the compile-time buffers (A2.8): a different
+    // YOLO variant engine would make enqueueV3 write past output_dev_ — a
+    // device-side overflow with no diagnostic.
+    const auto dims_match = [](const nvinfer1::Dims& d,
+                               const std::array<int64_t, 4>& expect,
+                               int32_t nb) -> bool {
+        if (d.nbDims != nb) {
+            return false;
+        }
+        for (int32_t k = 0; k < nb; ++k) {
+            if (static_cast<int64_t>(d.d[k]) != expect[static_cast<std::size_t>(k)]) {
+                return false;
+            }
+        }
+        return true;
+    };
+    const nvinfer1::Dims in_dims  = engine_->getTensorShape(input_name_);
+    const nvinfer1::Dims out_dims = engine_->getTensorShape(output_name_);
+    const std::array<int64_t, 4> expect_in{
+        1, INFERENCE_INPUT_C, INFERENCE_INPUT_H, INFERENCE_INPUT_W};
+    const std::array<int64_t, 4> expect_out{
+        1, 4 + INFERENCE_NUM_CLASSES, INFERENCE_NUM_ANCHORS, 0};
+    if (!dims_match(in_dims, expect_in, 4) ||
+        !dims_match(out_dims, expect_out, 3)) {
+        std::fprintf(stderr,
+            "TrtDetector: engine tensor shapes do not match the compiled "
+            "YOLOv8 buffers (expected input 1x%dx%dx%d, output 1x%dx%d)\n",
+            INFERENCE_INPUT_C, INFERENCE_INPUT_H, INFERENCE_INPUT_W,
+            4 + INFERENCE_NUM_CLASSES, INFERENCE_NUM_ANCHORS);
         return false;
     }
 
@@ -67,7 +110,7 @@ bool TrtDetector::init(const std::string& engine_path)
     if (raw_ctx == nullptr) {
         return false;
     }
-    context_ = ContextPtr(raw_ctx, [](nvinfer1::IExecutionContext* p) { delete p; });
+    context_ = ContextPtr(raw_ctx);
 
     input_bytes_  = static_cast<std::size_t>(1) * INFERENCE_INPUT_C
                  * INFERENCE_INPUT_H * INFERENCE_INPUT_W * sizeof(float32_t);
