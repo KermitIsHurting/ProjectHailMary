@@ -122,6 +122,15 @@ bool CameraDriver::grabFrame(cv::Mat & out_bgr, int64_t & timestamp_ns)
         return false;
     }
 
+    // Trust boundary: buf.index is kernel-supplied. An out-of-range index
+    // (driver bug) would read through a null/garbage mapping below.
+    if ((buf.index >= V4L2_BUF_COUNT) || (buffers_[buf.index] == nullptr)) {
+        std::fprintf(stderr,
+            "CameraDriver: DQBUF returned invalid buffer index %u\n",
+            buf.index);
+        return false;
+    }
+
     struct timespec ts{};
     clock_gettime(CLOCK_MONOTONIC, &ts);
     timestamp_ns = static_cast<int64_t>(ts.tv_sec) * 1'000'000'000LL
