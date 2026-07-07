@@ -37,6 +37,23 @@ static constexpr std::array<uint8_t, 8> MAGIC_WORD = {
     0x02, 0x01, 0x04, 0x03, 0x06, 0x05, 0x08, 0x07
 };
 
+static constexpr std::size_t ERRNO_BUF_LEN             = 64U;
+
+// strerror() formats into a shared internal buffer — not thread-safe with the
+// parse thread and ROS executor both logging (MISRA 25.5.3 family). The GNU
+// strerror_r returns a pointer (possibly a static immutable string, not buf);
+// the XSI variant fills buf and returns int.
+static const char * errnoText(int err, char * buf, std::size_t len)
+{
+    buf[0] = '\0';
+#if defined(__GLIBC__) && defined(_GNU_SOURCE)
+    return strerror_r(err, buf, len);
+#else
+    (void)strerror_r(err, buf, len);
+    return buf;
+#endif
+}
+
 static constexpr std::size_t HEADER_SIZE              = 40U;
 static constexpr uint32_t    TLV_TYPE_DETECTED_POINTS = 1U;
 static constexpr uint32_t    MAX_PACKET_BYTES         = 65536U;
@@ -299,16 +316,20 @@ private:
     {
         fd_ = ::open(port_.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
         if (fd_ < 0) {
+            const int err = errno;
+            char err_buf[ERRNO_BUF_LEN];
             RCLCPP_ERROR(get_logger(),
                 "Cannot open serial port %s: %s",
-                port_.c_str(), strerror(errno));
+                port_.c_str(), errnoText(err, err_buf, sizeof(err_buf)));
             return false;
         }
 
         struct termios tty{};
         if (tcgetattr(fd_, &tty) != 0) {
+            const int err = errno;
+            char err_buf[ERRNO_BUF_LEN];
             RCLCPP_ERROR(get_logger(),
-                "tcgetattr failed: %s", strerror(errno));
+                "tcgetattr failed: %s", errnoText(err, err_buf, sizeof(err_buf)));
             return false;
         }
 
@@ -328,8 +349,10 @@ private:
         tty.c_cc[VTIME] = 0;
 
         if (tcsetattr(fd_, TCSANOW, &tty) != 0) {
+            const int err = errno;
+            char err_buf[ERRNO_BUF_LEN];
             RCLCPP_ERROR(get_logger(),
-                "tcsetattr failed: %s", strerror(errno));
+                "tcsetattr failed: %s", errnoText(err, err_buf, sizeof(err_buf)));
             return false;
         }
 
@@ -349,7 +372,10 @@ private:
                 if (errno == EINTR) {
                     continue;
                 }
-                RCLCPP_ERROR(get_logger(), "Serial read error: %s", strerror(errno));
+                const int err = errno;
+                char err_buf[ERRNO_BUF_LEN];
+                RCLCPP_ERROR(get_logger(), "Serial read error: %s",
+                    errnoText(err, err_buf, sizeof(err_buf)));
                 return false;
             }
             if (r == 0) {
