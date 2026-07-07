@@ -108,8 +108,11 @@ float64_t KalmanCA::likelihood(const Eigen::VectorXd& z, const Eigen::MatrixXd& 
 
     const Eigen::VectorXd y = z - H * x_;
     const Eigen::MatrixXd S = H * P_ * H.transpose() + R;
+    // Negated comparison so a NaN determinant (numerically broken S) takes
+    // the floor branch instead of flowing into exp(NaN) and poisoning the
+    // IMM weights permanently (Dir 0.3.1).
     const float64_t det = S.determinant();
-    if (det < 1e-12) {
+    if (!(det > 1e-12)) {
         return 1e-12;
     }
 

@@ -115,6 +115,14 @@ void ImmFilter::update(const Eigen::VectorXd& z, const Eigen::MatrixXd& R)
     mu_[2] = mu_[2] * L2 / c_sum;
 
     const float64_t sum = mu_[0] + mu_[1] + mu_[2];
+    // A non-finite or collapsed sum means the weight state is corrupt (e.g.
+    // a NaN slipped through a sub-filter). Reset to uniform priors —
+    // explicit recovery per JPL P5 — instead of dividing NaN through and
+    // poisoning every subsequent blended state.
+    if (!(sum > 1e-30) || !std::isfinite(sum)) {
+        mu_ = {0.33, 0.33, 0.34};
+        return;
+    }
     mu_[0] /= sum;
     mu_[1] /= sum;
     mu_[2] /= sum;
