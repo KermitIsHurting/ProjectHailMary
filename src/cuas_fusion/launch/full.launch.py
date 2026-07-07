@@ -189,7 +189,6 @@ def generate_launch_description():
             executable='cuas_overlay_node',
             name='cuas_overlay_node',
             parameters=[{'use_sim_time': False}],
-            remappings=[('/camera/image_raw', '/camera/image_corrected')],
         ),
         Node(
             package='rviz2',

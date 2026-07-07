@@ -156,8 +156,6 @@ private:
                 if ((matched_fd != nullptr) && (best_diff < 15.0F)) {
                     t.class_id_    = parseClassId(matched_fd->class_label);
                     t.confidence_  = matched_fd->confidence;
-                } else {
-                    matched_fd = nullptr;
                 }
             }
 

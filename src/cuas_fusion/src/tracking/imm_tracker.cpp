@@ -35,19 +35,6 @@ void IMMTracker::predict(float64_t dt)
     const float32_t decayed =
         confidence_ - kConfidenceDecayRate * static_cast<float32_t>(dt);
     confidence_ = std::max(kMinConfidence, decayed);
-
-    switch (track_state_) {
-        case TrackState::CONFIRMED:
-        case TrackState::REACQUIRED:
-        case TrackState::OCCLUDED:
-        case TrackState::TENTATIVE:
-        case TrackState::COASTED:
-        case TrackState::LOST:
-        case TrackState::DELETED:
-        default: {
-            break;
-        }
-    }
 }
 
 void IMMTracker::update(float64_t x, float64_t y, float64_t z, float64_t timestamp)
