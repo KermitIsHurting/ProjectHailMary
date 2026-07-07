@@ -66,6 +66,7 @@ private:
 
         vision_msgs::msg::Detection2DArray out;
         out.header = msg->header;
+        out.detections.reserve(detections.size());
 
         for (std::size_t i = 0U; i < detections.size(); ++i) {
             const BoundingBox& bb = detections[i];

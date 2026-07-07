@@ -154,6 +154,7 @@ private:
         cuas_msgs::msg::FusedDetectionArray out;
         out.header = msg->header;
         out.header.frame_id = "radar_frame";
+        out.detections.reserve(fused.size());
 
         for (std::size_t i = 0U; i < fused.size(); ++i) {
             const FusedDetection& fd = fused[i];

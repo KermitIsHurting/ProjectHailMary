@@ -62,6 +62,7 @@ private:
 
         cuas_msgs::msg::TrackArray out;
         out.header = msg->header;
+        out.tracks.reserve(confirmed.size());
 
         for (uint32_t i = 0U; i < confirmed.size(); ++i) {
             const Track& t = confirmed[i];

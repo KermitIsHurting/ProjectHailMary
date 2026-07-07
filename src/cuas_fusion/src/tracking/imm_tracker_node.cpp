@@ -154,6 +154,7 @@ private:
         cuas_msgs::msg::TrackArray out;
         out.header.stamp    = this->now();
         out.header.frame_id = "base_link";
+        out.tracks.reserve(active_tracks_.size());
 
         for (uint32_t i = 0U; i < active_tracks_.slot_count(); ++i) {
             const auto& slot = active_tracks_.slots()[i];
