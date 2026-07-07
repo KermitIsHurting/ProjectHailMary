@@ -6,6 +6,7 @@
 // nothing to integrate. Publishers report model_weight_cv=1 accordingly.
 #pragma once
 
+#include "cuas_fusion/common/eigen_types.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 
@@ -38,7 +39,7 @@ public:
         float64_t step_dt,
         int32_t n_steps);
 
-    static Eigen::VectorXd predictCvStep(const Eigen::VectorXd& state, float64_t dt);
+    static Vector6d predictCvStep(const Vector6d& state, float64_t dt);
 
     static Eigen::VectorXd build_state_from_position_speed(
         float64_t x_m, float64_t y_m, float64_t z_m, float64_t speed_mps);

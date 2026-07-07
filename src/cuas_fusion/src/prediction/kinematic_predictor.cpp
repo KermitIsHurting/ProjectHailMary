@@ -24,10 +24,10 @@ KinematicPredictor::TrajectoryResult KinematicPredictor::propagateForward(
     const int32_t steps =
         std::min(n_steps, static_cast<int32_t>(kMaxTrajectorySteps));
 
-    Eigen::VectorXd x = state.head(6);
-    Eigen::MatrixXd P_cur = covariance.topLeftCorner(6, 6);
-    const Eigen::MatrixXd F6 = F.topLeftCorner(6, 6);
-    const Eigen::MatrixXd Q6 = Q.topLeftCorner(6, 6);
+    Vector6d x = state.head(6);
+    Matrix6d P_cur = covariance.topLeftCorner(6, 6);
+    const Matrix6d F6 = F.topLeftCorner(6, 6);
+    const Matrix6d Q6 = Q.topLeftCorner(6, 6);
 
     float64_t t = 0.0;
 
@@ -67,10 +67,10 @@ KinematicPredictor::TrajectoryResult KinematicPredictor::propagateForward(
     return result;
 }
 
-Eigen::VectorXd KinematicPredictor::predictCvStep(
-    const Eigen::VectorXd& state, float64_t dt)
+Vector6d KinematicPredictor::predictCvStep(
+    const Vector6d& state, float64_t dt)
 {
-    Eigen::VectorXd x = state;
+    Vector6d x = state;
     x(0) += state(3) * dt;
     x(1) += state(4) * dt;
     x(2) += state(5) * dt;

@@ -1,5 +1,11 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.17)
 project(cuas_fusion)
+
+# Reproducible default: an unset build type silently compiled at -O0 with
+# no flags, so "the build" meant different code than anyone assumed.
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE RelWithDebInfo)
+endif()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -27,8 +33,25 @@ find_package(OpenCV REQUIRED)
 message(STATUS "OpenCV_LIBS: ${OpenCV_LIBS}")
 message(STATUS "OpenCV_LIBRARIES: ${OpenCV_LIBRARIES}")
 
+# Runtime-only Jetson image (no nvcc), so FindCUDAToolkit cannot resolve a
+# toolkit; locate headers/runtime through the versionless /usr/local/cuda
+# symlink instead of hardcoding cuda-12.6 paths. Both lookups are guarded:
+# an unguarded NOTFOUND only fails at link time with a cryptic message.
+find_path(CUDA_INCLUDE_DIR cuda_runtime_api.h
+  PATHS /usr/local/cuda/include /usr/local/cuda/targets/aarch64-linux/include)
+if(NOT CUDA_INCLUDE_DIR)
+  message(FATAL_ERROR "cuda_runtime_api.h not found — install the CUDA runtime")
+endif()
+find_library(CUDART_LIB cudart
+  PATHS /usr/local/cuda/lib64 /usr/local/cuda/targets/aarch64-linux/lib)
+if(NOT CUDART_LIB)
+  message(FATAL_ERROR "libcudart not found — install the CUDA runtime")
+endif()
+
 find_library(NVINFER_LIB nvinfer PATHS /usr/lib/aarch64-linux-gnu)
-find_library(CUDART_LIB cudart PATHS /usr/local/cuda/lib64)
+if(NOT NVINFER_LIB)
+  message(FATAL_ERROR "libnvinfer not found — install TensorRT")
+endif()
 
 include_directories(include)
 # Third-party headers are adopted code: SYSTEM suppresses their diagnostics so
@@ -38,7 +61,10 @@ include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})
 # -----------------------------------------------------------------------------
 # JSF AV C++ / MISRA C++:2023 enforcement flags
 #
-# Exceptions and RTTI disabled per JSF AV Rule 208 and MISRA Rule 18-4-1.
+# Exceptions and RTTI remain ENABLED — rclcpp requires both (DEV-001 below).
+# (An earlier revision claimed they were disabled citing "MISRA 18-4-1";
+# that is the 2008 dynamic-heap rule, not exceptions, and the claim was
+# false — kept corrected here so the record is honest.)
 # Third-party frameworks (ROS 2, OpenCV, Eigen, TensorRT) are adopted code
 # with documented deviations per MISRA Compliance:2020 Section 6.5. See
 # docs/CODING_STANDARD.md for DEV-001 through DEV-005.
@@ -60,6 +86,7 @@ set(CUAS_SAFETY_FLAGS
     -Wnull-dereference
     -Wimplicit-fallthrough
     -Wswitch-enum
+    -Wshadow
 )
 
 # Stricter set used only when the target has no direct ROS header dependency.
@@ -101,8 +128,7 @@ add_library(trt_detector STATIC
 target_include_directories(trt_detector PUBLIC include)
 target_include_directories(trt_detector SYSTEM PUBLIC
   ${OpenCV_INCLUDE_DIRS}
-  /usr/local/cuda-12.6/targets/aarch64-linux/include
-  /usr/local/cuda/include
+  ${CUDA_INCLUDE_DIR}
 )
 target_link_libraries(trt_detector
   ${OpenCV_LIBS}
@@ -545,6 +571,16 @@ if(BUILD_TESTING)
     test/test_color_correct_engine.cpp
     src/color_correct_engine.cpp)
   target_include_directories(test_color_correct_engine PRIVATE include)
+
+  # The zero-warning policy gates tests too — they are shipped evidence.
+  foreach(cuas_test_target
+      test_timestamp_associator test_kalman_cv test_imm_filter
+      test_hungarian_solver test_fixed_containers test_threat_classifier
+      test_track_manager test_fusion_engine test_geofence_engine
+      test_reachability_engine test_health_monitor test_intent_classifier
+      test_clutter_map test_color_correct_engine)
+    target_compile_options(${cuas_test_target} PRIVATE ${CUAS_SAFETY_FLAGS})
+  endforeach()
 endif()
 
 ament_package()
