@@ -33,9 +33,6 @@ bool TrackManager::init()
 
     R_detection_ = Eigen::Matrix3d::Identity() *
                    (kRadarDetectionSigmaM * kRadarDetectionSigmaM);
-
-    cost_matrix_.resize(static_cast<Eigen::Index>(TRACK_MAX_TRACKS),
-                        static_cast<Eigen::Index>(TRACK_MAX_TRACKS));
     return true;
 }
 
@@ -169,8 +166,8 @@ bool TrackManager::update(const FusedDetection* detections,
     const uint32_t M = m_val;
     const uint32_t N = active_slots.size();
 
-    cost_matrix_.resize(static_cast<Eigen::Index>(N),
-                        static_cast<Eigen::Index>(M));
+    auto cost = cost_matrix_.topLeftCorner(static_cast<Eigen::Index>(N),
+                                           static_cast<Eigen::Index>(M));
 
     for (uint32_t i = 0U; i < N; ++i) {
         const TrackEntry& e = entries_[active_slots[i]];
@@ -179,7 +176,17 @@ bool TrackManager::update(const FusedDetection* detections,
             static_cast<float64_t>(e.track.position_y_m_),
             static_cast<float64_t>(e.track.position_z_m_)
         };
+
+        // One factorization per track instead of two inversions per pair
+        // (A3.3). A failed LLT means a corrupt (NaN) covariance: price the
+        // whole row out so the solver's finite-cost precondition holds.
         const Eigen::Matrix3d S = e.P + R_detection_;
+        const Eigen::LLT<Eigen::Matrix3d> llt(S);
+        const bool s_ok = (llt.info() == Eigen::Success);
+        Eigen::Matrix3d S_inv = Eigen::Matrix3d::Identity();
+        if (s_ok) {
+            S_inv = llt.solve(Eigen::Matrix3d::Identity());
+        }
 
         // Confirmed tracks get a wider gate so arm/leg returns from the same
         // body don't fall outside and spawn fragment tracks; tentative tracks
@@ -200,17 +207,21 @@ bool TrackManager::update(const FusedDetection* detections,
 
             const Eigen::Index ri = static_cast<Eigen::Index>(i);
             const Eigen::Index cj = static_cast<Eigen::Index>(j);
-            if (mahalanobisGate(innovation, S, gate_chi2)) {
-                cost_matrix_(ri, cj) = innovation.dot(S.inverse() * innovation);
+            if (s_ok) {
+                // NaN-safe gate: a non-finite distance fails the comparison
+                // and prices the pair out.
+                const float64_t md2 = innovation.dot(S_inv * innovation);
+                cost(ri, cj) =
+                    (md2 < gate_chi2) ? md2 : HungarianSolver::kLargeCost;
             } else {
-                cost_matrix_(ri, cj) = HungarianSolver::kLargeCost;
+                cost(ri, cj) = HungarianSolver::kLargeCost;
             }
         }
     }
 
     FixedVector<int32_t, TRACK_MAX_TRACKS> assignment;
     FixedVector<int32_t, TRACK_MAX_TRACKS> unassigned_dets;
-    if (!solver_.solve(cost_matrix_, assignment, unassigned_dets)) {
+    if (!solver_.solve(cost, assignment, unassigned_dets)) {
         return false;
     }
 

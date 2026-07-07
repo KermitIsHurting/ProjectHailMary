@@ -7,7 +7,7 @@
 
 namespace cuas {
 
-bool HungarianSolver::solve(const Eigen::MatrixXd& cost,
+bool HungarianSolver::solve(const CostMatrixRef& cost,
                             FixedVector<int32_t, TRACK_MAX_TRACKS>& assignment,
                             FixedVector<int32_t, TRACK_MAX_TRACKS>& unassigned_detections)
 {

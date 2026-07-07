@@ -14,14 +14,6 @@
 
 namespace cuas {
 
-// Inlined because it sits inside the NxM association loop and has no state.
-inline bool mahalanobisGate(const Eigen::Vector3d& innovation,
-                            const Eigen::Matrix3d& S,
-                            float64_t chi2_threshold)
-{
-    return innovation.dot(S.inverse() * innovation) < chi2_threshold;
-}
-
 class TrackManager {
 public:
     TrackManager() = default;
@@ -46,10 +38,17 @@ private:
     void     applyDetection(uint32_t slot, const FusedDetection& det);
     void     applyMiss(uint32_t slot);
 
+    // Fixed capacity: N and M are both bounded by TRACK_MAX_TRACKS, so the
+    // per-scan resize was pure reallocation churn (A3.2); the solver reads
+    // the topLeftCorner(N, M) view.
+    using CostMatrix = Eigen::Matrix<float64_t,
+                                     static_cast<int32_t>(TRACK_MAX_TRACKS),
+                                     static_cast<int32_t>(TRACK_MAX_TRACKS)>;
+
     std::array<TrackEntry, TRACK_MAX_TRACKS> entries_{};
     uint32_t        next_id_      = 1U;
     HungarianSolver solver_{};
-    Eigen::MatrixXd cost_matrix_{};
+    CostMatrix      cost_matrix_  = CostMatrix::Zero();
     Eigen::Matrix3d R_detection_ = Eigen::Matrix3d::Identity();
 };
 
