@@ -70,44 +70,44 @@ public:
     }
 
 private:
-    float32_t now_sec() const
+    int64_t now_ns() const
     {
-        return static_cast<float32_t>(clock_->now().seconds());
+        return clock_->now().nanoseconds();
     }
 
     void radar_cb(const sensor_msgs::msg::PointCloud2::ConstSharedPtr & msg)
     {
         (void)msg;
-        monitor_.update(kTopicRadar, now_sec());
+        monitor_.update(kTopicRadar, now_ns());
     }
 
     void camera_cb(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
     {
         (void)msg;
-        monitor_.update(kTopicCamera, now_sec());
+        monitor_.update(kTopicCamera, now_ns());
     }
 
     void tracks_cb(const cuas_msgs::msg::TrackArray::ConstSharedPtr & msg)
     {
         (void)msg;
-        monitor_.update(kTopicTracker, now_sec());
+        monitor_.update(kTopicTracker, now_ns());
     }
 
     void threats_cb(const cuas_msgs::msg::ThreatReportArray::ConstSharedPtr & msg)
     {
         (void)msg;
-        monitor_.update(kTopicClassifier, now_sec());
+        monitor_.update(kTopicClassifier, now_ns());
     }
 
     void predict_cb(const cuas_msgs::msg::PredictedTrack::ConstSharedPtr & msg)
     {
         (void)msg;
-        monitor_.update(kTopicPredictor, now_sec());
+        monitor_.update(kTopicPredictor, now_ns());
     }
 
     void publish_tick()
     {
-        const float32_t t = now_sec();
+        const int64_t t = now_ns();
         for (uint32_t i = 0U; i < kTopicCount; ++i) {
             monitor_.refresh_status(i, t);
         }

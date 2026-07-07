@@ -8,59 +8,62 @@ HealthMonitor::HealthMonitor()
 : topics_()
 {
     for (uint32_t i = 0U; i < kTopicCount; ++i) {
-        const TopicHealth init{0.0F, 0.0F, 0.0F, TopicStatus::kDead};
+        const TopicHealth init{0LL, 0.0F, 0.0F, TopicStatus::kDead};
         (void)topics_.push_back(init);
     }
 }
 
-void HealthMonitor::update(const uint32_t topic_id, const float32_t now_sec)
+void HealthMonitor::update(const uint32_t topic_id, const int64_t now_ns)
 {
     if (topic_id >= kTopicCount) {
         return;
     }
     TopicHealth & t = topics_[topic_id];
 
-    // WHY: on the first update last_recv_sec is 0 so dt becomes the uptime;
-    // prime last_recv_sec without feeding a spurious 1/uptime sample into EMA.
-    if (t.last_recv_sec <= 0.0F) {
-        t.last_recv_sec = now_sec;
-        t.status        = TopicStatus::kOk;
+    // WHY: on the first update last_recv_ns is 0 so dt becomes the uptime;
+    // prime last_recv_ns without feeding a spurious 1/uptime sample into EMA.
+    if (t.last_recv_ns <= 0LL) {
+        t.last_recv_ns = now_ns;
+        t.status       = TopicStatus::kOk;
         return;
     }
 
-    const float32_t dt = now_sec - t.last_recv_sec;
+    const int64_t dt_ns = now_ns - t.last_recv_ns;
 
-    if (dt > kDeadThresholdSec) {
+    if (dt_ns > kDeadThresholdNs) {
         t.status = TopicStatus::kDead;
-    } else if (dt > kStaleThresholdSec) {
+    } else if (dt_ns > kStaleThresholdNs) {
         t.status = TopicStatus::kStale;
     } else {
         t.status = TopicStatus::kOk;
     }
 
-    if (dt > 0.0F) {
-        const float32_t instant_hz = 1.0F / dt;
+    if (dt_ns > 0LL) {
+        // Subtract-then-narrow: the difference is small, so the float
+        // conversion is exact where it matters.
+        const float32_t dt_s = static_cast<float32_t>(dt_ns) * 1.0e-9F;
+        const float32_t instant_hz = 1.0F / dt_s;
         t.measured_hz = (kEmaAlpha * instant_hz)
                       + ((1.0F - kEmaAlpha) * t.measured_hz);
     }
 
-    t.last_recv_sec = now_sec;
+    t.last_recv_ns = now_ns;
 }
 
-void HealthMonitor::refresh_status(const uint32_t topic_id, const float32_t now_sec)
+void HealthMonitor::refresh_status(const uint32_t topic_id, const int64_t now_ns)
 {
     if (topic_id >= kTopicCount) {
         return;
     }
     TopicHealth & t = topics_[topic_id];
-    if (t.last_recv_sec <= 0.0F) {
+    if (t.last_recv_ns <= 0LL) {
         t.status = TopicStatus::kDead;
         return;
     }
-    const float32_t dt = now_sec - t.last_recv_sec;
-    if (dt > kDeadThresholdSec) {
+    const int64_t dt_ns = now_ns - t.last_recv_ns;
+    if (dt_ns > kDeadThresholdNs) {
         t.status = TopicStatus::kDead;
-    } else if (dt > kStaleThresholdSec) {
+    } else if (dt_ns > kStaleThresholdNs) {
         t.status = TopicStatus::kStale;
     } else {
         t.status = TopicStatus::kOk;
@@ -70,7 +73,7 @@ void HealthMonitor::refresh_status(const uint32_t topic_id, const float32_t now_
 TopicHealth HealthMonitor::query(const uint32_t topic_id) const
 {
     if (topic_id >= kTopicCount) {
-        const TopicHealth empty{0.0F, 0.0F, 0.0F, TopicStatus::kDead};
+        const TopicHealth empty{0LL, 0.0F, 0.0F, TopicStatus::kDead};
         return empty;
     }
     return topics_[topic_id];
