@@ -5,6 +5,7 @@
 #include "cuas_fusion/common/fixed_types.hpp"
 
 #include <linux/videodev2.h>
+#include <poll.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <fcntl.h>
@@ -20,6 +21,11 @@
 #endif
 
 namespace cuas {
+
+// DQBUF blocks forever on a dead CSI link; bounded by poll() so shutdown
+// and the node's reopen loop stay responsive (R12f). 500 ms is 15 frame
+// periods — far beyond any legitimate delivery jitter.
+static constexpr int32_t kDqbufTimeoutMs = 500;
 
 CameraDriver::CameraDriver()
     : fd_(-1), buffers_{}, buf_lengths_{}, streaming_(false)
@@ -120,6 +126,24 @@ bool CameraDriver::open(const std::string & device_path)
 bool CameraDriver::grabFrame(cv::Mat & out_bgr, int64_t & timestamp_ns)
 {
     if (fd_ < 0 || !streaming_) {
+        return false;
+    }
+
+    struct pollfd pfd{};
+    pfd.fd     = fd_;
+    pfd.events = POLLIN;
+    const int32_t pr = poll(&pfd, 1, kDqbufTimeoutMs);
+    if (pr <= 0) {
+        if (pr == 0) {
+            std::fprintf(stderr,
+                "CameraDriver: no frame within %d ms — CSI link dead?\n",
+                kDqbufTimeoutMs);
+        } else if (errno != EINTR) {
+            std::fprintf(stderr, "CameraDriver: poll failed: %s\n",
+                         strerror(errno));
+        } else {
+        }
+        // camera_node's existing reopen/retry loop owns recovery.
         return false;
     }
 
