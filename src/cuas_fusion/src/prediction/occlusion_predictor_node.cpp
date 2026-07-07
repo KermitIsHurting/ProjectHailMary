@@ -165,9 +165,11 @@ private:
 
             pred.bearing_deg            = traj.final_bearing_deg;
             pred.elevation_deg          = traj.final_elevation_deg;
-            pred.model_weight_cv        = ghost.model_weights[0];
-            pred.model_weight_ca        = ghost.model_weights[1];
-            pred.model_weight_ct        = ghost.model_weights[2];
+            // CV is the only forward model (see kinematic_predictor.hpp);
+            // the fabricated 0.33/0.33/0.34 blend misrepresented the output.
+            pred.model_weight_cv        = 1.0;
+            pred.model_weight_ca        = 0.0;
+            pred.model_weight_ct        = 0.0;
             pred.track_state            = "OCCLUDED";
             pred.track_state_id         = cuas::track_state::kOccluded;
             // WHY: prediction_horizon_s is stamped onto Track by the tracker

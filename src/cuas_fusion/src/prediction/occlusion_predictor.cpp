@@ -18,8 +18,8 @@ KinematicPredictor::TrajectoryResult OcclusionPredictor::propagateGhost(
     float64_t current_time,
     float64_t step_dt,
     int32_t n_steps,
-    const Eigen::MatrixXd& F_blended,
-    const Eigen::MatrixXd& Q_blended)
+    const Eigen::MatrixXd& F,
+    const Eigen::MatrixXd& Q)
 {
     const float64_t dt_since = current_time - ghost.occlusion_start_time_sec;
     if (dt_since > max_occlusion_sec_) {
@@ -38,8 +38,7 @@ KinematicPredictor::TrajectoryResult OcclusionPredictor::propagateGhost(
     }
 
     return propagator_.propagateForward(
-        ghost.state, P_inflated, ghost.model_weights,
-        F_blended, Q_blended, step_dt, n_steps);
+        ghost.state, P_inflated, F, Q, step_dt, n_steps);
 }
 
 bool OcclusionPredictor::reacquire(

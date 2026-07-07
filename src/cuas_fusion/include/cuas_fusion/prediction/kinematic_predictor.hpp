@@ -1,5 +1,9 @@
 // @file kinematic_predictor.hpp
-// @brief Forward-propagation trajectory predictor over a fixed horizon.
+// @brief Constant-velocity forward-propagation trajectory predictor.
+//
+// CV-only by design: the 6-DOF pos/vel state built from Track.msg carries no
+// acceleration or turn-rate information, so CA/CT forward models would have
+// nothing to integrate. Publishers report model_weight_cv=1 accordingly.
 #pragma once
 
 #include "cuas_fusion/common/fixed_containers.hpp"
@@ -29,15 +33,12 @@ public:
     TrajectoryResult propagateForward(
         const Eigen::VectorXd& state,
         const Eigen::MatrixXd& covariance,
-        const std::array<float64_t, 3>& model_weights,
-        const Eigen::MatrixXd& F_blended,
-        const Eigen::MatrixXd& Q_blended,
+        const Eigen::MatrixXd& F,
+        const Eigen::MatrixXd& Q,
         float64_t step_dt,
         int32_t n_steps);
 
     static Eigen::VectorXd predictCvStep(const Eigen::VectorXd& state, float64_t dt);
-    static Eigen::VectorXd predictCaStep(const Eigen::VectorXd& state, float64_t dt);
-    static Eigen::VectorXd predictCtStep(const Eigen::VectorXd& state, float64_t dt);
 
     static Eigen::VectorXd build_state_from_position_speed(
         float64_t x_m, float64_t y_m, float64_t z_m, float64_t speed_mps);

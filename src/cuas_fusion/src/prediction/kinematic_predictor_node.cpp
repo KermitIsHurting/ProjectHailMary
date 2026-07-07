@@ -20,7 +20,6 @@ namespace cuas {
 struct CovarianceCache {
     Eigen::Matrix<float64_t, 6, 6> P =
         Eigen::Matrix<float64_t, 6, 6>::Identity();
-    std::array<float64_t, 3> weights = {0.33, 0.33, 0.34};
 };
 
 class KinematicPredictorNode : public rclcpp::Node
@@ -95,7 +94,6 @@ private:
             // there is no Kalman update to bound the open-loop propagation.
             CovarianceCache fresh;
             fresh.P = KinematicPredictor::build_initial_covariance_6d();
-            fresh.weights = {0.33, 0.33, 0.34};
             (void)cov_cache_.insert_or_assign(t.track_id, fresh);
         }
     }
@@ -120,14 +118,13 @@ private:
                 continue;
             }
             Eigen::MatrixXd P = cache->P;
-            const std::array<float64_t, 3> weights = cache->weights;
 
             const Eigen::MatrixXd F =
                 KinematicPredictor::build_transition_matrix_6d(step_dt_);
             const Eigen::MatrixXd Q =
                 KinematicPredictor::build_process_noise_6d(step_dt_, kSigmaASq);
 
-            auto traj = predictor_.propagateForward(state, P, weights, F, Q,
+            auto traj = predictor_.propagateForward(state, P, F, Q,
                                                     step_dt_, n_steps_);
 
             // WHY: cache->P is reset per measurement in track_callback; no
@@ -161,9 +158,11 @@ private:
 
             pred.bearing_deg            = traj.final_bearing_deg;
             pred.elevation_deg          = traj.final_elevation_deg;
-            pred.model_weight_cv        = weights[0];
-            pred.model_weight_ca        = weights[1];
-            pred.model_weight_ct        = weights[2];
+            // CV is the only forward model (see kinematic_predictor.hpp);
+            // the fabricated 0.33/0.33/0.34 blend misrepresented the output.
+            pred.model_weight_cv        = 1.0;
+            pred.model_weight_ca        = 0.0;
+            pred.model_weight_ct        = 0.0;
             pred.track_state            = t.track_state;
             pred.track_state_id         = t.track_state_id;
             // WHY: prediction_horizon_s is stamped onto Track by the tracker

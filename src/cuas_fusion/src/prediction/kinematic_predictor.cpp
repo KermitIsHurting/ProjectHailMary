@@ -1,5 +1,5 @@
 // @file kinematic_predictor.cpp
-// @brief Forward-propagation trajectory prediction with IMM model blending.
+// @brief Constant-velocity forward-propagation trajectory prediction.
 #include "cuas_fusion/prediction/kinematic_predictor.hpp"
 #include "cuas_fusion/common/constants.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
@@ -12,9 +12,8 @@ namespace cuas {
 KinematicPredictor::TrajectoryResult KinematicPredictor::propagateForward(
     const Eigen::VectorXd& state,
     const Eigen::MatrixXd& covariance,
-    const std::array<float64_t, 3>& model_weights,
-    const Eigen::MatrixXd& F_blended,
-    const Eigen::MatrixXd& Q_blended,
+    const Eigen::MatrixXd& F,
+    const Eigen::MatrixXd& Q,
     float64_t step_dt,
     int32_t n_steps)
 {
@@ -25,33 +24,18 @@ KinematicPredictor::TrajectoryResult KinematicPredictor::propagateForward(
     const int32_t steps =
         std::min(n_steps, static_cast<int32_t>(kMaxTrajectorySteps));
 
-    Eigen::VectorXd x_cv = state.head(6);
-    Eigen::VectorXd x_ca = state.head(6);
-    Eigen::VectorXd x_ct = state.head(6);
+    Eigen::VectorXd x = state.head(6);
     Eigen::MatrixXd P_cur = covariance.topLeftCorner(6, 6);
-    const Eigen::MatrixXd F6 = F_blended.topLeftCorner(6, 6);
-    const Eigen::MatrixXd Q6 = Q_blended.topLeftCorner(6, 6);
+    const Eigen::MatrixXd F6 = F.topLeftCorner(6, 6);
+    const Eigen::MatrixXd Q6 = Q.topLeftCorner(6, 6);
 
     float64_t t = 0.0;
 
     for (int32_t i = 0; i < steps; ++i) {
         t += step_dt;
 
-        x_cv = predictCvStep(x_cv, step_dt);
-        x_ca = predictCaStep(x_ca, step_dt);
-        x_ct = predictCtStep(x_ct, step_dt);
-
-        const Eigen::Vector3d blended_pos =
-            model_weights[0] * x_cv.head<3>() +
-            model_weights[1] * x_ca.head<3>() +
-            model_weights[2] * x_ct.head<3>();
-
-        const Eigen::Vector3d blended_vel =
-            model_weights[0] * x_cv.segment<3>(3) +
-            model_weights[1] * x_ca.segment<3>(3) +
-            model_weights[2] * x_ct.segment<3>(3);
-
-        (void)blended_vel;
+        x = predictCvStep(x, step_dt);
+        const Eigen::Vector3d pos = x.head<3>();
 
         P_cur = F6 * P_cur * F6.transpose() + Q6;
 
@@ -63,12 +47,12 @@ KinematicPredictor::TrajectoryResult KinematicPredictor::propagateForward(
         const float64_t rms       = std::sqrt(trace_pos / 3.0);
         const float64_t unc       = std::min(rms,
             static_cast<float64_t>(cuas::kMaxUncertaintyRadiusM));
-        const float64_t b   = std::atan2(blended_pos.y(), blended_pos.x()) * 180.0 / M_PI;
-        const float64_t xy  = std::sqrt(blended_pos.x() * blended_pos.x() +
-                                        blended_pos.y() * blended_pos.y());
-        const float64_t e   = std::atan2(blended_pos.z(), xy) * 180.0 / M_PI;
+        const float64_t b   = std::atan2(pos.y(), pos.x()) * 180.0 / M_PI;
+        const float64_t xy  = std::sqrt(pos.x() * pos.x() +
+                                        pos.y() * pos.y());
+        const float64_t e   = std::atan2(pos.z(), xy) * 180.0 / M_PI;
 
-        (void)result.positions.push_back(blended_pos);
+        (void)result.positions.push_back(pos);
         (void)result.timestamps_sec.push_back(t);
         (void)result.uncertainty_radii_m.push_back(unc);
         (void)result.bearing_deg.push_back(b);
@@ -84,26 +68,6 @@ KinematicPredictor::TrajectoryResult KinematicPredictor::propagateForward(
 }
 
 Eigen::VectorXd KinematicPredictor::predictCvStep(
-    const Eigen::VectorXd& state, float64_t dt)
-{
-    Eigen::VectorXd x = state;
-    x(0) += state(3) * dt;
-    x(1) += state(4) * dt;
-    x(2) += state(5) * dt;
-    return x;
-}
-
-Eigen::VectorXd KinematicPredictor::predictCaStep(
-    const Eigen::VectorXd& state, float64_t dt)
-{
-    Eigen::VectorXd x = state;
-    x(0) += state(3) * dt;
-    x(1) += state(4) * dt;
-    x(2) += state(5) * dt;
-    return x;
-}
-
-Eigen::VectorXd KinematicPredictor::predictCtStep(
     const Eigen::VectorXd& state, float64_t dt)
 {
     Eigen::VectorXd x = state;

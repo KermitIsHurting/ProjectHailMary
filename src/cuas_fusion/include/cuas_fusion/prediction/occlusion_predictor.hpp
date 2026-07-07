@@ -16,7 +16,6 @@ public:
         uint32_t track_id = 0U;
         Eigen::VectorXd state = Eigen::VectorXd::Zero(6);
         Eigen::MatrixXd covariance = Eigen::MatrixXd::Identity(6, 6);
-        std::array<float64_t, 3> model_weights = {0.33, 0.33, 0.34};
         float64_t occlusion_start_time_sec = 0.0;
         bool      expired = false;
     };
@@ -30,8 +29,8 @@ public:
         float64_t current_time,
         float64_t step_dt,
         int32_t n_steps,
-        const Eigen::MatrixXd& F_blended,
-        const Eigen::MatrixXd& Q_blended);
+        const Eigen::MatrixXd& F,
+        const Eigen::MatrixXd& Q);
 
     bool reacquire(const GhostTrack& ghost,
                    float64_t meas_x, float64_t meas_y, float64_t meas_z) const;
