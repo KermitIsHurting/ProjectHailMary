@@ -131,7 +131,14 @@ private:
                     fused->detections.size());
                 for (uint32_t di = 0U; di < n_det; ++di) {
                     const cuas_msgs::msg::FusedDetection & fd = fused->detections[di];
-                    const float32_t diff = std::abs(fd.azimuth_deg - track_az);
+                    // Wrap the bearing difference at +/-180 deg: +179 vs -179
+                    // is 2 deg apart, not 358 — without this, camera-label
+                    // fusion failed exactly when a target crossed the seam.
+                    float32_t diff = std::fmod(
+                        std::abs(fd.azimuth_deg - track_az), 360.0F);
+                    if (diff > 180.0F) {
+                        diff = 360.0F - diff;
+                    }
                     if (diff < best_diff) {
                         best_diff = diff;
                         matched_fd = &fd;
@@ -161,12 +168,6 @@ private:
                 logged_first_ = true;
             }
 
-            // WHY: projected impact coordinates reflect doppler-derived
-            // velocity extrapolation — raw position would misrepresent
-            // threat trajectory to downstream consumers.
-            const ThreatClassifier::ImpactPoint impact = classifier_.predicted_impact(
-                t.position_x_m_, t.position_y_m_, t.doppler_mps_, 5.0F);
-
             cuas_msgs::msg::ThreatReport report;
             report.track_id            = t.track_id_;
             report.threat_level        = threatLevelToString(cr.threat_level);
@@ -181,8 +182,6 @@ private:
             report.quality_score       = cr.quality_score;
             report.dwell_time_s        = cr.dwell_time_s;
             report.escalation_state    = escalationStateToString(cr.escalation_state);
-            report.predicted_impact_x_m = impact.x_m;
-            report.predicted_impact_y_m = impact.y_m;
 
             const float32_t actual_range = std::sqrt(
                 (t.position_x_m_ * t.position_x_m_) +
@@ -199,6 +198,18 @@ private:
             // WHY: horizon is stamped here because this is the earliest point in the
             // pipeline where threat level is known; classifier owns threat policy.
             report.prediction_horizon_s = horizon_for_level(report.threat_level_id);
+
+            // WHY: projected impact coordinates reflect doppler-derived
+            // velocity extrapolation — raw position would misrepresent
+            // threat trajectory to downstream consumers. The extrapolation
+            // horizon is the same per-level horizon stamped on the report;
+            // a fixed 5 s here previously contradicted the advertised
+            // horizon for every non-IDENTIFIED level.
+            const ThreatClassifier::ImpactPoint impact = classifier_.predicted_impact(
+                t.position_x_m_, t.position_y_m_, t.doppler_mps_,
+                report.prediction_horizon_s);
+            report.predicted_impact_x_m = impact.x_m;
+            report.predicted_impact_y_m = impact.y_m;
 
             out.reports.push_back(report);
         }

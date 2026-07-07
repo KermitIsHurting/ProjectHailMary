@@ -3,7 +3,10 @@ radar_parser_node:
     data_port: "/dev/radar_data"
     config_port: "/dev/radar_config"
 
-threat_classifier_node:
+# NOTE: section name must match the runtime node name ("classifier_node",
+# set in the node constructor and every launch file) or ROS 2 silently
+# ignores every parameter below and the node runs on hardcoded defaults.
+classifier_node:
   ros__parameters:
     threatening_range_m: 4.0
     threatening_velocity_mps: 0.3
