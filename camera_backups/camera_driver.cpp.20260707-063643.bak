@@ -10,7 +10,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <cerrno>
-#include <cstdio>
 #include <cstring>
 #include <ctime>
 
@@ -46,7 +45,7 @@ bool CameraDriver::open(const std::string & device_path)
     fmt.fmt.pix.field       = V4L2_FIELD_NONE;
 
     if (ioctl(fd_, VIDIOC_S_FMT, &fmt) < 0) {
-        (void)::close(fd_);
+        ::close(fd_);
         fd_ = -1;
         return false;
     }
@@ -55,9 +54,7 @@ bool CameraDriver::open(const std::string & device_path)
     parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     parm.parm.capture.timeperframe.numerator   = 1;
     parm.parm.capture.timeperframe.denominator = CAMERA_FPS;
-    // Best-effort: sensor drivers commonly reject S_PARM and fall back
-    // to the mode's native rate; discard is deliberate.
-    (void)ioctl(fd_, VIDIOC_S_PARM, &parm);
+    ioctl(fd_, VIDIOC_S_PARM, &parm);  // best-effort
 
     struct v4l2_requestbuffers req{};
     req.count  = V4L2_BUF_COUNT;
@@ -65,7 +62,7 @@ bool CameraDriver::open(const std::string & device_path)
     req.memory = V4L2_MEMORY_MMAP;
 
     if (ioctl(fd_, VIDIOC_REQBUFS, &req) < 0 || req.count < 1) {
-        (void)::close(fd_);
+        ::close(fd_);
         fd_ = -1;
         return false;
     }
@@ -160,31 +157,18 @@ void CameraDriver::close()
 
     if (streaming_) {
         int32_t type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        if (ioctl(fd_, VIDIOC_STREAMOFF, &type) < 0) {
-            std::fprintf(stderr,
-                "CameraDriver: VIDIOC_STREAMOFF failed: %s\n",
-                strerror(errno));
-        }
+        ioctl(fd_, VIDIOC_STREAMOFF, &type);
         streaming_ = false;
     }
 
     for (int32_t i = 0; i < V4L2_BUF_COUNT; ++i) {
         if (buffers_[i] && buffers_[i] != MAP_FAILED) {
-            if (munmap(buffers_[i], buf_lengths_[i]) != 0) {
-                // A failed munmap leaks the mapping; log it so a reopen
-                // storm exhausting mappings is diagnosable.
-                std::fprintf(stderr,
-                    "CameraDriver: munmap(buffer %d) failed: %s\n",
-                    i, strerror(errno));
-            }
+            munmap(buffers_[i], buf_lengths_[i]);
             buffers_[i] = nullptr;
         }
     }
 
-    if (::close(fd_) != 0) {
-        std::fprintf(stderr, "CameraDriver: close failed: %s\n",
-                     strerror(errno));
-    }
+    ::close(fd_);
     fd_ = -1;
 }
 
