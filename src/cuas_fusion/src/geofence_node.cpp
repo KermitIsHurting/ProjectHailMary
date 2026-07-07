@@ -152,7 +152,7 @@ private:
 
     void tracks_callback(const cuas_msgs::msg::TrackArray::ConstSharedPtr& msg)
     {
-        latest_tracks_ = *msg;
+        latest_tracks_ = msg;
     }
 
     void threats_callback(
@@ -220,9 +220,10 @@ private:
         cuas_msgs::msg::GeofenceEventArray out;
         out.stamp = this->now();
 
-        const uint32_t n_tracks = static_cast<uint32_t>(latest_tracks_.tracks.size());
+        const uint32_t n_tracks = (latest_tracks_ == nullptr)
+            ? 0U : static_cast<uint32_t>(latest_tracks_->tracks.size());
         for (uint32_t ti = 0U; ti < n_tracks; ++ti) {
-            const cuas_msgs::msg::Track& track = latest_tracks_.tracks[ti];
+            const cuas_msgs::msg::Track& track = latest_tracks_->tracks[ti];
             if (track.track_state_id != cuas::track_state::kConfirmed) {
                 continue;
             }
@@ -278,7 +279,9 @@ private:
     GeofenceEngine engine_;
     FixedMap<uint32_t, uint8_t, TRACK_MAX_TRACKS> zone_membership_;
     FixedMap<uint32_t, uint8_t, TRACK_MAX_TRACKS> threat_priorities_;
-    cuas_msgs::msg::TrackArray latest_tracks_;
+    // ConstSharedPtr, not a deep copy: TrackArray copies allocate per tick
+    // (A3.6; intent_classifier_node is the reference pattern).
+    cuas_msgs::msg::TrackArray::ConstSharedPtr latest_tracks_;
 
     rclcpp::Publisher<cuas_msgs::msg::GeofenceEventArray>::SharedPtr pub_events_;
     rclcpp::Subscription<cuas_msgs::msg::TrackArray>::SharedPtr sub_tracks_;

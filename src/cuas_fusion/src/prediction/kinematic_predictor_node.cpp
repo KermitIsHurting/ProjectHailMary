@@ -63,7 +63,7 @@ private:
 
     void track_callback(const cuas_msgs::msg::TrackArray::ConstSharedPtr& msg)
     {
-        latest_tracks_ = *msg;
+        latest_tracks_ = msg;
 
         const uint32_t n = static_cast<uint32_t>(msg->tracks.size());
 
@@ -100,9 +100,12 @@ private:
 
     void publish()
     {
-        const uint32_t n = static_cast<uint32_t>(latest_tracks_.tracks.size());
+        if (latest_tracks_ == nullptr) {
+            return;
+        }
+        const uint32_t n = static_cast<uint32_t>(latest_tracks_->tracks.size());
         for (uint32_t ti = 0U; ti < n; ++ti) {
-            const cuas_msgs::msg::Track & t = latest_tracks_.tracks[ti];
+            const cuas_msgs::msg::Track & t = latest_tracks_->tracks[ti];
             if ((t.track_state_id != cuas::track_state::kConfirmed) &&
                 (t.track_state_id != cuas::track_state::kReacquired)) {
                 continue;
@@ -193,7 +196,9 @@ private:
     float64_t step_dt_ = 0.0;
     int32_t   n_steps_ = 0;
 
-    cuas_msgs::msg::TrackArray latest_tracks_;
+    // ConstSharedPtr, not a deep copy: TrackArray copies allocate per tick
+    // (A3.6; intent_classifier_node is the reference pattern).
+    cuas_msgs::msg::TrackArray::ConstSharedPtr latest_tracks_;
     FixedMap<uint32_t, CovarianceCache, TRACK_MAX_TRACKS> cov_cache_{};
 
     rclcpp::Subscription<cuas_msgs::msg::TrackArray>::SharedPtr sub_;

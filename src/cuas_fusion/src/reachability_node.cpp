@@ -120,7 +120,7 @@ private:
 
     void tracks_callback(const cuas_msgs::msg::TrackArray::ConstSharedPtr& msg)
     {
-        latest_tracks_ = *msg;
+        latest_tracks_ = msg;
     }
 
     void threats_callback(
@@ -139,9 +139,10 @@ private:
         cuas_msgs::msg::InterceptReportArray out;
         out.stamp = this->now();
 
-        const uint32_t n_tracks = static_cast<uint32_t>(latest_tracks_.tracks.size());
+        const uint32_t n_tracks = (latest_tracks_ == nullptr)
+            ? 0U : static_cast<uint32_t>(latest_tracks_->tracks.size());
         for (uint32_t ti = 0U; ti < n_tracks; ++ti) {
-            const cuas_msgs::msg::Track& tr = latest_tracks_.tracks[ti];
+            const cuas_msgs::msg::Track& tr = latest_tracks_->tracks[ti];
             const int32_t* pri_ptr = threat_priorities_.find(tr.track_id);
             int32_t pri = 0;
             if (pri_ptr != nullptr) {
@@ -174,7 +175,9 @@ private:
 
     ReachabilityEngine engine_;
     FixedMap<uint32_t, int32_t, TRACK_MAX_TRACKS> threat_priorities_;
-    cuas_msgs::msg::TrackArray latest_tracks_;
+    // ConstSharedPtr, not a deep copy: TrackArray copies allocate per tick
+    // (A3.6; intent_classifier_node is the reference pattern).
+    cuas_msgs::msg::TrackArray::ConstSharedPtr latest_tracks_;
     int32_t min_threat_level_;
 
     rclcpp::Publisher<cuas_msgs::msg::InterceptReportArray>::SharedPtr pub_;

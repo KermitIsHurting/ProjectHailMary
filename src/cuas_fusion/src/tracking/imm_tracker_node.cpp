@@ -23,11 +23,13 @@ namespace cuas {
 
 static float32_t horizon_for_track(
     uint32_t track_id,
-    const cuas_msgs::msg::ThreatReportArray & reports)
+    const cuas_msgs::msg::ThreatReportArray::ConstSharedPtr & reports)
 {
-    for (uint32_t i = 0U; i < reports.reports.size(); ++i) {
-        if (reports.reports[i].track_id == track_id) {
-            return reports.reports[i].prediction_horizon_s;
+    if (reports != nullptr) {
+        for (uint32_t i = 0U; i < reports->reports.size(); ++i) {
+            if (reports->reports[i].track_id == track_id) {
+                return reports->reports[i].prediction_horizon_s;
+            }
         }
     }
     return 5.0F;
@@ -77,7 +79,7 @@ private:
 
     void threats_callback(const cuas_msgs::msg::ThreatReportArray::ConstSharedPtr& msg)
     {
-        latest_threats_ = *msg;
+        latest_threats_ = msg;
     }
 
     void radar_callback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg)
@@ -189,7 +191,9 @@ private:
 
     FixedMap<uint32_t, IMMTracker, TRACK_MAX_TRACKS> active_tracks_;
     uint32_t next_track_id_;
-    cuas_msgs::msg::ThreatReportArray latest_threats_;
+    // ConstSharedPtr, not a deep copy: ThreatReportArray copies allocate per
+    // scan (A3.6; intent_classifier_node is the reference pattern).
+    cuas_msgs::msg::ThreatReportArray::ConstSharedPtr latest_threats_;
 
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_;
     rclcpp::Subscription<cuas_msgs::msg::ThreatReportArray>::SharedPtr sub_threats_;
