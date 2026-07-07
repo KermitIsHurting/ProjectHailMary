@@ -283,7 +283,7 @@ private:
         }
         if (radar_ports.size() < 2U) {
             RCLCPP_ERROR(get_logger(),
-                "Radar auto-detect failed: found %zu CP210x ports, need 2",
+                "Radar auto-detect failed: found %u CP210x ports, need 2",
                 radar_ports.size());
             return {"", ""};
         }
