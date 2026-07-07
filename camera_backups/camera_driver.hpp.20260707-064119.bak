@@ -29,14 +29,6 @@ private:
     void *   buffers_[V4L2_BUF_COUNT];
     uint32_t buf_lengths_[V4L2_BUF_COUNT];
     bool     streaming_;
-
-    // Per-frame scratch Mats, allocated once in open(): subtract/cvtColor/
-    // split/convertTo reuse a matching destination, so the ~5 full-frame
-    // allocations per grabFrame drop to zero (R12e). Pixel math unchanged.
-    cv::Mat raw_sub_;
-    cv::Mat bgr16_;
-    cv::Mat channels16_[3];
-    cv::Mat channels8_[3];
 };
 
 } // namespace cuas

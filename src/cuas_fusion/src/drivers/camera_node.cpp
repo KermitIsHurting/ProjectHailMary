@@ -56,6 +56,9 @@ private:
 
         cv::Mat bgr;
         int64_t ts_ns = 0;
+        // Hoisted: a per-iteration Image allocated its ~6 MB data vector
+        // every frame; resize() into retained capacity allocates once (R12e).
+        sensor_msgs::msg::Image msg;
 
         while (running_) {
             if (!driver_.grabFrame(bgr, ts_ns)) {
@@ -73,7 +76,6 @@ private:
                 continue;
             }
 
-            sensor_msgs::msg::Image msg;
             msg.header.stamp.sec     = static_cast<int32_t>(ts_ns / 1'000'000'000LL);
             msg.header.stamp.nanosec = static_cast<uint32_t>(ts_ns % 1'000'000'000LL);
             msg.header.frame_id      = "camera";

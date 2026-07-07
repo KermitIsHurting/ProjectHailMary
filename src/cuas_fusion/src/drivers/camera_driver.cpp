@@ -105,6 +105,15 @@ bool CameraDriver::open(const std::string & device_path)
     }
     streaming_ = true;
 
+    // One-time scratch allocation; grabFrame's cv ops then reuse these
+    // buffers every frame (R12e).
+    raw_sub_ = cv::Mat(CAMERA_HEIGHT, CAMERA_WIDTH, CV_16UC1);
+    bgr16_   = cv::Mat(CAMERA_HEIGHT, CAMERA_WIDTH, CV_16UC3);
+    for (int32_t i = 0; i < 3; ++i) {
+        channels16_[i] = cv::Mat(CAMERA_HEIGHT, CAMERA_WIDTH, CV_16UC1);
+        channels8_[i]  = cv::Mat(CAMERA_HEIGHT, CAMERA_WIDTH, CV_8UC1);
+    }
+
     return true;
 }
 
@@ -140,19 +149,18 @@ bool CameraDriver::grabFrame(cv::Mat & out_bgr, int64_t & timestamp_ns)
     cv::Mat raw16(CAMERA_HEIGHT, CAMERA_WIDTH, CV_16UC1,
                   buffers_[buf.index]);
 
-    cv::Mat raw_sub;
-    cv::subtract(raw16, cv::Scalar(CAMERA_BLACK_LEVEL), raw_sub);
+    cv::subtract(raw16, cv::Scalar(CAMERA_BLACK_LEVEL), raw_sub_);
 
-    cv::Mat bgr16;
-    cv::cvtColor(raw_sub, bgr16, cv::COLOR_BayerGB2BGR);
+    cv::cvtColor(raw_sub_, bgr16_, cv::COLOR_BayerGB2BGR);
 
-    // Per-channel WB gains convert black-subtracted 16-bit Bayer down to 8-bit BGR
-    cv::Mat channels[3];
-    cv::split(bgr16, channels);
-    channels[0].convertTo(channels[0], CV_8UC1, CAMERA_WB_GAIN_B * CAMERA_TONE_SCALE);
-    channels[1].convertTo(channels[1], CV_8UC1, CAMERA_WB_GAIN_G * CAMERA_TONE_SCALE);
-    channels[2].convertTo(channels[2], CV_8UC1, CAMERA_WB_GAIN_R * CAMERA_TONE_SCALE);
-    cv::merge(channels, 3, out_bgr);
+    // Per-channel WB gains convert black-subtracted 16-bit Bayer down to
+    // 8-bit BGR. Separate 8-bit destinations: an in-place convertTo with a
+    // depth change reallocates every call.
+    cv::split(bgr16_, channels16_);
+    channels16_[0].convertTo(channels8_[0], CV_8UC1, CAMERA_WB_GAIN_B * CAMERA_TONE_SCALE);
+    channels16_[1].convertTo(channels8_[1], CV_8UC1, CAMERA_WB_GAIN_G * CAMERA_TONE_SCALE);
+    channels16_[2].convertTo(channels8_[2], CV_8UC1, CAMERA_WB_GAIN_R * CAMERA_TONE_SCALE);
+    cv::merge(channels8_, 3, out_bgr);
 
     if (ioctl(fd_, VIDIOC_QBUF, &buf) < 0) {
         return false;
