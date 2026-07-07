@@ -59,8 +59,31 @@ public:
     }
 
 private:
+    static bool has_float_field(const sensor_msgs::msg::PointCloud2 & msg,
+                                const char * name)
+    {
+        for (const auto & f : msg.fields) {
+            if (f.name == name) {
+                return f.datatype == sensor_msgs::msg::PointField::FLOAT32;
+            }
+        }
+        return false;
+    }
+
     void cloud_cb(const sensor_msgs::msg::PointCloud2::ConstSharedPtr & msg)
     {
+        // A foreign publisher on /radar/detections with a different layout
+        // used to throw out of the iterator constructor into the process
+        // exception boundary; per-frame drop-with-warn is the right graceful
+        // degradation (A2.5). Covers publish_filtered's fields too.
+        if (!has_float_field(*msg, "x") || !has_float_field(*msg, "y") ||
+            !has_float_field(*msg, "z") || !has_float_field(*msg, "velocity"))
+        {
+            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+                "Dropping PointCloud2 without float32 x/y/z/velocity fields");
+            return;
+        }
+
         FixedVector<float32_t, kClutterMapMaxPoints> xs;
         FixedVector<float32_t, kClutterMapMaxPoints> ys;
 
