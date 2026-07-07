@@ -119,13 +119,8 @@ bool FusionEngine::projectAndAssociate(
         const float32_t yv = acc.box->y + acc.box->h * 0.5F;
 
         // EMA smooths only the radar 3D position; YOLO centre is already stable
-        const int32_t key = acc.box->class_id;
-        EmaState* ema = ema_per_class_.find(key);
-        if (ema == nullptr) {
-            EmaState fresh;
-            (void)ema_per_class_.insert_or_assign(key, fresh);
-            ema = ema_per_class_.find(key);
-        }
+        EmaState* ema = associateEma(acc.box->class_id, rx, ry, rz,
+                                     acc.timestamp_ns);
         if (ema != nullptr) {
             if (ema->valid) {
                 rx   = kEmaAlpha * rx   + (1.0F - kEmaAlpha) * ema->x;
@@ -133,13 +128,13 @@ bool FusionEngine::projectAndAssociate(
                 rz   = kEmaAlpha * rz   + (1.0F - kEmaAlpha) * ema->z;
                 rvel = kEmaAlpha * rvel + (1.0F - kEmaAlpha) * ema->vel;
             }
-            ema->x = rx;
-            ema->y = ry;
-            ema->z = rz;
-            ema->u = yu;
-            ema->v = yv;
+            ema->x   = rx;
+            ema->y   = ry;
+            ema->z   = rz;
             ema->vel = rvel;
-            ema->valid = true;
+            ema->class_id       = acc.box->class_id;
+            ema->last_update_ns = acc.timestamp_ns;
+            ema->valid          = true;
         }
 
         FusedDetection fd;
@@ -160,6 +155,49 @@ bool FusionEngine::projectAndAssociate(
     }
 
     return true;
+}
+
+FusionEngine::EmaState* FusionEngine::associateEma(
+    int32_t class_id, float32_t x, float32_t y, float32_t z, int64_t now_ns)
+{
+    for (EmaState& s : ema_states_) {
+        if (s.valid && (now_ns - s.last_update_ns) > kEmaTimeoutNs) {
+            s.valid = false;
+        }
+    }
+
+    EmaState* best   = nullptr;
+    float32_t best_d = kEmaGateM;
+    for (EmaState& s : ema_states_) {
+        if (!s.valid || s.class_id != class_id) {
+            continue;
+        }
+        const float32_t dx = x - s.x;
+        const float32_t dy = y - s.y;
+        const float32_t dz = z - s.z;
+        const float32_t d  = std::sqrt(dx * dx + dy * dy + dz * dz);
+        if (d <= best_d) {
+            best_d = d;
+            best   = &s;
+        }
+    }
+    if (best != nullptr) {
+        return best;
+    }
+
+    // No gate match: recycle a free slot, else the longest-unrefreshed one.
+    EmaState* oldest = &ema_states_[0];
+    for (EmaState& s : ema_states_) {
+        if (!s.valid) {
+            s = EmaState{};
+            return &s;
+        }
+        if (s.last_update_ns < oldest->last_update_ns) {
+            oldest = &s;
+        }
+    }
+    *oldest = EmaState{};
+    return oldest;
 }
 
 } // namespace cuas

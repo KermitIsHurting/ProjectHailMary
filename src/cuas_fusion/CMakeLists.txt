@@ -502,6 +502,12 @@ if(BUILD_TESTING)
   )
   target_include_directories(test_threat_classifier PRIVATE include)
 
+  ament_add_gtest(test_fusion_engine
+    ../../test/unit/test_fusion_engine.cpp
+    src/fusion/fusion_engine.cpp
+  )
+  target_include_directories(test_fusion_engine PRIVATE include)
+
   ament_add_gtest(test_geofence_engine
     test/test_geofence_engine.cpp
     src/geofence_engine.cpp)
