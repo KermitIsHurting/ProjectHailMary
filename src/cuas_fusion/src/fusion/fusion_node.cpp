@@ -16,6 +16,7 @@
 #include <geometry_msgs/msg/transform_stamped.hpp>
 
 #include <charconv>
+#include <ctime>
 #include <mutex>
 #include <string>
 #include <system_error>
@@ -24,6 +25,20 @@
 namespace cuas {
 
 namespace {
+
+// YOLO boxes older than this are not fused against live radar tracks (A1.7)
+constexpr int64_t kYoloMaxAgeNs = 500'000'000LL;
+
+// Local monotonic clock for the staleness gate: the camera pipeline stamps
+// CLOCK_MONOTONIC while the tracker stamps ROS system time, so message
+// stamps cannot be compared across the two streams.
+inline int64_t monotonicNowNs()
+{
+    struct timespec ts{};
+    (void)clock_gettime(CLOCK_MONOTONIC, &ts);
+    return static_cast<int64_t>(ts.tv_sec) * 1'000'000'000LL
+         + static_cast<int64_t>(ts.tv_nsec);
+}
 
 inline int32_t parseClassId(const std::string& s)
 {
@@ -118,6 +133,12 @@ private:
             if (latest_yolo_boxes_.empty()) {
                 return;
             }
+            if (monotonicNowNs() - latest_yolo_rx_ns_ > kYoloMaxAgeNs) {
+                RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+                    "YOLO detections older than %d ms — skipping label fusion",
+                    static_cast<int32_t>(kYoloMaxAgeNs / 1'000'000LL));
+                return;
+            }
             yolo_boxes = latest_yolo_boxes_;
         }
 
@@ -162,11 +183,11 @@ private:
 
         const int64_t ts_ns = static_cast<int64_t>(msg->header.stamp.sec) * 1'000'000'000LL
                       + static_cast<int64_t>(msg->header.stamp.nanosec);
-        latest_yolo_ts_ = ts_ns;
+        latest_yolo_rx_ns_ = monotonicNowNs();
 
-        if (msg->detections.empty()) {
-            return;
-        }
+        // An empty detection array is valid information — the frame really
+        // contains no targets — so it clears the cache rather than leaving
+        // the previous boxes to be fused forever (A1.7).
         latest_yolo_boxes_.clear();
 
         for (std::size_t i = 0U; i < msg->detections.size(); ++i) {
@@ -200,7 +221,7 @@ private:
 
     std::mutex yolo_mutex_;
     FixedVector<BoundingBox, 128U> latest_yolo_boxes_;
-    int64_t latest_yolo_ts_ = 0;
+    int64_t latest_yolo_rx_ns_ = 0;
 };
 
 } // namespace cuas
