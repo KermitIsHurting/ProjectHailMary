@@ -7,11 +7,15 @@
 
 #include <gtest/gtest.h>
 
+// No defaulted TrackState: every test states the track state explicitly.
+// (A defaulted CONFIRMED here silently added the +0.2 confirmed quality
+// term to the "radar only" fixture — the original cause of the
+// QualityScoreRadarOnly failure.)
 static cuas::Track make_track(float confidence,
                                const std::string& class_label,
                                float velocity_mps,
                                float doppler_mps,
-                               cuas::TrackState state = cuas::TrackState::CONFIRMED)
+                               cuas::TrackState state)
 {
     cuas::Track t;
     t.track_id_     = 1;
@@ -36,7 +40,7 @@ protected:
 // 1. Empty class label → UNKNOWN
 TEST_F(ThreatClassifierTest, EmptyLabelReturnsUnknown)
 {
-    auto t = make_track(0.9f, "", 0.5f, 0.1f);
+    auto t = make_track(0.9f, "", 0.5f, 0.1f, cuas::TrackState::CONFIRMED);
     auto r = classifier_.classify(t, 1.0);
     EXPECT_EQ(r.threat_level, cuas::ThreatLevel::UNKNOWN);
 }
@@ -44,7 +48,7 @@ TEST_F(ThreatClassifierTest, EmptyLabelReturnsUnknown)
 // 2. Slow person → BENIGN
 TEST_F(ThreatClassifierTest, SlowPersonReturnsBenign)
 {
-    auto t = make_track(0.9f, "0", 0.5f, 0.1f);
+    auto t = make_track(0.9f, "0", 0.5f, 0.1f, cuas::TrackState::CONFIRMED);
     auto r = classifier_.classify(t, 1.0);
     EXPECT_EQ(r.threat_level, cuas::ThreatLevel::BENIGN);
 }
@@ -52,7 +56,7 @@ TEST_F(ThreatClassifierTest, SlowPersonReturnsBenign)
 // 3. Fast person → SUSPECT
 TEST_F(ThreatClassifierTest, FastPersonReturnsSuspect)
 {
-    auto t = make_track(0.9f, "0", 3.0f, -1.0f);
+    auto t = make_track(0.9f, "0", 3.0f, -1.0f, cuas::TrackState::CONFIRMED);
     auto r = classifier_.classify(t, 1.0);
     EXPECT_EQ(r.threat_level, cuas::ThreatLevel::SUSPECT);
 }
@@ -60,7 +64,7 @@ TEST_F(ThreatClassifierTest, FastPersonReturnsSuspect)
 // 4. Non-person high confidence → THREAT
 TEST_F(ThreatClassifierTest, NonPersonHighConfReturnsThreat)
 {
-    auto t = make_track(0.9f, "14", 1.0f, 0.1f);
+    auto t = make_track(0.9f, "14", 1.0f, 0.1f, cuas::TrackState::CONFIRMED);
     auto r = classifier_.classify(t, 1.0);
     EXPECT_EQ(r.threat_level, cuas::ThreatLevel::THREAT);
 }
@@ -68,15 +72,15 @@ TEST_F(ThreatClassifierTest, NonPersonHighConfReturnsThreat)
 // 5. Non-person low confidence → UNKNOWN
 TEST_F(ThreatClassifierTest, NonPersonLowConfReturnsUnknown)
 {
-    auto t = make_track(0.3f, "14", 1.0f, 0.1f);
+    auto t = make_track(0.3f, "14", 1.0f, 0.1f, cuas::TrackState::CONFIRMED);
     auto r = classifier_.classify(t, 1.0);
     EXPECT_EQ(r.threat_level, cuas::ThreatLevel::UNKNOWN);
 }
 
-// 6. Quality score: radar only = 0.3
+// 6. Quality score: radar only (no label, unconfirmed, no dwell) = base 0.3
 TEST_F(ThreatClassifierTest, QualityScoreRadarOnly)
 {
-    auto t = make_track(0.9f, "", 0.5f, 0.1f);
+    auto t = make_track(0.9f, "", 0.5f, 0.1f, cuas::TrackState::TENTATIVE);
     auto r = classifier_.classify(t, 0.5);
     EXPECT_NEAR(r.quality_score, 0.3f, 0.01f);
 }

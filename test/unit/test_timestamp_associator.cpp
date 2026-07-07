@@ -1,8 +1,16 @@
 // test_timestamp_associator.cpp
 // Unit tests for TimestampAssociator: verifies nearest-neighbor lookup,
-// 50ms rejection threshold, circular eviction, and thread safety.
+// the MAX_TIMESTAMP_DELTA_NS rejection threshold, circular eviction, and
+// thread safety.
+//
+// The association window is a single requirement owned by
+// constants.hpp:MAX_TIMESTAMP_DELTA_NS (150 ms per docs/latency_budget.md,
+// widened from 50 ms in 8652f22 to absorb Orin Nano scheduling jitter).
+// Tests derive their bounds from the constant so a requirement change
+// cannot silently diverge from the test again.
 
 #include "cuas_fusion/fusion/timestamp_associator.hpp"
+#include "cuas_fusion/common/constants.hpp"
 
 #include <gtest/gtest.h>
 #include <opencv2/core.hpp>
@@ -17,6 +25,8 @@ static cv::Mat make_dummy_frame()
     return cv::Mat::ones(4, 4, CV_8UC3);
 }
 
+static constexpr int64_t kWindowNs = cuas::MAX_TIMESTAMP_DELTA_NS;
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -29,7 +39,7 @@ TEST(TimestampAssociator, EmptyBufferReturnsFalse)
     EXPECT_FALSE(assoc.findBestMatch(0LL, frame, ts));
 }
 
-TEST(TimestampAssociator, SingleFrameRespects50msLimit)
+TEST(TimestampAssociator, SingleFrameRespectsWindowLimit)
 {
     cuas::TimestampAssociator assoc;
     assoc.addCameraFrame(make_dummy_frame(), 0LL);
@@ -37,12 +47,12 @@ TEST(TimestampAssociator, SingleFrameRespects50msLimit)
     cv::Mat frame;
     int64_t ts = 0;
 
-    // 40ms delta — within 50ms limit
-    EXPECT_TRUE(assoc.findBestMatch(40'000'000LL, frame, ts));
+    // Well inside the window
+    EXPECT_TRUE(assoc.findBestMatch(kWindowNs / 2, frame, ts));
     EXPECT_EQ(ts, 0LL);
 
-    // 51ms delta — exceeds 50ms limit
-    EXPECT_FALSE(assoc.findBestMatch(51'000'000LL, frame, ts));
+    // 1 ms past the window — must reject
+    EXPECT_FALSE(assoc.findBestMatch(kWindowNs + 1'000'000LL, frame, ts));
 }
 
 TEST(TimestampAssociator, NearestFrameSelected)
@@ -64,7 +74,7 @@ TEST(TimestampAssociator, NearestFrameSelected)
     EXPECT_EQ(ts, 33'000'000LL);
 }
 
-TEST(TimestampAssociator, RejectsFramesBeyond50ms)
+TEST(TimestampAssociator, RejectsFramesBeyondWindow)
 {
     cuas::TimestampAssociator assoc;
     assoc.addCameraFrame(make_dummy_frame(), 0LL);
@@ -72,11 +82,15 @@ TEST(TimestampAssociator, RejectsFramesBeyond50ms)
     cv::Mat frame;
     int64_t ts = 0;
 
-    // 1ns over the 50ms limit — must reject
-    EXPECT_FALSE(assoc.findBestMatch(50'000'001LL, frame, ts));
+    // 1 ns over the window — must reject (strict-greater boundary)
+    EXPECT_FALSE(assoc.findBestMatch(kWindowNs + 1LL, frame, ts));
 
-    // 1ns under the 50ms limit — must accept
-    EXPECT_TRUE(assoc.findBestMatch(49'999'999LL, frame, ts));
+    // Exactly at the window — must accept
+    EXPECT_TRUE(assoc.findBestMatch(kWindowNs, frame, ts));
+    EXPECT_EQ(ts, 0LL);
+
+    // 1 ns under the window — must accept
+    EXPECT_TRUE(assoc.findBestMatch(kWindowNs - 1LL, frame, ts));
     EXPECT_EQ(ts, 0LL);
 }
 
