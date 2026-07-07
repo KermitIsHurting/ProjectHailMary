@@ -202,7 +202,8 @@ bool TrtDetector::postprocess(FixedVector<BoundingBox, 128U>& detections_out,
     nms(candidates, INFERENCE_NMS_THRESH);
 
     if (candidates.size() > static_cast<uint32_t>(INFERENCE_MAX_DET)) {
-        candidates.resize(static_cast<uint32_t>(INFERENCE_MAX_DET));
+        // Shrink cannot fail: INFERENCE_MAX_DET <= capacity by construction.
+        (void)candidates.resize(static_cast<uint32_t>(INFERENCE_MAX_DET));
     }
 
     detections_out = candidates;

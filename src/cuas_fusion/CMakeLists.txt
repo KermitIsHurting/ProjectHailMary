@@ -469,6 +469,11 @@ if(BUILD_TESTING)
     ${OpenCV_LIBS}
   )
 
+  ament_add_gtest(test_fixed_containers
+    ../../test/unit/test_fixed_containers.cpp
+  )
+  target_include_directories(test_fixed_containers PRIVATE include)
+
   ament_add_gtest(test_threat_classifier
     ../../test/unit/test_threat_classifier.cpp
     src/classification/threat_classifier.cpp

@@ -10,10 +10,15 @@ namespace cuas {
 
 template <typename T, uint32_t Capacity>
 class FixedVector {
-public:
-    FixedVector() : size_(0) {}
+    static_assert(Capacity > 0U, "FixedVector requires nonzero capacity");
 
-    bool push_back(const T& item) {
+public:
+    // data_() value-initializes every element via direct-init, which (like
+    // FixedMap::Entry) accepts element types whose default ctor is explicit
+    // (rosidl messages). Elements are therefore never indeterminate.
+    FixedVector() : data_(), size_(0) {}
+
+    [[nodiscard]] bool push_back(const T& item) {
         if (size_ >= Capacity) {
             return false;
         }
@@ -28,17 +33,32 @@ public:
     bool full() const { return size_ >= Capacity; }
     static constexpr uint32_t capacity() { return Capacity; }
 
-    T& back() { return data_[size_ - 1U]; }
-    const T& back() const { return data_[size_ - 1U]; }
+    // On an empty vector the unsigned size_-1U would wrap and index far out of
+    // bounds (MISRA 11.6.2 territory); clamp to slot 0, which is always valid
+    // because data_ is value-initialized. Callers must still check empty().
+    T& back() { return data_[(size_ > 0U) ? (size_ - 1U) : 0U]; }
+    const T& back() const { return data_[(size_ > 0U) ? (size_ - 1U) : 0U]; }
 
-    void resize(uint32_t new_size) {
-        if (new_size <= Capacity) {
-            size_ = new_size;
+    // Growth value-initializes the newly exposed slots so no caller can read
+    // an indeterminate element (MISRA 11.6.2 is Mandatory — no deviation).
+    [[nodiscard]] bool resize(uint32_t new_size) {
+        if (new_size > Capacity) {
+            return false;
         }
+        for (uint32_t i = size_; i < new_size; ++i) {
+            // T() not T{}: rosidl message types have an explicit
+            // MessageInitialization ctor that a braced init would select.
+            data_[i] = T();
+        }
+        size_ = new_size;
+        return true;
     }
 
-    T& operator[](uint32_t idx) { return data_[idx]; }
-    const T& operator[](uint32_t idx) const { return data_[idx]; }
+    // Out-of-capacity access clamps to the last slot instead of indexing past
+    // the array (UB). In-capacity indices are untouched, preserving the
+    // resize-then-write fill pattern. Callers own the idx < size() contract.
+    T& operator[](uint32_t idx) { return data_[(idx < Capacity) ? idx : (Capacity - 1U)]; }
+    const T& operator[](uint32_t idx) const { return data_[(idx < Capacity) ? idx : (Capacity - 1U)]; }
 
     T* begin() { return &data_[0]; }
     T* end() { return &data_[size_]; }
@@ -85,7 +105,7 @@ public:
         return nullptr;
     }
 
-    bool insert_or_assign(const Key& key, const Value& value) {
+    [[nodiscard]] bool insert_or_assign(const Key& key, const Value& value) {
         for (uint32_t i = 0; i < Capacity; ++i) {
             if (entries_[i].occupied && entries_[i].key == key) {
                 entries_[i].value = value;
