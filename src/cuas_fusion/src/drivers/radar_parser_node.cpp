@@ -461,8 +461,10 @@ private:
             const uint32_t payload_len = hdr.totalPacketLen - HEADER_SIZE;
 
             // WHY: payload buffer size is unknown at compile time and bounded by
-            // MAX_PACKET_BYTES; stack array avoids heap (DEV-005).
-            std::array<uint8_t, MAX_PACKET_BYTES> payload{};
+            // MAX_PACKET_BYTES; stack array avoids heap (DEV-005). Deliberately
+            // not zero-initialized: read_exact overwrites [0, payload_len) and
+            // nothing reads beyond it, so a 64 KiB memset per frame is waste.
+            std::array<uint8_t, MAX_PACKET_BYTES> payload;
             if (payload_len > MAX_PACKET_BYTES) {
                 break;
             }
