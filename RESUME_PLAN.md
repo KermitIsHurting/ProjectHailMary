@@ -1,14 +1,33 @@
-# RESUME_PLAN — remaining audit fixes (stopped early at owner request)
+# RESUME_PLAN — remaining audit fixes
+
+## STATUS 2026-07-07: R1-R10 and R12 COMPLETE (37 fix commits on this
+## branch), build warning-clean under -Werror, 108/108 tests green.
+##
+## Remaining work, in suggested order:
+## 1. Hardware verification of the NEEDS-HARDWARE camera commits (R12
+##    d/e/f — procedure in ROLLBACK.md) and of the radar EOF handling.
+## 2. R1 item 5 (radar VMIN/VTIME or poll(), reopen-with-backoff,
+##    RADAR_MAX_POINTS_PER_FRAME) — NEEDS-HARDWARE.
+## 3. R11 interview polish below (all optional).
+## 4. Step 5 improvements below (suggest-only; CI first).
+##
+## Everything below this banner is the original plan, kept for reference.
 
 State when paused: branch `misra-audit-fixes`, 17 commits, build warning-clean,
 97/97 tests green. All findings below are already documented with file:line and
 fixes in **AUDIT_REPORT.md** (IDs referenced here). Workflow per commit:
 edit → `colcon build --packages-select cuas_fusion` (must stay at **0 warnings**)
 → `colcon test --packages-select cuas_fusion` (must stay green) → commit with
-the audit ID in the message. To resume with the executor: *"continue RESUME_PLAN.md
-on branch misra-audit-fixes, same rules as before (no push, no camera files)"*.
+the audit ID in the message.
 
-Ordered by value-per-effort:
+Ordered by value-per-effort (COMPLETED items marked):
+
+- R1 ✅ (items 1-4; item 5 NEEDS-HARDWARE, open)
+- R2 ✅  R3 ✅  R4 ✅  R5 ✅  R6 ✅ (+A3.10)  R7 ✅  R8 ✅
+- R9 ✅ (all 4 steps; note: FindCUDAToolkit unusable without nvcc —
+  guarded versionless find_path/find_library used instead)
+- R10 ✅  R12 ✅ (a-g; ROLLBACK.md + camera_backups/ in repo)
+- R11 ⬜ open (optional)  Step 5 ⬜ open (suggest-only)
 
 ## R1. Radar parser robustness batch (A2.4, A1.10, A1.11, A2.9) — HIGH, ~4 commits
 `src/drivers/radar_parser_node.cpp`
