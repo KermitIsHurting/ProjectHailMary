@@ -80,4 +80,67 @@ TEST(TrackManager, GainBlendsInsteadOfJumpingToMeasurement)
     EXPECT_LT(confirmed[0].position_x_m_, 1.3F);
 }
 
+TEST(TrackManager, ConfirmedTrackSurvivesSingleMiss)
+{
+    TrackManager manager;
+    ASSERT_TRUE(manager.init());
+    int64_t ts = 0;
+
+    (void)feedHits(manager, 1.0F, 10.0F, 0.0F, cuas::TRACK_CONFIRM_HITS, ts);
+
+    // One empty scan: the confirmed track must keep publishing (coast on its
+    // last state), not blank out and re-earn confirmation over 3 scans.
+    FixedVector<Track, cuas::TRACK_MAX_TRACKS> confirmed;
+    ASSERT_TRUE(manager.update(nullptr, 0U, confirmed));
+    ASSERT_EQ(confirmed.size(), 1U) << "single miss blanked a confirmed track";
+    EXPECT_EQ(confirmed[0].state_, TrackState::CONFIRMED);
+
+    // Next hit: still published.
+    const auto after_hit = feedHits(manager, 1.0F, 10.0F, 0.0F, 1, ts);
+    ASSERT_EQ(after_hit.size(), 1U);
+    EXPECT_EQ(after_hit[0].state_, TrackState::CONFIRMED);
+}
+
+TEST(TrackManager, CoastedTrackRepublishesOnFirstHit)
+{
+    TrackManager manager;
+    ASSERT_TRUE(manager.init());
+    int64_t ts = 0;
+
+    (void)feedHits(manager, 1.0F, 10.0F, 0.0F, cuas::TRACK_CONFIRM_HITS, ts);
+
+    // Enough consecutive misses to demote to COASTED (but not delete).
+    FixedVector<Track, cuas::TRACK_MAX_TRACKS> confirmed;
+    for (int32_t k = 0; k < cuas::TRACK_COAST_MISSES; ++k) {
+        ASSERT_TRUE(manager.update(nullptr, 0U, confirmed));
+    }
+    EXPECT_EQ(confirmed.size(), 0U) << "coasted track should not publish";
+
+    // First hit after coasting: hit history was kept, so the track is
+    // CONFIRMED and published immediately — no 3-scan re-confirmation gap.
+    const auto after_hit = feedHits(manager, 1.0F, 10.0F, 0.0F, 1, ts);
+    ASSERT_EQ(after_hit.size(), 1U);
+    EXPECT_EQ(after_hit[0].state_, TrackState::CONFIRMED);
+}
+
+TEST(TrackManager, TrackDeletedAfterMaxMisses)
+{
+    TrackManager manager;
+    ASSERT_TRUE(manager.init());
+    int64_t ts = 0;
+
+    (void)feedHits(manager, 1.0F, 10.0F, 0.0F, cuas::TRACK_CONFIRM_HITS, ts);
+
+    FixedVector<Track, cuas::TRACK_MAX_TRACKS> confirmed;
+    for (int32_t k = 0; k < cuas::TRACK_MAX_MISSES; ++k) {
+        ASSERT_TRUE(manager.update(nullptr, 0U, confirmed));
+    }
+    EXPECT_EQ(confirmed.size(), 0U);
+
+    // A new detection at the old position starts a fresh TENTATIVE track,
+    // so nothing is confirmed on the first hit.
+    const auto after_hit = feedHits(manager, 1.0F, 10.0F, 0.0F, 1, ts);
+    EXPECT_EQ(after_hit.size(), 0U);
+}
+
 } // namespace

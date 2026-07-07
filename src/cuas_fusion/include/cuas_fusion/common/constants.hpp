@@ -53,6 +53,9 @@ static constexpr uint32_t  TRACK_MAX_TRACKS            = 32U;
 static constexpr float32_t TRACK_ASSOCIATION_DIST_M    = 3.0F;
 static constexpr int32_t   TRACK_CONFIRM_HITS          = 3;
 static constexpr int32_t   TRACK_MAX_MISSES            = 5;
+// Consecutive misses before a CONFIRMED track stops publishing (COASTED);
+// deletion happens at TRACK_MAX_MISSES.
+static constexpr int32_t   TRACK_COAST_MISSES          = 2;
 static constexpr float64_t kRadarDetectionSigmaM       = 0.15;
 
 static constexpr float32_t kConfidenceDecayRate        = 0.05F;

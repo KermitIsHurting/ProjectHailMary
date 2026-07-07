@@ -114,7 +114,11 @@ void TrackManager::applyDetection(uint32_t slot, const FusedDetection& det)
     t.confidence_   = det.confidence;
     t.timestamp_ns_ = det.timestamp_ns;
 
-    ++e.hit_count;
+    // Saturate: hit history is only meaningful up to the confirm threshold,
+    // and it is no longer reset by misses, so it must not run away.
+    if (e.hit_count < TRACK_CONFIRM_HITS) {
+        ++e.hit_count;
+    }
     e.miss_count = 0;
 
     if (e.hit_count >= TRACK_CONFIRM_HITS) {
@@ -126,12 +130,19 @@ void TrackManager::applyMiss(uint32_t slot)
 {
     TrackEntry& e = entries_[slot];
     ++e.miss_count;
-    e.hit_count = 0;
-    e.P        += Eigen::Matrix3d::Identity() * kMissProcessVar;
+    e.P += Eigen::Matrix3d::Identity() * kMissProcessVar;
 
     if (e.miss_count >= TRACK_MAX_MISSES) {
         e.active = false;
-    } else {
+        return;
+    }
+    // M-of-N demotion (A1.9): hit history is never reset, and a confirmed
+    // track keeps publishing through short dropouts — only
+    // TRACK_COAST_MISSES consecutive misses demote it to COASTED, from
+    // which one hit re-confirms it immediately.
+    if (e.track.state_ != TrackState::CONFIRMED ||
+        e.miss_count >= TRACK_COAST_MISSES)
+    {
         e.track.state_ = TrackState::COASTED;
     }
 }
