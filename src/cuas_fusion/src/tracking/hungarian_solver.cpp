@@ -23,6 +23,14 @@ bool HungarianSolver::solve(const Eigen::MatrixXd& cost,
         return false;
     }
 
+    // A single NaN cost entry makes every comparison in the augmenting-path
+    // loop false: j1 stays 0, used_[0] is already true, and the loop never
+    // terminates (JPL P2 requires provable bounds). Reject non-finite input
+    // as a detectable fault instead.
+    if (!cost.allFinite()) {
+        return false;
+    }
+
     for (uint32_t i = 0U; i < rows; ++i) {
         (void)assignment.push_back(-1);
     }
@@ -66,7 +74,17 @@ bool HungarianSolver::solve(const Eigen::MatrixXd& cost,
             used_[idx] = false;
         }
 
+        // Each pass marks one previously unused column, so the augmenting
+        // path completes within k iterations. The explicit counter converts
+        // a would-be infinite loop (impossible for finite costs, which
+        // allFinite() guarantees above) into a detectable solver fault —
+        // JPL P2's statically provable bound.
+        uint32_t path_guard = 0U;
         do {
+            if (path_guard > k) {
+                return false;
+            }
+            ++path_guard;
             used_[static_cast<uint32_t>(j0)] = true;
             const int32_t   i0    = p_[static_cast<uint32_t>(j0)];
             float64_t       delta = kInf;
@@ -101,7 +119,14 @@ bool HungarianSolver::solve(const Eigen::MatrixXd& cost,
             j0 = j1;
         } while (p_[static_cast<uint32_t>(j0)] != 0);
 
+        // The way_ chain visits distinct columns, so k+1 steps is the proven
+        // bound; the guard makes it explicit for the back-substitution too.
+        uint32_t back_guard = 0U;
         do {
+            if (back_guard > k) {
+                return false;
+            }
+            ++back_guard;
             const int32_t j1 = way_[static_cast<uint32_t>(j0)];
             p_[static_cast<uint32_t>(j0)] = p_[static_cast<uint32_t>(j1)];
             j0 = j1;

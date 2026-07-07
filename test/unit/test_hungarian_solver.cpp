@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 #include <Eigen/Dense>
+#include <cmath>
+#include <limits>
 
 namespace {
 
@@ -83,6 +85,22 @@ TEST(HungarianSolver, RejectsOversizedInput)
     const Eigen::MatrixXd cost = Eigen::MatrixXd::Zero(n, n);
     Assignment assignment;
     Assignment unassigned;
+    EXPECT_FALSE(solver.solve(cost, assignment, unassigned));
+}
+
+TEST(HungarianSolver, NonFiniteCostRejectedNotHung)
+{
+    cuas::HungarianSolver solver;
+    Eigen::MatrixXd cost(2, 2);
+    cost << 1.0, 2.0,
+            std::nan(""), 4.0;
+    Assignment assignment;
+    Assignment unassigned;
+    // Before the allFinite() guard this input made the augmenting-path loop
+    // spin forever (every NaN comparison is false, j1 never advances).
+    EXPECT_FALSE(solver.solve(cost, assignment, unassigned));
+
+    cost(1, 0) = std::numeric_limits<double>::infinity();
     EXPECT_FALSE(solver.solve(cost, assignment, unassigned));
 }
 
