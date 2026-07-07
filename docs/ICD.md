@@ -383,9 +383,9 @@ The only software interface that crosses the ground-station boundary is the Curs
 | Port     | 6969                                                                                   |
 | TTL      | 32 (LAN-scoped; does not cross the site router)                                        |
 | Rate     | 1 Hz for THREATENING/ENGAGED escalation states; full sweep of all active reports every 5 s; both gated by `/threat/reports` arrival (~20 Hz) |
-| Status   | Latitude / longitude stubbed at `0.0` / `0.0` pending GPS / `georef_node` integration; `ce`=10.0, `le`=10.0 |
+| Status   | **Georeferencing not implemented**: latitude / longitude hardcoded to `0.0` / `0.0` ("null island") pending a GNSS/pose source; ATAK-class clients will plot every event there. Sensor-relative geometry is carried only in `<track course/speed>` and `<remarks>`. `ce`=10.0, `le`=10.0 |
 
-The CoT event UID format is `CUAS-TRACK-<track_id>`; `type` is `a-u-G` (atom, unknown, ground); `how` is `m-g`. The `<detail>` block carries `<track speed=… course=…/>`, `<status readiness="true"/>`, and a `<remarks>` element with `ThreatLevel`, `Quality`, `Class`, and `Esc` (escalation state). Course is computed from `atan2(position_x_m, position_y_m)` of the threat report.
+The CoT event UID format is `CUAS-TRACK-<track_id>`; `type` is `a-u-G` (atom, unknown, ground); `how` is `m-g`. The `<detail>` block carries `<track speed=… course=…/>`, `<status readiness="true"/>`, and a `<remarks>` element with `ThreatLevel`, `Quality`, `Class`, and `Esc` (escalation state). Course is computed from `atan2(position_x_m, position_y_m)` of the threat report, normalized to 0..360° clockwise from sensor north (the radar boresight frame, **not** true north — see the georeferencing caveat above).
 
 ## 5. Message Type Reference
 
