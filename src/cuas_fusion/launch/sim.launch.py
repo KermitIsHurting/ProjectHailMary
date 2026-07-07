@@ -1,6 +1,8 @@
 # WHY: replaces hardware radar with SimRadar for software-in-the-loop testing
 # so the full pipeline can run without an IWR6843ISK attached.
 from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 import os
@@ -12,7 +14,16 @@ def generate_launch_description():
     rviz_config = os.path.join(pkg_share, 'config', 'cuas_demo.rviz')
     geofence_config = os.path.join(pkg_share, 'config', 'geofence_zones.yaml')
 
+    default_engine_path = os.path.join(
+        os.path.expanduser('~'), 'ProjectHailMarry', 'models',
+        'yolov8s_int8.engine')
+
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'engine_path',
+            default_value=default_engine_path,
+            description='TensorRT engine file for inference_node.',
+        ),
         Node(
             package='tf2_ros',
             executable='static_transform_publisher',
@@ -73,7 +84,7 @@ def generate_launch_description():
             name='inference_node',
             parameters=[{
                 'use_sim_time': False,
-                'engine_path': '/home/zork/ProjectHailMarry/models/yolov8s_int8.engine',
+                'engine_path': LaunchConfiguration('engine_path'),
             }],
         ),
         Node(

@@ -18,6 +18,10 @@ def generate_launch_description():
     radar_profile = os.path.join(pkg_share, 'config', 'radar_profile.cfg')
 
     color_correct = LaunchConfiguration('color_correct')
+    engine_path = LaunchConfiguration('engine_path')
+    default_engine_path = os.path.join(
+        os.path.expanduser('~'), 'ProjectHailMarry', 'models',
+        'yolov8s_int8.engine')
 
     send_radar_config = ExecuteProcess(
         cmd=['bash', '-c',
@@ -35,6 +39,11 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'engine_path',
+            default_value=default_engine_path,
+            description='TensorRT engine file for inference_node.',
+        ),
         DeclareLaunchArgument(
             'color_correct',
             default_value='true',
@@ -104,7 +113,7 @@ def generate_launch_description():
             name='inference_node',
             parameters=[{
                 'use_sim_time': False,
-                'engine_path': '/home/zork/ProjectHailMarry/models/yolov8s_int8.engine',
+                'engine_path': engine_path,
             }],
             condition=UnlessCondition(color_correct),
         ),
@@ -114,7 +123,7 @@ def generate_launch_description():
             name='inference_node',
             parameters=[{
                 'use_sim_time': False,
-                'engine_path': '/home/zork/ProjectHailMarry/models/yolov8s_int8.engine',
+                'engine_path': engine_path,
             }],
             remappings=[('/camera/image_raw', '/camera/image_corrected')],
             condition=IfCondition(color_correct),
