@@ -8,22 +8,25 @@
 
 namespace cuas {
 
-void KalmanCT::init(const Eigen::VectorXd& x0, const Eigen::MatrixXd& P0)
-{
-    x_ = Eigen::VectorXd::Zero(7);
-    x_.head(std::min<int32_t>(static_cast<int32_t>(x0.size()), 7)) =
-        x0.head(std::min<int32_t>(static_cast<int32_t>(x0.size()), 7));
+namespace {
+using Matrix3x7 = Eigen::Matrix<float64_t, 3, 7>;
+using Matrix7x3 = Eigen::Matrix<float64_t, 7, 3>;
+} // namespace
 
-    P_ = Eigen::MatrixXd::Identity(7, 7);
-    const int32_t sz = std::min<int32_t>(static_cast<int32_t>(P0.rows()), 7);
-    P_.topLeftCorner(sz, sz) = P0.topLeftCorner(sz, sz);
+void KalmanCT::init(const Vector6d& x0, const Matrix6d& P0)
+{
+    x_ = Vector7d::Zero();
+    x_.head<6>() = x0;
+
+    P_ = Matrix7d::Identity();
+    P_.topLeftCorner<6, 6>() = P0;
     initialized_ = true;
 }
 
 void KalmanCT::predict(float64_t dt)
 {
     const float64_t omega = x_(6);
-    Eigen::VectorXd x_new(7);
+    Vector7d x_new;
 
     // Straight-line linearisation when turn rate is below the guard threshold
     if (std::abs(omega) < omega_guard_) {
@@ -53,7 +56,7 @@ void KalmanCT::predict(float64_t dt)
         x_new(6) = omega;
     }
 
-    Eigen::MatrixXd F = Eigen::MatrixXd::Identity(7, 7);
+    Matrix7d F = Matrix7d::Identity();
     if (std::abs(omega) < omega_guard_) {
         const float64_t vx = x_(3);
         const float64_t vy = x_(4);
@@ -102,7 +105,7 @@ void KalmanCT::predict(float64_t dt)
     const float64_t so2 = sigma_omega_ * sigma_omega_;
     const float64_t dt2 = dt * dt;
 
-    Eigen::MatrixXd Q = Eigen::MatrixXd::Zero(7, 7);
+    Matrix7d Q = Matrix7d::Zero();
     for (int32_t i = 0; i < 3; ++i) {
         Q(i, i)         = 0.25 * dt2 * dt2 * sa2;
         Q(i, i + 3)     = 0.5  * dt2 * dt  * sa2;
@@ -115,31 +118,31 @@ void KalmanCT::predict(float64_t dt)
     P_ = F * P_ * F.transpose() + Q;
 }
 
-void KalmanCT::update(const Eigen::VectorXd& z, const Eigen::MatrixXd& R)
+void KalmanCT::update(const Eigen::Vector3d& z, const Eigen::Matrix3d& R)
 {
-    Eigen::MatrixXd H = Eigen::MatrixXd::Zero(3, 7);
+    Matrix3x7 H = Matrix3x7::Zero();
     H.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
 
-    const Eigen::VectorXd y = z - H * x_;
-    const Eigen::MatrixXd S = H * P_ * H.transpose() + R;
-    const Eigen::MatrixXd K = P_ * H.transpose() * S.inverse();
+    const Eigen::Vector3d y = z - H * x_;
+    const Eigen::Matrix3d S = H * P_ * H.transpose() + R;
+    const Matrix7x3 K = P_ * H.transpose() * S.inverse();
     x_ = x_ + K * y;
-    P_ = (Eigen::MatrixXd::Identity(7, 7) - K * H) * P_;
+    P_ = (Matrix7d::Identity() - K * H) * P_;
 }
 
-Eigen::VectorXd KalmanCT::getState() const
+Vector6d KalmanCT::getState() const
 {
-    return x_.head(6);
+    return x_.head<6>();
 }
 
-Eigen::MatrixXd KalmanCT::getCovariance() const
+Matrix6d KalmanCT::getCovariance() const
 {
-    return P_.topLeftCorner(6, 6);
+    return P_.topLeftCorner<6, 6>();
 }
 
-Eigen::MatrixXd KalmanCT::getF(float64_t dt) const
+Matrix6d KalmanCT::getF(float64_t dt) const
 {
-    Eigen::MatrixXd F6 = Eigen::MatrixXd::Identity(6, 6);
+    Matrix6d F6 = Matrix6d::Identity();
     const float64_t omega = x_(6);
     if (std::abs(omega) < omega_guard_) {
         F6(0, 3) = dt;
@@ -161,12 +164,12 @@ Eigen::MatrixXd KalmanCT::getF(float64_t dt) const
     return F6;
 }
 
-Eigen::MatrixXd KalmanCT::getQ(float64_t dt) const
+Matrix6d KalmanCT::getQ(float64_t dt) const
 {
     const float64_t sa2 = sigma_a_ * sigma_a_;
     const float64_t dt2 = dt * dt;
 
-    Eigen::MatrixXd Q6 = Eigen::MatrixXd::Zero(6, 6);
+    Matrix6d Q6 = Matrix6d::Zero();
     for (int32_t i = 0; i < 3; ++i) {
         Q6(i, i)         = 0.25 * dt2 * dt2 * sa2;
         Q6(i, i + 3)     = 0.5  * dt2 * dt  * sa2;
@@ -176,13 +179,13 @@ Eigen::MatrixXd KalmanCT::getQ(float64_t dt) const
     return Q6;
 }
 
-float64_t KalmanCT::likelihood(const Eigen::VectorXd& z, const Eigen::MatrixXd& R) const
+float64_t KalmanCT::likelihood(const Eigen::Vector3d& z, const Eigen::Matrix3d& R) const
 {
-    Eigen::MatrixXd H = Eigen::MatrixXd::Zero(3, 7);
+    Matrix3x7 H = Matrix3x7::Zero();
     H.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
 
-    const Eigen::VectorXd y = z - H * x_;
-    const Eigen::MatrixXd S = H * P_ * H.transpose() + R;
+    const Eigen::Vector3d y = z - H * x_;
+    const Eigen::Matrix3d S = H * P_ * H.transpose() + R;
     // Negated comparison so a NaN determinant (numerically broken S) takes
     // the floor branch instead of flowing into exp(NaN) and poisoning the
     // IMM weights permanently (Dir 0.3.1).
@@ -191,7 +194,7 @@ float64_t KalmanCT::likelihood(const Eigen::VectorXd& z, const Eigen::MatrixXd& 
         return 1e-12;
     }
 
-    const float64_t n = static_cast<float64_t>(z.size());
+    const float64_t n = 3.0;
     const float64_t exponent = -0.5 * (y.transpose() * S.inverse() * y)(0, 0);
     const float64_t norm = std::pow(2.0 * M_PI, n / 2.0) * std::sqrt(det);
     return std::max(std::exp(exponent) / norm, 1e-12);

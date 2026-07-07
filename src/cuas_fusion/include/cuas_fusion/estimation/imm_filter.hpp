@@ -2,6 +2,7 @@
 // @brief Interacting multiple-model filter combining CV/CA/CT models.
 #pragma once
 
+#include "cuas_fusion/common/eigen_types.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 #include "cuas_fusion/estimation/kalman_cv.hpp"
 #include "cuas_fusion/estimation/kalman_ca.hpp"
@@ -16,20 +17,20 @@ class ImmFilter {
 public:
     ImmFilter();
 
-    void init(const Eigen::VectorXd& x0, const Eigen::MatrixXd& P0);
+    void init(const Vector6d& x0, const Matrix6d& P0);
     void predict(float64_t dt);
-    void update(const Eigen::VectorXd& z, const Eigen::MatrixXd& R);
-    Eigen::VectorXd getState() const;
-    Eigen::MatrixXd getCovariance() const;
+    void update(const Eigen::Vector3d& z, const Eigen::Matrix3d& R);
+    Vector6d getState() const;
+    Matrix6d getCovariance() const;
     std::array<float64_t, 3> getModelWeights() const;
-    Eigen::MatrixXd getMixedF(float64_t dt) const;
-    Eigen::MatrixXd getMixedQ(float64_t dt) const;
+    Matrix6d getMixedF(float64_t dt) const;
+    Matrix6d getMixedQ(float64_t dt) const;
     void setModelNoise(uint32_t model_index, float64_t sigma);
     void setVelocity(const Eigen::Vector3d& v);
-    Eigen::VectorXd getModelState(uint32_t index) const;
-    Eigen::MatrixXd getCvTransitionMatrix(float64_t dt) const;
-    Eigen::MatrixXd getCaTransitionMatrix(float64_t dt) const;
-    Eigen::MatrixXd getCtTransitionMatrix(float64_t dt) const;
+    Vector6d getModelState(uint32_t index) const;
+    Matrix6d getCvTransitionMatrix(float64_t dt) const;
+    Matrix6d getCaTransitionMatrix(float64_t dt) const;
+    Matrix6d getCtTransitionMatrix(float64_t dt) const;
 
 private:
     KalmanCV cv_;

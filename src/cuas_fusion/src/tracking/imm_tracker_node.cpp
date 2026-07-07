@@ -164,8 +164,8 @@ private:
             const IMMTracker& tracker = slot.value;
             cuas_msgs::msg::Track t;
             t.track_id = tracker.getTrackId();
-            const Eigen::VectorXd pos = tracker.getPosition();
-            const Eigen::VectorXd vel = tracker.getVelocity();
+            const Eigen::Vector3d pos = tracker.getPosition();
+            const Eigen::Vector3d vel = tracker.getVelocity();
             t.position_x_m = static_cast<float32_t>(pos(0));
             t.position_y_m = static_cast<float32_t>(pos(1));
             t.position_z_m = static_cast<float32_t>(pos(2));

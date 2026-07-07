@@ -3,6 +3,7 @@
 #pragma once
 
 #include "cuas_fusion/common/constants.hpp"
+#include "cuas_fusion/common/eigen_types.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 #include "cuas_fusion/common/types.hpp"
 #include "cuas_fusion/estimation/imm_filter.hpp"
@@ -21,13 +22,13 @@ public:
     void predict(float64_t dt);
     void update(float64_t x, float64_t y, float64_t z, float64_t timestamp);
     TrackState getState() const;
-    Eigen::VectorXd getPosition() const;
-    Eigen::VectorXd getVelocity() const;
-    Eigen::MatrixXd getCovariance() const;
+    Eigen::Vector3d getPosition() const;
+    Eigen::Vector3d getVelocity() const;
+    Matrix6d getCovariance() const;
     std::array<float64_t, 3> getModelWeights() const;
     uint32_t getTrackId() const;
-    Eigen::MatrixXd getMixedF(float64_t dt) const;
-    Eigen::MatrixXd getMixedQ(float64_t dt) const;
+    Matrix6d getMixedF(float64_t dt) const;
+    Matrix6d getMixedQ(float64_t dt) const;
     float64_t lastUpdateTime() const;
 
     float32_t getConfidence()          const { return confidence_; }

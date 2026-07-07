@@ -22,7 +22,7 @@ ImmFilter::ImmFilter()
     }
 }
 
-void ImmFilter::init(const Eigen::VectorXd& x0, const Eigen::MatrixXd& P0)
+void ImmFilter::init(const Vector6d& x0, const Matrix6d& P0)
 {
     cv_.init(x0, P0);
     ca_.init(x0, P0);
@@ -52,8 +52,8 @@ void ImmFilter::predict(float64_t dt)
         }
     }
 
-    std::array<Eigen::VectorXd, 3> states;
-    std::array<Eigen::MatrixXd, 3> covs;
+    std::array<Vector6d, 3> states;
+    std::array<Matrix6d, 3> covs;
     states[0] = cv_.getState();
     states[1] = ca_.getState();
     states[2] = ct_.getState();
@@ -62,14 +62,14 @@ void ImmFilter::predict(float64_t dt)
     covs[2] = ct_.getCovariance();
 
     for (int32_t j = 0; j < 3; ++j) {
-        Eigen::VectorXd x0_j = Eigen::VectorXd::Zero(6);
+        Vector6d x0_j = Vector6d::Zero();
         for (int32_t i = 0; i < 3; ++i) {
             x0_j += mu_ij[i][j] * states[i];
         }
 
-        Eigen::MatrixXd P0_j = Eigen::MatrixXd::Zero(6, 6);
+        Matrix6d P0_j = Matrix6d::Zero();
         for (int32_t i = 0; i < 3; ++i) {
-            const Eigen::VectorXd dx = states[i] - x0_j;
+            const Vector6d dx = states[i] - x0_j;
             P0_j += mu_ij[i][j] * (covs[i] + dx * dx.transpose());
         }
 
@@ -91,7 +91,7 @@ void ImmFilter::predict(float64_t dt)
     ct_.predict(dt);
 }
 
-void ImmFilter::update(const Eigen::VectorXd& z, const Eigen::MatrixXd& R)
+void ImmFilter::update(const Eigen::Vector3d& z, const Eigen::Matrix3d& R)
 {
     if (!initialized_) {
         return;
@@ -128,21 +128,21 @@ void ImmFilter::update(const Eigen::VectorXd& z, const Eigen::MatrixXd& R)
     mu_[2] /= sum;
 }
 
-Eigen::VectorXd ImmFilter::getState() const
+Vector6d ImmFilter::getState() const
 {
     return mu_[0] * cv_.getState() + mu_[1] * ca_.getState() + mu_[2] * ct_.getState();
 }
 
-Eigen::MatrixXd ImmFilter::getCovariance() const
+Matrix6d ImmFilter::getCovariance() const
 {
-    const Eigen::VectorXd x_combined = getState();
-    Eigen::MatrixXd P = Eigen::MatrixXd::Zero(6, 6);
+    const Vector6d x_combined = getState();
+    Matrix6d P = Matrix6d::Zero();
 
-    std::array<Eigen::VectorXd, 3> states = {cv_.getState(), ca_.getState(), ct_.getState()};
-    std::array<Eigen::MatrixXd, 3> covs   = {cv_.getCovariance(), ca_.getCovariance(), ct_.getCovariance()};
+    std::array<Vector6d, 3> states = {cv_.getState(), ca_.getState(), ct_.getState()};
+    std::array<Matrix6d, 3> covs   = {cv_.getCovariance(), ca_.getCovariance(), ct_.getCovariance()};
 
     for (int32_t i = 0; i < 3; ++i) {
-        const Eigen::VectorXd dx = states[i] - x_combined;
+        const Vector6d dx = states[i] - x_combined;
         P += mu_[i] * (covs[i] + dx * dx.transpose());
     }
     return P;
@@ -180,37 +180,37 @@ void ImmFilter::setVelocity(const Eigen::Vector3d& v)
     ct_.setVelocity(v);
 }
 
-Eigen::MatrixXd ImmFilter::getMixedF(float64_t dt) const
+Matrix6d ImmFilter::getMixedF(float64_t dt) const
 {
     return mu_[0] * cv_.getF(dt) + mu_[1] * ca_.getF(dt) + mu_[2] * ct_.getF(dt);
 }
 
-Eigen::MatrixXd ImmFilter::getMixedQ(float64_t dt) const
+Matrix6d ImmFilter::getMixedQ(float64_t dt) const
 {
     return mu_[0] * cv_.getQ(dt) + mu_[1] * ca_.getQ(dt) + mu_[2] * ct_.getQ(dt);
 }
 
-Eigen::VectorXd ImmFilter::getModelState(uint32_t index) const
+Vector6d ImmFilter::getModelState(uint32_t index) const
 {
     switch (index) {
         case 0U: { return cv_.getState(); }
         case 1U: { return ca_.getState(); }
         case 2U: { return ct_.getState(); }
-        default: { return Eigen::VectorXd::Zero(6); }
+        default: { return Vector6d::Zero(); }
     }
 }
 
-Eigen::MatrixXd ImmFilter::getCvTransitionMatrix(float64_t dt) const
+Matrix6d ImmFilter::getCvTransitionMatrix(float64_t dt) const
 {
     return cv_.getF(dt);
 }
 
-Eigen::MatrixXd ImmFilter::getCaTransitionMatrix(float64_t dt) const
+Matrix6d ImmFilter::getCaTransitionMatrix(float64_t dt) const
 {
     return ca_.getF(dt);
 }
 
-Eigen::MatrixXd ImmFilter::getCtTransitionMatrix(float64_t dt) const
+Matrix6d ImmFilter::getCtTransitionMatrix(float64_t dt) const
 {
     return ct_.getF(dt);
 }
