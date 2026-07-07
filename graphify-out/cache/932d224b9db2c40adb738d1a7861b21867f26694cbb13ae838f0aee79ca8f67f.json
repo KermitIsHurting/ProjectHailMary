@@ -1,0 +1,1 @@
+{"nodes": [{"id": "hungarian_solver_class", "label": "HungarianSolver (Jonker-Volgenant O(n^3) assignment over square-padded buffer)", "file_type": "code", "source_file": "src/cuas_fusion/src/tracking/hungarian_solver.cpp", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

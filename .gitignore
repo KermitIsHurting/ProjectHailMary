@@ -9,3 +9,5 @@ models/*.onnx
 models/*.engine
 models/*.pt
 build.log
+graphify-out/manifest.json
+graphify-out/cost.json
