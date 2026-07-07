@@ -117,7 +117,7 @@ private:
             t.position_z_m_  = tm.position_z_m;
             t.velocity_mps_  = tm.velocity_mps;
             t.doppler_mps_   = tm.doppler_mps;
-            t.class_label_   = tm.class_label;
+            t.class_id_      = parseClassId(tm.class_label);
             t.confidence_    = tm.confidence;
             t.state_         = trackStateFromString(tm.track_state);
             t.timestamp_ns_  = tm.timestamp_ns;
@@ -147,7 +147,7 @@ private:
                 }
 
                 if ((matched_fd != nullptr) && (best_diff < 15.0F)) {
-                    t.class_label_ = matched_fd->class_label;
+                    t.class_id_    = parseClassId(matched_fd->class_label);
                     t.confidence_  = matched_fd->confidence;
                 } else {
                     matched_fd = nullptr;
@@ -158,10 +158,10 @@ private:
                 t, now_s, threatening_range_m_,
                 threatening_velocity_mps_, escalation_dwell_s_);
 
-            if (!logged_first_ && !t.class_label_.empty()) {
+            if (!logged_first_ && (t.class_id_ >= 0)) {
                 RCLCPP_INFO(get_logger(),
-                    "First classification: track_id=%u class_label='%s' vel=%.2f -> %s esc=%s q=%.2f",
-                    t.track_id_, t.class_label_.c_str(),
+                    "First classification: track_id=%u class_id=%d vel=%.2f -> %s esc=%s q=%.2f",
+                    t.track_id_, t.class_id_,
                     static_cast<float64_t>(t.velocity_mps_),
                     threatLevelToString(cr.threat_level),
                     escalationStateToString(cr.escalation_state),
@@ -176,7 +176,7 @@ private:
             report.position_y_m        = t.position_y_m_;
             report.position_z_m        = t.position_z_m_;
             report.velocity_mps        = t.velocity_mps_;
-            report.class_label         = t.class_label_;
+            report.class_label         = classIdToLabel(t.class_id_);
             report.confidence          = t.confidence_;
             report.track_state         = tm.track_state;
             report.timestamp_ns        = t.timestamp_ns_;

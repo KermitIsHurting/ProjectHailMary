@@ -19,9 +19,9 @@ ClassificationResult ThreatClassifier::classify(
 {
     ClassificationResult result;
 
-    if (track.class_label_.empty()) {
+    if (track.class_id_ < 0) {
         result.threat_level = ThreatLevel::UNKNOWN;
-    } else if (track.class_label_ == "0") {
+    } else if (track.class_id_ == 0) {
         const float32_t abs_vel = std::abs(track.velocity_mps_);
         if (abs_vel <= 2.0F) {
             result.threat_level = ThreatLevel::BENIGN;
@@ -68,7 +68,7 @@ ClassificationResult ThreatClassifier::classify(
         }
 
         case EscalationState::TRACKED: {
-            if (!track.class_label_.empty() && track.class_label_ == "0") {
+            if (track.class_id_ == 0) {
                 if (ts.identified_s == 0.0) {
                     ts.identified_s = current_time_s;
                 }
@@ -116,7 +116,7 @@ ClassificationResult ThreatClassifier::classify(
     result.escalation_state = ts.state;
 
     float32_t q = 0.3F;
-    if (!track.class_label_.empty()) {
+    if (track.class_id_ >= 0) {
         q += 0.3F;
     }
     if (track.state_ == TrackState::CONFIRMED) {

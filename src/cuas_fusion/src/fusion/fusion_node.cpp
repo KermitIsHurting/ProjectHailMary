@@ -40,19 +40,6 @@ inline int64_t monotonicNowNs()
          + static_cast<int64_t>(ts.tv_nsec);
 }
 
-inline int32_t parseClassId(const std::string& s)
-{
-    if (s.empty()) {
-        return -1;
-    }
-    int32_t value = 0;
-    const auto result = std::from_chars(s.data(), s.data() + s.size(), value);
-    if (result.ec != std::errc{}) {
-        return -1;
-    }
-    return value;
-}
-
 } // namespace
 
 class FusionNode : public rclcpp::Node
@@ -163,7 +150,7 @@ private:
             det.position_y_m = fd.position_y_m;
             det.position_z_m = fd.position_z_m;
             det.velocity_mps = fd.velocity_mps;
-            det.class_label  = fd.class_label;
+            det.class_label  = classIdToLabel(fd.class_id);
             det.confidence   = fd.confidence;
             det.pixel_u      = fd.pixel_u;
             det.pixel_v      = fd.pixel_v;

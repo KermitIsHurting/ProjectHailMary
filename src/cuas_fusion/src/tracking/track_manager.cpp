@@ -62,7 +62,7 @@ void TrackManager::initiateTrack(uint32_t slot, const FusedDetection& det)
     t.position_z_m_ = det.position_z_m;
     t.velocity_mps_ = std::abs(det.velocity_mps);
     t.doppler_mps_  = det.velocity_mps;
-    t.class_label_  = det.class_label;
+    t.class_id_     = det.class_id;
     t.confidence_   = det.confidence;
     t.state_        = TrackState::TENTATIVE;
     t.timestamp_ns_ = det.timestamp_ns;
@@ -107,7 +107,7 @@ void TrackManager::applyDetection(uint32_t slot, const FusedDetection& det)
     }
     t.velocity_mps_ = std::abs(det.velocity_mps);
     t.doppler_mps_  = det.velocity_mps;
-    t.class_label_  = det.class_label;
+    t.class_id_     = det.class_id;
     t.confidence_   = det.confidence;
     t.timestamp_ns_ = det.timestamp_ns;
 

@@ -67,7 +67,7 @@ TEST(FusionEngine, SinglePointFusesIntoMatchingBox)
     ASSERT_EQ(fused.size(), 1U);
     EXPECT_NEAR(fused[0].position_x_m, -2.0F, 1.0e-4F);
     EXPECT_NEAR(fused[0].position_y_m, 10.0F, 1.0e-4F);
-    EXPECT_EQ(fused[0].class_label, "3");
+    EXPECT_EQ(fused[0].class_id, 3);
 }
 
 TEST(FusionEngine, TwoSameClassTargetsDoNotConverge)

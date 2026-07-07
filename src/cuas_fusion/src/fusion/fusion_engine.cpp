@@ -142,7 +142,7 @@ bool FusionEngine::projectAndAssociate(
         fd.position_y_m = ry;
         fd.position_z_m = rz;
         fd.velocity_mps = rvel;
-        fd.class_label  = std::to_string(acc.box->class_id);
+        fd.class_id     = acc.box->class_id;
         fd.confidence   = acc.box->confidence;
         fd.pixel_u      = yu;
         fd.pixel_v      = yv;

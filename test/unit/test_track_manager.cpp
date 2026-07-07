@@ -25,7 +25,7 @@ FusedDetection makeDetection(float x, float y, float z, int64_t ts_ns)
     det.position_y_m = y;
     det.position_z_m = z;
     det.velocity_mps = 5.0F;
-    det.class_label  = "0";
+    det.class_id     = 0;
     det.confidence   = 0.9F;
     det.timestamp_ns = ts_ns;
     return det;

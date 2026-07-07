@@ -20,7 +20,7 @@ static cuas::Track make_track(float confidence,
     cuas::Track t;
     t.track_id_     = 1;
     t.confidence_   = confidence;
-    t.class_label_  = class_label;
+    t.class_id_     = cuas::parseClassId(class_label);
     t.velocity_mps_ = velocity_mps;
     t.doppler_mps_  = doppler_mps;
     t.state_        = state;

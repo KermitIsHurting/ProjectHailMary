@@ -48,7 +48,7 @@ private:
             fd.position_y_m = d.position_y_m;
             fd.position_z_m = d.position_z_m;
             fd.velocity_mps = d.velocity_mps;
-            fd.class_label  = d.class_label;
+            fd.class_id     = parseClassId(d.class_label);
             fd.confidence   = d.confidence;
             fd.timestamp_ns = d.timestamp_ns;
             (void)detections.push_back(fd);
@@ -73,7 +73,7 @@ private:
             tm.position_z_m  = t.position_z_m_;
             tm.velocity_mps  = t.velocity_mps_;
             tm.doppler_mps   = t.doppler_mps_;
-            tm.class_label   = t.class_label_;
+            tm.class_label   = classIdToLabel(t.class_id_);
             tm.confidence    = t.confidence_;
             tm.track_state   = trackStateToString(t.state_);
             tm.timestamp_ns  = t.timestamp_ns_;
