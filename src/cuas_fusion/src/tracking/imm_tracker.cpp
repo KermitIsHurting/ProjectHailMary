@@ -53,7 +53,11 @@ void IMMTracker::predict(float64_t dt)
 void IMMTracker::update(float64_t x, float64_t y, float64_t z, float64_t timestamp)
 {
     const Eigen::Vector3d z_meas{x, y, z};
-    const Eigen::Matrix3d R = Eigen::Matrix3d::Identity();
+    // Same sensor model as TrackManager (kRadarDetectionSigmaM = 0.15 m):
+    // the old R = 1 m^2/axis disagreed with it by 44x with no rationale
+    // (A1.14).
+    const Eigen::Matrix3d R = Eigen::Matrix3d::Identity() *
+        (kRadarDetectionSigmaM * kRadarDetectionSigmaM);
 
     imm_.update(z_meas, R);
 
@@ -71,7 +75,11 @@ void IMMTracker::update(float64_t x, float64_t y, float64_t z, float64_t timesta
         has_prev_velocity_ = true;
     } else {
         const float64_t delta_v     = (new_velocity - prev_velocity_).norm();
-        const float64_t max_delta_v = kMaxPhysicalAcceleration * dt_since_hit;
+        // Floor the gate dt: several points of one radar cloud arrive with
+        // an identical stamp, so dt=0 made max_delta_v 0 and every velocity
+        // innovation was rejected precisely when data was densest (A1.14).
+        const float64_t gate_dt     = std::max(dt_since_hit, kMinGateDtS);
+        const float64_t max_delta_v = kMaxPhysicalAcceleration * gate_dt;
         if (delta_v > max_delta_v) {
             imm_.setVelocity(prev_velocity_);
             ++velocity_reject_count_;

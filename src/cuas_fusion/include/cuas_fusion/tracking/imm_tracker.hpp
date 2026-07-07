@@ -55,6 +55,9 @@ private:
     bool            has_prev_velocity_    = false;
     uint32_t        velocity_reject_count_ = 0U;
 
+    // Velocity-gate floor: one radar frame period, so same-stamp points in
+    // a single cloud still get a physically meaningful gate (A1.14).
+    static constexpr float64_t kMinGateDtS      = 0.05;
     static constexpr int32_t   kConfirmHits     = 5;
     static constexpr float64_t kOccludedTimeout = 0.5;
     static constexpr float64_t kLostTimeout     = 5.0;
