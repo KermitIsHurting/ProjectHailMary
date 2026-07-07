@@ -92,6 +92,17 @@ private:
         }
 
         const uint32_t n_zones = static_cast<uint32_t>(zones_node.size());
+        // Fail loud on over-capacity config (A2.6): silently dropping zones
+        // or vertices would enforce a *different* boundary than configured —
+        // a fence that quietly shrank is worse than a node that refuses to
+        // start.
+        if (n_zones > GEOFENCE_MAX_ZONES) {
+            RCLCPP_FATAL(get_logger(),
+                "Geofence config has %u zones; the engine supports %u — "
+                "refusing to enforce a truncated boundary",
+                n_zones, GEOFENCE_MAX_ZONES);
+            return false;
+        }
         for (uint32_t zi = 0U; zi < n_zones; ++zi) {
             const YAML::Node zn = zones_node[zi];
             ZoneConfig cfg;
@@ -134,6 +145,14 @@ private:
             if (zn["vertices"] && zn["vertices"].IsSequence()) {
                 const YAML::Node verts = zn["vertices"];
                 const uint32_t nv = static_cast<uint32_t>(verts.size());
+                if (nv > cfg.vertices_x.capacity()) {
+                    RCLCPP_FATAL(get_logger(),
+                        "Geofence zone %u has %u vertices; the engine "
+                        "supports %u — refusing to enforce a truncated "
+                        "polygon",
+                        zi, nv, cfg.vertices_x.capacity());
+                    return false;
+                }
                 for (uint32_t vi = 0U; vi < nv; ++vi) {
                     const YAML::Node v = verts[vi];
                     if (v.IsSequence() && (v.size() == 2U)) {
