@@ -89,8 +89,6 @@ static constexpr float32_t THREAT_VELOCITY_THREAT_MPS    = 5.0F;
 static constexpr float32_t THREAT_APPROACH_THRESHOLD_MPS = -0.5F;
 static constexpr float32_t THREAT_MIN_CONFIDENCE         = 0.25F;
 
-static constexpr uint32_t  PREDICTION_MAX_STEPS        = 128U;
-
 // WHY: cap on forecast position uncertainty — without a measurement update
 // the open-loop covariance trace inflates across ticks, producing nonsense
 // 50+ m radii for a target at 3-5 m range; 5 m is the overlay drawable ceiling.

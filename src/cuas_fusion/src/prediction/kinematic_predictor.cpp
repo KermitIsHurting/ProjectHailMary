@@ -20,6 +20,11 @@ KinematicPredictor::TrajectoryResult KinematicPredictor::propagateForward(
 {
     TrajectoryResult result;
 
+    // Steps beyond the fixed buffer would be computed and then silently
+    // discarded by push_back — clamp instead of burning CPU on them.
+    const int32_t steps =
+        std::min(n_steps, static_cast<int32_t>(kMaxTrajectorySteps));
+
     Eigen::VectorXd x_cv = state.head(6);
     Eigen::VectorXd x_ca = state.head(6);
     Eigen::VectorXd x_ct = state.head(6);
@@ -29,7 +34,7 @@ KinematicPredictor::TrajectoryResult KinematicPredictor::propagateForward(
 
     float64_t t = 0.0;
 
-    for (int32_t i = 0; i < n_steps; ++i) {
+    for (int32_t i = 0; i < steps; ++i) {
         t += step_dt;
 
         x_cv = predictCvStep(x_cv, step_dt);

@@ -36,7 +36,8 @@ public:
         const float64_t max_occ = get_parameter("max_occlusion_sec").as_double();
         const float64_t gate    = get_parameter("mahalanobis_gate").as_double();
 
-        n_steps_ = static_cast<int32_t>(horizon_ / step_dt_);
+        n_steps_ = clamp_prediction_steps(get_logger(), horizon_, step_dt_,
+                                          kMaxTrajectorySteps);
         predictor_.configure(max_occ, gate);
 
         sub_ = create_subscription<cuas_msgs::msg::TrackArray>(

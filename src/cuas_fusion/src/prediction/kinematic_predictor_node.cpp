@@ -38,7 +38,8 @@ public:
         float64_t rate = get_parameter("publish_rate_hz").as_double();
         rate = clamp_rate_hz(get_logger(), "publish_rate_hz", rate, 20.0);
 
-        n_steps_ = static_cast<int32_t>(horizon_ / step_dt_);
+        n_steps_ = clamp_prediction_steps(get_logger(), horizon_, step_dt_,
+                                          kMaxTrajectorySteps);
 
         sub_ = create_subscription<cuas_msgs::msg::TrackArray>(
             "/tracks", 10,
