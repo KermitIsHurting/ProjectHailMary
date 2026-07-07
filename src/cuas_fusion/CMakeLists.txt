@@ -109,7 +109,7 @@ target_link_libraries(trt_detector
   ${NVINFER_LIB}
   ${CUDART_LIB}
 )
-target_compile_options(trt_detector PRIVATE ${CUAS_SAFETY_FLAGS})
+target_compile_options(trt_detector PRIVATE ${CUAS_STRICT_FLAGS})
 
 # inference node
 add_executable(inference_node
@@ -129,7 +129,7 @@ add_library(fusion_engine STATIC
   src/fusion/fusion_engine.cpp
 )
 target_include_directories(fusion_engine PUBLIC include)
-target_compile_options(fusion_engine PRIVATE ${CUAS_SAFETY_FLAGS})
+target_compile_options(fusion_engine PRIVATE ${CUAS_STRICT_FLAGS})
 
 # fusion node
 add_executable(fusion_node
@@ -153,7 +153,7 @@ add_library(tracking_lib STATIC
   src/common/types.cpp
 )
 target_include_directories(tracking_lib PUBLIC include)
-target_compile_options(tracking_lib PRIVATE ${CUAS_SAFETY_FLAGS})
+target_compile_options(tracking_lib PRIVATE ${CUAS_STRICT_FLAGS})
 
 # tracker node
 add_executable(tracker_node
@@ -172,7 +172,7 @@ add_library(classification_lib STATIC
 )
 target_include_directories(classification_lib PUBLIC include)
 target_link_libraries(classification_lib tracking_lib)
-target_compile_options(classification_lib PRIVATE ${CUAS_SAFETY_FLAGS})
+target_compile_options(classification_lib PRIVATE ${CUAS_STRICT_FLAGS})
 
 # classifier node
 add_executable(classifier_node
@@ -298,7 +298,7 @@ add_library(geofence_engine STATIC
   src/geofence_engine.cpp
 )
 target_include_directories(geofence_engine PUBLIC include)
-target_compile_options(geofence_engine PRIVATE ${CUAS_SAFETY_FLAGS})
+target_compile_options(geofence_engine PRIVATE ${CUAS_STRICT_FLAGS})
 
 # geofence node
 add_executable(geofence_node
@@ -316,7 +316,7 @@ add_library(reachability_engine STATIC
   src/reachability_engine.cpp
 )
 target_include_directories(reachability_engine PUBLIC include)
-target_compile_options(reachability_engine PRIVATE ${CUAS_SAFETY_FLAGS})
+target_compile_options(reachability_engine PRIVATE ${CUAS_STRICT_FLAGS})
 
 # reachability node
 add_executable(reachability_node

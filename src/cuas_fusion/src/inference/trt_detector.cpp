@@ -214,11 +214,16 @@ bool TrtDetector::postprocess(FixedVector<BoundingBox, 128U>& detections_out,
 
     FixedVector<BoundingBox, 128U> candidates;
 
+    constexpr std::size_t kAnchorStride =
+        static_cast<std::size_t>(INFERENCE_NUM_ANCHORS);
+
     for (int32_t a = 0; a < INFERENCE_NUM_ANCHORS; ++a) {
+        const std::size_t ai = static_cast<std::size_t>(a);
         float32_t max_score = 0.0F;
         int32_t   max_cls   = 0;
         for (int32_t c = 0; c < INFERENCE_NUM_CLASSES; ++c) {
-            const float32_t s = raw[static_cast<std::size_t>(4 + c) * INFERENCE_NUM_ANCHORS + a];
+            const float32_t s =
+                raw[static_cast<std::size_t>(4 + c) * kAnchorStride + ai];
             if (s > max_score) {
                 max_score = s;
                 max_cls   = c;
@@ -229,10 +234,10 @@ bool TrtDetector::postprocess(FixedVector<BoundingBox, 128U>& detections_out,
             continue;
         }
 
-        const float32_t cx = raw[static_cast<std::size_t>(0) * INFERENCE_NUM_ANCHORS + a];
-        const float32_t cy = raw[static_cast<std::size_t>(1) * INFERENCE_NUM_ANCHORS + a];
-        const float32_t bw = raw[static_cast<std::size_t>(2) * INFERENCE_NUM_ANCHORS + a];
-        const float32_t bh = raw[static_cast<std::size_t>(3) * INFERENCE_NUM_ANCHORS + a];
+        const float32_t cx = raw[0U * kAnchorStride + ai];
+        const float32_t cy = raw[1U * kAnchorStride + ai];
+        const float32_t bw = raw[2U * kAnchorStride + ai];
+        const float32_t bh = raw[3U * kAnchorStride + ai];
 
         BoundingBox det{};
         det.x            = (cx - bw * 0.5F) * scale_x;
