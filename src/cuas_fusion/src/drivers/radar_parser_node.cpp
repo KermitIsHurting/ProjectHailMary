@@ -352,6 +352,13 @@ private:
                 RCLCPP_ERROR(get_logger(), "Serial read error: %s", strerror(errno));
                 return false;
             }
+            if (r == 0) {
+                // EOF: USB serial unplugged. Without this branch total stops
+                // advancing and the loop busy-spins at 100% CPU.
+                RCLCPP_ERROR(get_logger(),
+                    "Serial EOF on %s — device disconnected", port_.c_str());
+                return false;
+            }
             total += static_cast<std::size_t>(r);
         }
         return true;
