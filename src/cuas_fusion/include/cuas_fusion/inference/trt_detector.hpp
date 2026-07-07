@@ -11,6 +11,7 @@
 #include <cuda_runtime_api.h>
 #include <opencv2/core.hpp>
 
+#include <array>
 #include <memory>
 #include <string>
 
@@ -86,6 +87,13 @@ private:
     DeviceBufPtr input_dev_;
     HostBufPtr   output_host_;
     DeviceBufPtr output_dev_;
+
+    // Preprocess scratch buffers, created once at init(): resize/convertTo/
+    // split reuse a matching destination, so the four full-frame Mats that
+    // were allocated per frame drop to zero steady-state allocations (A3.4).
+    cv::Mat preproc_resized_;
+    cv::Mat preproc_float_;
+    std::array<cv::Mat, 3> preproc_channels_;
 
     std::size_t input_bytes_  = 0U;
     std::size_t output_bytes_ = 0U;

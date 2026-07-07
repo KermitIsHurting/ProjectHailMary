@@ -111,6 +111,12 @@ bool TrtDetector::init(const std::string& engine_path)
         return false;
     }
 
+    preproc_resized_ = cv::Mat(INFERENCE_INPUT_H, INFERENCE_INPUT_W, CV_8UC3);
+    preproc_float_   = cv::Mat(INFERENCE_INPUT_H, INFERENCE_INPUT_W, CV_32FC3);
+    for (auto& channel : preproc_channels_) {
+        channel = cv::Mat(INFERENCE_INPUT_H, INFERENCE_INPUT_W, CV_32FC1);
+    }
+
     initialized_ = true;
     return true;
 }
@@ -121,12 +127,12 @@ bool TrtDetector::preprocess(const cv::Mat& bgr_frame)
         return false;
     }
 
-    cv::Mat resized;
+    cv::Mat& resized = preproc_resized_;
     cv::resize(bgr_frame, resized,
                cv::Size(INFERENCE_INPUT_W, INFERENCE_INPUT_H),
                0.0, 0.0, cv::INTER_LINEAR);
 
-    cv::Mat float_img;
+    cv::Mat& float_img = preproc_float_;
     resized.convertTo(float_img, CV_32FC3, 1.0 / 255.0);
 
     // One-time sanity check — values above 1.0 indicate the ISP isn't 8-bit
@@ -144,8 +150,8 @@ bool TrtDetector::preprocess(const cv::Mat& bgr_frame)
     const std::size_t plane_size =
         static_cast<std::size_t>(INFERENCE_INPUT_H) * INFERENCE_INPUT_W;
 
-    cv::Mat channels[3];
-    cv::split(float_img, channels);
+    std::array<cv::Mat, 3>& channels = preproc_channels_;
+    cv::split(float_img, channels.data());
     std::memcpy(dst,                        channels[2].data, plane_size * sizeof(float32_t));
     std::memcpy(dst +     plane_size,       channels[1].data, plane_size * sizeof(float32_t));
     std::memcpy(dst + 2 * plane_size,       channels[0].data, plane_size * sizeof(float32_t));
