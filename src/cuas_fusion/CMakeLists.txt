@@ -30,7 +30,10 @@ message(STATUS "OpenCV_LIBRARIES: ${OpenCV_LIBRARIES}")
 find_library(NVINFER_LIB nvinfer PATHS /usr/lib/aarch64-linux-gnu)
 find_library(CUDART_LIB cudart PATHS /usr/local/cuda/lib64)
 
-include_directories(include ${EIGEN3_INCLUDE_DIR})
+include_directories(include)
+# Third-party headers are adopted code: SYSTEM suppresses their diagnostics so
+# the zero-warning policy (JPL P10) gates only code we own.
+include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})
 
 # -----------------------------------------------------------------------------
 # JSF AV C++ / MISRA C++:2023 enforcement flags
@@ -87,7 +90,7 @@ ament_target_dependencies(camera_node
   sensor_msgs
   std_msgs
 )
-target_include_directories(camera_node PRIVATE ${OpenCV_INCLUDE_DIRS} ${GST_INCLUDE_DIRS})
+target_include_directories(camera_node SYSTEM PRIVATE ${OpenCV_INCLUDE_DIRS} ${GST_INCLUDE_DIRS})
 target_link_libraries(camera_node ${OpenCV_LIBS} ${GST_LIBRARIES})
 target_compile_options(camera_node PRIVATE ${CUAS_SAFETY_FLAGS})
 
@@ -95,8 +98,8 @@ target_compile_options(camera_node PRIVATE ${CUAS_SAFETY_FLAGS})
 add_library(trt_detector STATIC
   src/inference/trt_detector.cpp
 )
-target_include_directories(trt_detector PUBLIC
-  include
+target_include_directories(trt_detector PUBLIC include)
+target_include_directories(trt_detector SYSTEM PUBLIC
   ${OpenCV_INCLUDE_DIRS}
   /usr/local/cuda-12.6/targets/aarch64-linux/include
   /usr/local/cuda/include
@@ -193,7 +196,7 @@ add_executable(imm_tracker_node
 )
 ament_target_dependencies(imm_tracker_node
   rclcpp sensor_msgs cuas_msgs geometry_msgs)
-target_include_directories(imm_tracker_node PRIVATE
+target_include_directories(imm_tracker_node SYSTEM PRIVATE
   ${EIGEN3_INCLUDE_DIR})
 target_compile_options(imm_tracker_node PRIVATE ${CUAS_SAFETY_FLAGS})
 
@@ -208,7 +211,7 @@ add_executable(kinematic_predictor_node
 )
 ament_target_dependencies(kinematic_predictor_node
   rclcpp cuas_msgs geometry_msgs)
-target_include_directories(kinematic_predictor_node PRIVATE
+target_include_directories(kinematic_predictor_node SYSTEM PRIVATE
   ${EIGEN3_INCLUDE_DIR})
 target_compile_options(kinematic_predictor_node PRIVATE ${CUAS_SAFETY_FLAGS})
 
@@ -224,7 +227,7 @@ add_executable(occlusion_predictor_node
 )
 ament_target_dependencies(occlusion_predictor_node
   rclcpp cuas_msgs geometry_msgs)
-target_include_directories(occlusion_predictor_node PRIVATE
+target_include_directories(occlusion_predictor_node SYSTEM PRIVATE
   ${EIGEN3_INCLUDE_DIR})
 target_compile_options(occlusion_predictor_node PRIVATE ${CUAS_SAFETY_FLAGS})
 
@@ -260,7 +263,7 @@ ament_target_dependencies(cuas_visualizer_node
   sensor_msgs
   cv_bridge
 )
-target_include_directories(cuas_visualizer_node PRIVATE ${OpenCV_INCLUDE_DIRS})
+target_include_directories(cuas_visualizer_node SYSTEM PRIVATE ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(cuas_visualizer_node ${OpenCV_LIBS})
 target_compile_options(cuas_visualizer_node PRIVATE ${CUAS_SAFETY_FLAGS})
 
@@ -274,7 +277,7 @@ ament_target_dependencies(cuas_overlay_node
   sensor_msgs
   cuas_msgs
 )
-target_include_directories(cuas_overlay_node PRIVATE ${OpenCV_INCLUDE_DIRS})
+target_include_directories(cuas_overlay_node SYSTEM PRIVATE ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(cuas_overlay_node ${OpenCV_LIBS})
 target_compile_options(cuas_overlay_node PRIVATE ${CUAS_SAFETY_FLAGS})
 
@@ -286,7 +289,7 @@ ament_target_dependencies(capture_node
   rclcpp
   sensor_msgs
 )
-target_include_directories(capture_node PRIVATE ${OpenCV_INCLUDE_DIRS})
+target_include_directories(capture_node SYSTEM PRIVATE ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(capture_node ${OpenCV_LIBS})
 target_compile_options(capture_node PRIVATE ${CUAS_SAFETY_FLAGS})
 
@@ -458,8 +461,8 @@ if(BUILD_TESTING)
     ../../test/unit/test_timestamp_associator.cpp
     src/fusion/timestamp_associator.cpp
   )
-  target_include_directories(test_timestamp_associator PRIVATE
-    include
+  target_include_directories(test_timestamp_associator PRIVATE include)
+  target_include_directories(test_timestamp_associator SYSTEM PRIVATE
     ${OpenCV_INCLUDE_DIRS}
   )
   target_link_libraries(test_timestamp_associator
