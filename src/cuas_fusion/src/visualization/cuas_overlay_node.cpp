@@ -81,6 +81,27 @@ private:
         for (std::size_t i = 0U; i < count; ++i) {
             (void)tracks_.push_back(msg->tracks[i]);
         }
+
+        // Compact out waypoint entries whose track is gone: the cache held
+        // 32 lifetime ids, after which trajectory arcs for every new track
+        // silently stopped rendering.
+        uint32_t kept = 0U;
+        for (uint32_t wi = 0U; wi < waypoints_.size(); ++wi) {
+            bool live = false;
+            for (uint32_t ti = 0U; ti < tracks_.size(); ++ti) {
+                if (tracks_[ti].track_id == waypoints_[wi].track_id) {
+                    live = true;
+                    break;
+                }
+            }
+            if (live) {
+                if (kept != wi) {
+                    waypoints_[kept] = waypoints_[wi];
+                }
+                ++kept;
+            }
+        }
+        (void)waypoints_.resize(kept);
     }
 
     void threatCallback(const cuas_msgs::msg::ThreatReportArray::ConstSharedPtr& msg)
