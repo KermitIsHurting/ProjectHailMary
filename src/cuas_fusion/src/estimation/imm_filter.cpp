@@ -73,12 +73,16 @@ void ImmFilter::predict(float64_t dt)
             P0_j += mu_ij[i][j] * (covs[i] + dx * dx.transpose());
         }
 
+        // setMixedState, not init(): mixing may only replace the shared
+        // 6-dim block. init() zeroed CA's acceleration and CT's turn rate
+        // every predict cycle, collapsing all three models to near-CV and
+        // leaving maneuver detection only process-noise differences.
         if (j == 0) {
-            cv_.init(x0_j, P0_j);
+            cv_.setMixedState(x0_j, P0_j);
         } else if (j == 1) {
-            ca_.init(x0_j, P0_j);
+            ca_.setMixedState(x0_j, P0_j);
         } else {
-            ct_.init(x0_j, P0_j);
+            ct_.setMixedState(x0_j, P0_j);
         }
     }
 

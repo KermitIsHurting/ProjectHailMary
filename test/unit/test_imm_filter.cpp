@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 #include <Eigen/Dense>
+#include <cmath>
 
 namespace {
 
@@ -96,6 +97,40 @@ TEST_F(ImmFilterTest, CovarianceStaysSymmetric)
     const Eigen::MatrixXd P = imm_.getCovariance();
     EXPECT_TRUE(P.isApprox(P.transpose(), 1e-9));
     EXPECT_GT(P(0, 0), 0.0);
+}
+
+TEST_F(ImmFilterTest, TurningTargetShiftsWeightTowardCT)
+{
+    // Coordinated turn: omega = 0.5 rad/s, speed 10 m/s, radius 20 m.
+    // Before the setMixedState fix, mixing re-init()ed each model and reset
+    // CT's turn rate to zero every cycle, so this maneuver could never move
+    // the model weights — this test pins the restored IMM behavior.
+    cuas::ImmFilter imm;
+    imm.init(make_state(0.0, 0.0, 0.0, 10.0, 0.0, 0.0),
+             Eigen::MatrixXd::Identity(6, 6));
+
+    const double omega = 0.5;
+    const double radius = 20.0;
+    const double dt = 0.05;
+    for (int k = 1; k <= 120; ++k) {  // 6 s of sustained turn
+        const double t = dt * static_cast<double>(k);
+        imm.predict(dt);
+        const Eigen::VectorXd z = (Eigen::VectorXd(3)
+            << radius * std::sin(omega * t),
+               radius * (1.0 - std::cos(omega * t)),
+               0.0).finished();
+        imm.update(z, R_);
+    }
+
+    const auto mu = imm.getModelWeights();
+    EXPECT_GT(mu[2], mu[0]) << "CT weight must exceed CV during a turn "
+                            << "(cv=" << mu[0] << " ca=" << mu[1]
+                            << " ct=" << mu[2] << ")";
+    // Blended estimate should still track the turn.
+    const Eigen::VectorXd x = imm.getState();
+    const double t_end = dt * 120.0;
+    EXPECT_NEAR(x(0), radius * std::sin(omega * t_end), 0.5);
+    EXPECT_NEAR(x(1), radius * (1.0 - std::cos(omega * t_end)), 0.5);
 }
 
 TEST_F(ImmFilterTest, SetVelocityPropagatesToBlend)

@@ -55,9 +55,19 @@ void KalmanCT::predict(float64_t dt)
 
     Eigen::MatrixXd F = Eigen::MatrixXd::Identity(7, 7);
     if (std::abs(omega) < omega_guard_) {
+        const float64_t vx = x_(3);
+        const float64_t vy = x_(4);
         F(0, 3) = dt;
         F(1, 4) = dt;
         F(2, 5) = dt;
+        // Analytic omega->0 limits of the coupling terms. Without them the
+        // position/velocity covariance never correlates with omega, so a
+        // filter starting at omega = 0 could never estimate a turn rate from
+        // position measurements at all.
+        F(0, 6) = -0.5 * vy * dt * dt;
+        F(1, 6) =  0.5 * vx * dt * dt;
+        F(3, 6) = -vy * dt;
+        F(4, 6) =  vx * dt;
     } else {
         const float64_t s  = std::sin(omega * dt);
         const float64_t c  = std::cos(omega * dt);
@@ -66,11 +76,18 @@ void KalmanCT::predict(float64_t dt)
 
         F(0, 3) = s / omega;
         F(0, 4) = -(1.0 - c) / omega;
-        F(0, 6) = (vx * c * dt * omega - vx * s + vy * s * dt * omega - vy * (1.0 - c))
+        // d(px')/domega by quotient rule on (vx*s - vy*(1-c))/omega:
+        // (N' * omega - N) / omega^2 with N' = vx*dt*c - vy*dt*s.
+        // The previous version had the vy terms sign-flipped, biasing the
+        // omega update whenever the track had a cross-track velocity
+        // component (Taylor limit check: must approach -vy*dt^2/2, the
+        // guard-branch value above).
+        F(0, 6) = (vx * c * dt * omega - vx * s - vy * s * dt * omega + vy * (1.0 - c))
                    / (omega * omega);
         F(1, 3) = (1.0 - c) / omega;
         F(1, 4) = s / omega;
-        F(1, 6) = (vx * s * dt * omega - vx * (1.0 - c) - vy * c * dt * omega + vy * s)
+        // d(py')/domega on (vx*(1-c) + vy*s)/omega, N' = vx*dt*s + vy*dt*c.
+        F(1, 6) = (vx * s * dt * omega - vx * (1.0 - c) + vy * c * dt * omega - vy * s)
                    / (omega * omega);
         F(2, 5) = dt;
         F(3, 3) = c;

@@ -13,6 +13,12 @@ public:
     KalmanCV() = default;
 
     void init(const Eigen::VectorXd& x0, const Eigen::MatrixXd& P0);
+    // IMM mixing injection: CV has no model-private state, so this is a full
+    // overwrite; provided for API symmetry with KalmanCA/KalmanCT.
+    void setMixedState(const Eigen::VectorXd& x6, const Eigen::MatrixXd& P6) {
+        x_ = x6.head(6);
+        P_ = P6.topLeftCorner(6, 6);
+    }
     void predict(float64_t dt);
     void update(const Eigen::VectorXd& z, const Eigen::MatrixXd& R);
     Eigen::VectorXd getState() const;

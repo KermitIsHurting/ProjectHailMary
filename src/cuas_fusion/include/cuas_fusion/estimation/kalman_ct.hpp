@@ -13,6 +13,14 @@ public:
     KalmanCT() = default;
 
     void init(const Eigen::VectorXd& x0, const Eigen::MatrixXd& P0);
+    // IMM mixing injection: overwrites only the shared (pos, vel) block.
+    // Turn rate x_(6), its variance, and the cross terms are preserved —
+    // re-init()ing here reset omega to 0 every predict cycle, so this model
+    // could never develop a turn rate.
+    void setMixedState(const Eigen::VectorXd& x6, const Eigen::MatrixXd& P6) {
+        x_.head(6) = x6.head(6);
+        P_.topLeftCorner(6, 6) = P6.topLeftCorner(6, 6);
+    }
     void predict(float64_t dt);
     void update(const Eigen::VectorXd& z, const Eigen::MatrixXd& R);
     Eigen::VectorXd getState() const;
@@ -31,7 +39,11 @@ private:
 
     static constexpr float64_t sigma_a_     = 0.5;
     static constexpr float64_t sigma_omega_ = 0.1;
-    static constexpr float64_t omega_guard_ = 1e-6;  // below this, linearise around zero turn
+    // Below this, use the analytic omega->0 limit of the Jacobian. 1e-3 rad/s
+    // (a full turn in ~105 min) is physically negligible for a C-UAS target;
+    // the old 1e-6 guard let /omega^2 terms amplify by up to 1e12 at the
+    // boundary, risking covariance blow-up.
+    static constexpr float64_t omega_guard_ = 1e-3;
 };
 
 } // namespace cuas

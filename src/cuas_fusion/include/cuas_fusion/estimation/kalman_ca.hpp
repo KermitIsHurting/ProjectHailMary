@@ -13,6 +13,14 @@ public:
     KalmanCA() = default;
 
     void init(const Eigen::VectorXd& x0, const Eigen::MatrixXd& P0);
+    // IMM mixing injection: overwrites only the shared (pos, vel) block.
+    // Acceleration states x_(6..8), their covariance, and the cross terms
+    // are preserved — re-init()ing here zeroed them every predict cycle and
+    // degenerated this model to CV.
+    void setMixedState(const Eigen::VectorXd& x6, const Eigen::MatrixXd& P6) {
+        x_.head(6) = x6.head(6);
+        P_.topLeftCorner(6, 6) = P6.topLeftCorner(6, 6);
+    }
     void predict(float64_t dt);
     void update(const Eigen::VectorXd& z, const Eigen::MatrixXd& R);
     Eigen::VectorXd getState() const;
