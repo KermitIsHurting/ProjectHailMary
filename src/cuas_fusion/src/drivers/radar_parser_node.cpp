@@ -61,6 +61,7 @@ struct TlvHeader {
     uint32_t type;
     uint32_t length;  // payload length excludes this header
 };
+static_assert(sizeof(TlvHeader) == 8U, "TlvHeader must be exactly 8 bytes");
 
 struct DetectedPoint {
     float32_t x;
@@ -68,6 +69,7 @@ struct DetectedPoint {
     float32_t z;
     float32_t doppler;  // positive = approaching
 };
+static_assert(sizeof(DetectedPoint) == 16U, "DetectedPoint must be exactly 16 bytes");
 
 #pragma pack(pop)
 
@@ -408,7 +410,11 @@ private:
                 break;
             }
 
-            const FrameHeader& hdr = *reinterpret_cast<const FrameHeader *>(hdr_buf);
+            // memcpy instead of reinterpret_cast: no FrameHeader object lives in
+            // hdr_buf, so a type-punned reference is strict-aliasing UB
+            // (MISRA 8.2.5). Compiles to the same loads at -O2.
+            FrameHeader hdr;
+            std::memcpy(&hdr, hdr_buf, sizeof(hdr));
 
             if (hdr.totalPacketLen < HEADER_SIZE ||
                 hdr.totalPacketLen > MAX_PACKET_BYTES)
@@ -440,8 +446,8 @@ private:
                  tlv_idx < hdr.numTLVs && offset + sizeof(TlvHeader) <= payload_len;
                  ++tlv_idx)
             {
-                const TlvHeader& tlv =
-                    *reinterpret_cast<const TlvHeader *>(payload.data() + offset);
+                TlvHeader tlv;
+                std::memcpy(&tlv, payload.data() + offset, sizeof(tlv));
                 offset += sizeof(TlvHeader);
 
                 if (tlv.type == TLV_TYPE_DETECTED_POINTS) {
@@ -450,9 +456,9 @@ private:
                          i < num_pts && offset + sizeof(DetectedPoint) <= payload_len;
                          ++i)
                     {
-                        (void)points.push_back(
-                            *reinterpret_cast<const DetectedPoint *>(
-                                payload.data() + offset));
+                        DetectedPoint pt;
+                        std::memcpy(&pt, payload.data() + offset, sizeof(pt));
+                        (void)points.push_back(pt);
                         offset += sizeof(DetectedPoint);
                     }
                 } else {
