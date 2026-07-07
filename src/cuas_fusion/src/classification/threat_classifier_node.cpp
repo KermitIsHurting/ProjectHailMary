@@ -119,7 +119,14 @@ private:
             t.doppler_mps_   = tm.doppler_mps;
             t.class_id_      = parseClassId(tm.class_label);
             t.confidence_    = tm.confidence;
-            t.state_         = trackStateFromString(tm.track_state);
+            bool state_known = true;
+            t.state_         = trackStateFromString(tm.track_state,
+                                                    &state_known);
+            if (!state_known) {
+                RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+                    "Unrecognized track_state '%s' on track %u — treating "
+                    "as TENTATIVE", tm.track_state.c_str(), tm.track_id);
+            }
             t.timestamp_ns_  = tm.timestamp_ns;
 
             const cuas_msgs::msg::FusedDetection* matched_fd = nullptr;

@@ -41,8 +41,13 @@ inline const char* trackStateToString(TrackState state)
     }
 }
 
-inline TrackState trackStateFromString(const std::string& s)
+// `recognized` (optional) reports whether the input matched a known state,
+// so callers can warn instead of silently treating garbage as a live
+// TENTATIVE track (A6.6).
+inline TrackState trackStateFromString(const std::string& s,
+                                       bool* recognized = nullptr)
 {
+    if (recognized != nullptr) { *recognized = true; }
     if (s == "TENTATIVE")  { return TrackState::TENTATIVE; }
     if (s == "CONFIRMED")  { return TrackState::CONFIRMED; }
     if (s == "OCCLUDED")   { return TrackState::OCCLUDED; }
@@ -50,6 +55,7 @@ inline TrackState trackStateFromString(const std::string& s)
     if (s == "COASTED")    { return TrackState::COASTED; }
     if (s == "LOST")       { return TrackState::LOST; }
     if (s == "DELETED")    { return TrackState::DELETED; }
+    if (recognized != nullptr) { *recognized = false; }
     return TrackState::TENTATIVE;
 }
 

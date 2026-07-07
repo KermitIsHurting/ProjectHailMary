@@ -44,6 +44,8 @@ static uint8_t track_state_to_id(const std::string & s)
     if (s == "OCCLUDED")   { return cuas::track_state::kOccluded; }
     if (s == "REACQUIRED") { return cuas::track_state::kReacquired; }
     if (s == "LOST")       { return cuas::track_state::kLost; }
+    if (s == "COASTED")    { return cuas::track_state::kCoasted; }
+    if (s == "DELETED")    { return cuas::track_state::kDeleted; }
     return cuas::track_state::kUnknown;
 }
 

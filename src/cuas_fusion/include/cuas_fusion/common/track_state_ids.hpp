@@ -18,6 +18,8 @@ namespace track_state {
     static constexpr uint8_t kOccluded   = 3U;
     static constexpr uint8_t kReacquired = 4U;
     static constexpr uint8_t kLost       = 5U;
+    static constexpr uint8_t kCoasted    = 6U;
+    static constexpr uint8_t kDeleted    = 7U;
 }  // namespace track_state
 
 namespace threat_level {
