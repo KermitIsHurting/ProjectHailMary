@@ -35,6 +35,14 @@ public:
         declare_parameter<std::string>("capture_output_dir", "/home/zork/captures");
 
         capture_interval_s_ = get_parameter("capture_interval_s").as_double();
+        // A zero/negative or NaN interval would busy-spin the timer; clamp
+        // to a sane floor before deriving the period (negated: catches NaN).
+        if (!(capture_interval_s_ >= 0.1)) {
+            RCLCPP_WARN(get_logger(),
+                        "capture_interval_s=%.3f invalid; using %.1f s",
+                        capture_interval_s_, kCaptureIntervalDefault);
+            capture_interval_s_ = kCaptureIntervalDefault;
+        }
         output_dir_         = get_parameter("capture_output_dir").as_string();
 
         image_sub_ = create_subscription<sensor_msgs::msg::Image>(

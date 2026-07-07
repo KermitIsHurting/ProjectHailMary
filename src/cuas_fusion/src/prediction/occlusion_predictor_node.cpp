@@ -1,6 +1,7 @@
 // @file occlusion_predictor_node.cpp
 // @brief ROS 2 node that maintains ghost tracks and publishes their forecasts.
 #include "cuas_fusion/common/constants.hpp"
+#include "cuas_fusion/common/param_utils.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 #include "cuas_fusion/common/track_state_ids.hpp"
@@ -29,7 +30,8 @@ public:
 
         horizon_ = get_parameter("prediction_horizon_sec").as_double();
         step_dt_ = get_parameter("prediction_step_dt").as_double();
-        const float64_t rate    = get_parameter("publish_rate_hz").as_double();
+        float64_t rate    = get_parameter("publish_rate_hz").as_double();
+        rate = clamp_rate_hz(get_logger(), "publish_rate_hz", rate, 20.0);
         const float64_t max_occ = get_parameter("max_occlusion_sec").as_double();
         const float64_t gate    = get_parameter("mahalanobis_gate").as_double();
 

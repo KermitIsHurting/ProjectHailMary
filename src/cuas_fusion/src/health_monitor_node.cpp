@@ -1,6 +1,7 @@
 // @file health_monitor_node.cpp
 // @brief ROS 2 node computing pipeline liveness from pipeline topic callbacks.
 #include "cuas_fusion/common/fixed_types.hpp"
+#include "cuas_fusion/common/param_utils.hpp"
 #include "cuas_fusion/health_monitor.hpp"
 
 #include <rclcpp/rclcpp.hpp>
@@ -26,7 +27,8 @@ public:
     , clock_(std::make_shared<rclcpp::Clock>(RCL_STEADY_TIME))
     {
         (void)declare_parameter<float64_t>("publish_rate_hz", 1.0);
-        const float64_t rate = get_parameter("publish_rate_hz").as_double();
+        float64_t rate = get_parameter("publish_rate_hz").as_double();
+        rate = clamp_rate_hz(get_logger(), "publish_rate_hz", rate, 1.0);
 
         monitor_.set_expected_hz(kTopicRadar,      16.0F);
         monitor_.set_expected_hz(kTopicCamera,     30.0F);

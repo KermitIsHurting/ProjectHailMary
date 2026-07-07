@@ -1,6 +1,7 @@
 // @file kinematic_predictor_node.cpp
 // @brief ROS 2 node that projects tracks forward and publishes predictions.
 #include "cuas_fusion/common/constants.hpp"
+#include "cuas_fusion/common/param_utils.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 #include "cuas_fusion/common/track_state_ids.hpp"
@@ -33,7 +34,8 @@ public:
 
         horizon_ = get_parameter("prediction_horizon_sec").as_double();
         step_dt_ = get_parameter("prediction_step_dt").as_double();
-        const float64_t rate = get_parameter("publish_rate_hz").as_double();
+        float64_t rate = get_parameter("publish_rate_hz").as_double();
+        rate = clamp_rate_hz(get_logger(), "publish_rate_hz", rate, 20.0);
 
         n_steps_ = static_cast<int32_t>(horizon_ / step_dt_);
 

@@ -1,6 +1,7 @@
 // @file geofence_node.cpp
 // @brief ROS 2 node wrapping GeofenceEngine with per-track zone transition tracking.
 #include "cuas_fusion/common/constants.hpp"
+#include "cuas_fusion/common/param_utils.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 #include "cuas_fusion/common/track_state_ids.hpp"
@@ -39,7 +40,8 @@ public:
         (void)declare_parameter<float64_t>("publish_rate_hz", 10.0);
 
         const std::string path = get_parameter("geofence_config_path").as_string();
-        const float64_t   rate = get_parameter("publish_rate_hz").as_double();
+        float64_t   rate = get_parameter("publish_rate_hz").as_double();
+        rate = clamp_rate_hz(get_logger(), "publish_rate_hz", rate, 10.0);
 
         FixedVector<ZoneConfig, GEOFENCE_MAX_ZONES> configs;
         if (!parse_zones_yaml(path, configs)) {

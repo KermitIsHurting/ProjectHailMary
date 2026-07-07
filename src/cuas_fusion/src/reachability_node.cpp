@@ -1,6 +1,7 @@
 // @file reachability_node.cpp
 // @brief ROS 2 node that computes per-track intercept estimates at a fixed cadence.
 #include "cuas_fusion/common/constants.hpp"
+#include "cuas_fusion/common/param_utils.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 #include "cuas_fusion/common/track_state_ids.hpp"
@@ -76,7 +77,8 @@ public:
         (void)declare_parameter<float64_t>("publish_rate_hz", 20.0);
 
         const int64_t   mtl  = get_parameter("min_threat_level").as_int();
-        const float64_t rate = get_parameter("publish_rate_hz").as_double();
+        float64_t rate = get_parameter("publish_rate_hz").as_double();
+        rate = clamp_rate_hz(get_logger(), "publish_rate_hz", rate, 20.0);
         min_threat_level_ = static_cast<int32_t>(mtl);
 
         pub_ = create_publisher<cuas_msgs::msg::InterceptReportArray>(

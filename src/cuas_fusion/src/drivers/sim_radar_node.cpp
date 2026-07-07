@@ -1,6 +1,7 @@
 // @file sim_radar_node.cpp
 // @brief ROS 2 node publishing simulated radar detections as PointCloud2.
 #include "cuas_fusion/common/fixed_containers.hpp"
+#include "cuas_fusion/common/param_utils.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 #include "cuas_fusion/drivers/sim_radar.hpp"
 
@@ -26,7 +27,8 @@ public:
         (void)declare_parameter<std::string>("scenario", "approach");
         (void)declare_parameter<int64_t>("noise_seed", 42);
 
-        const float64_t rate = get_parameter("publish_rate_hz").as_double();
+        float64_t rate = get_parameter("publish_rate_hz").as_double();
+        rate = clamp_rate_hz(get_logger(), "publish_rate_hz", rate, 16.0);
         const std::string scenario = get_parameter("scenario").as_string();
         const int64_t seed = get_parameter("noise_seed").as_int();
 
