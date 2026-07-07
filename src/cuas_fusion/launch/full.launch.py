@@ -1,6 +1,8 @@
 from launch import LaunchDescription
-from launch.actions import ExecuteProcess, RegisterEventHandler
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, RegisterEventHandler
+from launch.conditions import IfCondition, UnlessCondition
 from launch.event_handlers import OnProcessExit
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 import os
@@ -14,6 +16,8 @@ def generate_launch_description():
     radar_config_script = os.path.join(
         pkg_share, 'scripts', 'send_radar_config.sh')
     radar_profile = os.path.join(pkg_share, 'config', 'radar_profile.cfg')
+
+    color_correct = LaunchConfiguration('color_correct')
 
     send_radar_config = ExecuteProcess(
         cmd=['bash', '-c',
@@ -31,6 +35,12 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'color_correct',
+            default_value='true',
+            description='Insert cuas_color_correct_node between camera and inference '
+                        'and remap inference image input to /camera/image_corrected.',
+        ),
         Node(
             package='tf2_ros',
             executable='static_transform_publisher',
@@ -83,12 +93,31 @@ def generate_launch_description():
         ),
         Node(
             package='cuas_fusion',
+            executable='cuas_color_correct_node',
+            name='cuas_color_correct_node',
+            parameters=[{'use_sim_time': False}],
+            condition=IfCondition(color_correct),
+        ),
+        Node(
+            package='cuas_fusion',
             executable='inference_node',
             name='inference_node',
             parameters=[{
                 'use_sim_time': False,
                 'engine_path': '/home/zork/ProjectHailMarry/models/yolov8s_int8.engine',
             }],
+            condition=UnlessCondition(color_correct),
+        ),
+        Node(
+            package='cuas_fusion',
+            executable='inference_node',
+            name='inference_node',
+            parameters=[{
+                'use_sim_time': False,
+                'engine_path': '/home/zork/ProjectHailMarry/models/yolov8s_int8.engine',
+            }],
+            remappings=[('/camera/image_raw', '/camera/image_corrected')],
+            condition=IfCondition(color_correct),
         ),
         Node(
             package='cuas_fusion',
@@ -145,12 +174,22 @@ def generate_launch_description():
             executable='cuas_visualizer_node',
             name='cuas_visualizer_node',
             parameters=[system_params, {'use_sim_time': False}],
+            condition=UnlessCondition(color_correct),
+        ),
+        Node(
+            package='cuas_fusion',
+            executable='cuas_visualizer_node',
+            name='cuas_visualizer_node',
+            parameters=[system_params, {'use_sim_time': False}],
+            remappings=[('/camera/image_raw', '/camera/image_corrected')],
+            condition=IfCondition(color_correct),
         ),
         Node(
             package='cuas_fusion',
             executable='cuas_overlay_node',
             name='cuas_overlay_node',
             parameters=[{'use_sim_time': False}],
+            remappings=[('/camera/image_raw', '/camera/image_corrected')],
         ),
         Node(
             package='rviz2',

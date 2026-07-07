@@ -15,6 +15,7 @@
 #include <opencv2/core.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstring>
 #include <memory>
@@ -94,6 +95,8 @@ private:
 
     void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& msg)
     {
+        updateFpsEstimate();
+
         cv::Mat bgr;
         if (!rosImageToBgr(*msg, bgr)) {
             RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
@@ -127,6 +130,39 @@ private:
         enhanced_pub_->publish(std::move(out));
     }
 
+    void updateFpsEstimate()
+    {
+        const int64_t now_ns = get_clock()->now().nanoseconds();
+        const uint32_t write_idx = frame_count_ % FPS_WINDOW;
+        frame_times_ns_[write_idx] = now_ns;
+        ++frame_count_;
+
+        if (frame_count_ < 2U) {
+            return;
+        }
+
+        const uint32_t samples =
+            (frame_count_ < FPS_WINDOW) ? frame_count_ : FPS_WINDOW;
+        const uint32_t newest_idx = write_idx;
+        const uint32_t oldest_idx =
+            (frame_count_ <= FPS_WINDOW) ? 0U : (frame_count_ % FPS_WINDOW);
+        const int64_t delta_ns =
+            frame_times_ns_[newest_idx] - frame_times_ns_[oldest_idx];
+
+        if (delta_ns <= 0) {
+            return;
+        }
+
+        const float64_t seconds = static_cast<float64_t>(delta_ns) * 1.0e-9;
+        const float64_t fps =
+            static_cast<float64_t>(samples - 1U) / seconds;
+        RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 5000,
+            "Overlay FPS: %.2f over %u frames (total=%u)",
+            fps, samples, frame_count_);
+    }
+
+    static constexpr uint32_t FPS_WINDOW = 30U;
+
     OverlayEngine overlay_engine_;
     FixedVector<cuas_msgs::msg::TrajectoryWaypoints, TRACK_MAX_TRACKS> waypoints_{};
     FixedVector<cuas_msgs::msg::Track,               TRACK_MAX_TRACKS> tracks_{};
@@ -138,6 +174,9 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr             image_sub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr                enhanced_pub_;
     std::mutex mutex_;
+
+    std::array<int64_t, FPS_WINDOW> frame_times_ns_{};
+    uint32_t frame_count_{0U};
 };
 
 }  // namespace cuas

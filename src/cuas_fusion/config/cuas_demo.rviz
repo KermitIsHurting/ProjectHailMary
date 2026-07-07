@@ -73,7 +73,7 @@ Visualization Manager:
       Enabled: true
       Value: true
       Topic:
-        Value: /camera/annotated
+        Value: /camera/annotated_enhanced
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last

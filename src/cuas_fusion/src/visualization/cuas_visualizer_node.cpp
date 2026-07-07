@@ -127,7 +127,7 @@ CuasVisualizerNode::CuasVisualizerNode()
         std::bind(&CuasVisualizerNode::fusedDetectionCallback, this, std::placeholders::_1));
 
     image_sub_ = create_subscription<sensor_msgs::msg::Image>(
-        "/camera/image_raw", 1,
+        "camera/image_raw", 1,
         std::bind(&CuasVisualizerNode::imageCallback, this, std::placeholders::_1));
 
     annotated_pub_ = create_publisher<sensor_msgs::msg::Image>(

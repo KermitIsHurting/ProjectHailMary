@@ -400,6 +400,24 @@ ament_target_dependencies(intent_classifier_node
 target_link_libraries(intent_classifier_node intent_classifier_lib)
 target_compile_options(intent_classifier_node PRIVATE ${CUAS_SAFETY_FLAGS})
 
+# color correct engine library (no ROS dependency — use stricter flags)
+add_library(color_correct_engine STATIC
+  src/color_correct_engine.cpp
+)
+target_include_directories(color_correct_engine PUBLIC include)
+target_compile_options(color_correct_engine PRIVATE ${CUAS_STRICT_FLAGS})
+
+# color correct node
+add_executable(cuas_color_correct_node
+  src/cuas_color_correct_node.cpp
+)
+ament_target_dependencies(cuas_color_correct_node
+  rclcpp
+  sensor_msgs
+)
+target_link_libraries(cuas_color_correct_node color_correct_engine)
+target_compile_options(cuas_color_correct_node PRIVATE ${CUAS_SAFETY_FLAGS})
+
 install(TARGETS
   radar_parser_node
   camera_node
@@ -421,6 +439,7 @@ install(TARGETS
   sim_radar_node
   clutter_map_node
   intent_classifier_node
+  cuas_color_correct_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -478,6 +497,11 @@ if(BUILD_TESTING)
     test/test_clutter_map.cpp
     src/clutter_map.cpp)
   target_include_directories(test_clutter_map PRIVATE include)
+
+  ament_add_gtest(test_color_correct_engine
+    test/test_color_correct_engine.cpp
+    src/color_correct_engine.cpp)
+  target_include_directories(test_color_correct_engine PRIVATE include)
 endif()
 
 ament_package()
