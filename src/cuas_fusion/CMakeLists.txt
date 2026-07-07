@@ -89,6 +89,14 @@ set(CUAS_SAFETY_FLAGS
     -Wshadow
 )
 
+# Zero-warning policy is enforced, not aspirational: warnings in owned code
+# fail the build. -DCUAS_WERROR=OFF is the escape hatch for triaging a new
+# toolchain, never for landing code.
+option(CUAS_WERROR "Treat warnings in owned code as errors" ON)
+if(CUAS_WERROR)
+  list(APPEND CUAS_SAFETY_FLAGS -Werror)
+endif()
+
 # Stricter set used only when the target has no direct ROS header dependency.
 set(CUAS_STRICT_FLAGS
     ${CUAS_SAFETY_FLAGS}
