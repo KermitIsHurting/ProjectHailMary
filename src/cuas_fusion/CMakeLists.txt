@@ -469,6 +469,27 @@ if(BUILD_TESTING)
     ${OpenCV_LIBS}
   )
 
+  ament_add_gtest(test_kalman_cv
+    ../../test/unit/test_kalman_cv.cpp
+    src/estimation/kalman_cv.cpp
+  )
+  target_include_directories(test_kalman_cv PRIVATE include)
+
+  ament_add_gtest(test_imm_filter
+    ../../test/unit/test_imm_filter.cpp
+    src/estimation/imm_filter.cpp
+    src/estimation/kalman_cv.cpp
+    src/estimation/kalman_ca.cpp
+    src/estimation/kalman_ct.cpp
+  )
+  target_include_directories(test_imm_filter PRIVATE include)
+
+  ament_add_gtest(test_hungarian_solver
+    ../../test/unit/test_hungarian_solver.cpp
+    src/tracking/hungarian_solver.cpp
+  )
+  target_include_directories(test_hungarian_solver PRIVATE include)
+
   ament_add_gtest(test_fixed_containers
     ../../test/unit/test_fixed_containers.cpp
   )

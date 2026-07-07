@@ -1,10 +1,110 @@
 // test_imm_filter.cpp
-// Unit tests for the IMM filter: verifies mode probability updates,
-// mixed initial conditions, and state estimate convergence on synthetic tracks.
+// Unit tests for the IMM filter: weight normalization, blended-state
+// consistency, and straight-line tracking behavior.
 
 #include "cuas_fusion/estimation/imm_filter.hpp"
+
 #include <gtest/gtest.h>
+#include <Eigen/Dense>
 
-namespace cuas {
+namespace {
 
-} // namespace cuas
+Eigen::VectorXd make_state(double px, double py, double pz,
+                           double vx, double vy, double vz)
+{
+    Eigen::VectorXd x = Eigen::VectorXd::Zero(6);
+    x << px, py, pz, vx, vy, vz;
+    return x;
+}
+
+class ImmFilterTest : public ::testing::Test
+{
+protected:
+    void SetUp() override
+    {
+        imm_.init(make_state(0.0, 0.0, 0.0, 1.0, 0.0, 0.0),
+                  Eigen::MatrixXd::Identity(6, 6));
+    }
+    cuas::ImmFilter imm_;
+    const Eigen::MatrixXd R_ = Eigen::MatrixXd::Identity(3, 3) * 0.01;
+};
+
+TEST_F(ImmFilterTest, InitPropagatesToAllModels)
+{
+    for (uint32_t m = 0U; m < 3U; ++m) {
+        const Eigen::VectorXd x = imm_.getModelState(m);
+        ASSERT_GE(x.size(), 6);
+        EXPECT_NEAR(x(3), 1.0, 1e-12) << "model " << m;
+    }
+}
+
+TEST_F(ImmFilterTest, WeightsAlwaysSumToOne)
+{
+    for (int k = 0; k < 20; ++k) {
+        const double t = 0.05 * static_cast<double>(k + 1);
+        imm_.predict(0.05);
+        const Eigen::VectorXd z =
+            (Eigen::VectorXd(3) << t, 0.0, 0.0).finished();
+        imm_.update(z, R_);
+
+        const auto mu = imm_.getModelWeights();
+        EXPECT_NEAR(mu[0] + mu[1] + mu[2], 1.0, 1e-9);
+        EXPECT_GE(mu[0], 0.0);
+        EXPECT_GE(mu[1], 0.0);
+        EXPECT_GE(mu[2], 0.0);
+    }
+}
+
+TEST_F(ImmFilterTest, TracksStraightLineMotion)
+{
+    // Target moves +x at 1 m/s; measurements are exact.
+    for (int k = 1; k <= 40; ++k) {
+        const double t = 0.05 * static_cast<double>(k);
+        imm_.predict(0.05);
+        const Eigen::VectorXd z =
+            (Eigen::VectorXd(3) << t, 0.0, 0.0).finished();
+        imm_.update(z, R_);
+    }
+    const Eigen::VectorXd x = imm_.getState();
+    EXPECT_NEAR(x(0), 2.0, 0.1);   // position after 2 s
+    EXPECT_NEAR(x(1), 0.0, 0.05);
+    EXPECT_NEAR(x(3), 1.0, 0.2);   // velocity estimate
+}
+
+TEST_F(ImmFilterTest, BlendedStateIsConvexCombinationOfModels)
+{
+    imm_.predict(0.1);
+    const Eigen::VectorXd z = (Eigen::VectorXd(3) << 0.1, 0.0, 0.0).finished();
+    imm_.update(z, R_);
+
+    const auto mu = imm_.getModelWeights();
+    Eigen::VectorXd blended = Eigen::VectorXd::Zero(6);
+    for (uint32_t m = 0U; m < 3U; ++m) {
+        blended += mu[m] * imm_.getModelState(m).head(6);
+    }
+    EXPECT_TRUE(imm_.getState().isApprox(blended, 1e-9));
+}
+
+TEST_F(ImmFilterTest, CovarianceStaysSymmetric)
+{
+    for (int k = 1; k <= 10; ++k) {
+        imm_.predict(0.05);
+        const Eigen::VectorXd z =
+            (Eigen::VectorXd(3) << 0.05 * k, 0.0, 0.0).finished();
+        imm_.update(z, R_);
+    }
+    const Eigen::MatrixXd P = imm_.getCovariance();
+    EXPECT_TRUE(P.isApprox(P.transpose(), 1e-9));
+    EXPECT_GT(P(0, 0), 0.0);
+}
+
+TEST_F(ImmFilterTest, SetVelocityPropagatesToBlend)
+{
+    imm_.setVelocity(Eigen::Vector3d(5.0, -2.0, 0.5));
+    const Eigen::VectorXd x = imm_.getState();
+    EXPECT_NEAR(x(3), 5.0, 1e-9);
+    EXPECT_NEAR(x(4), -2.0, 1e-9);
+    EXPECT_NEAR(x(5), 0.5, 1e-9);
+}
+
+}  // namespace
