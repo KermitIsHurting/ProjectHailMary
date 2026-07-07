@@ -139,6 +139,54 @@ claim is currently FALSE — after R6/A3.1, add
 - Camera PROTECTED findings (report-only in AUDIT_REPORT §B PROT): if you ever
   approve changes, follow the backup/side-file/ROLLBACK.md protocol.
 
+## R12. Camera fixes — NOW AUTHORIZED by owner (was audit-only)
+Owner has lifted the no-edit rule for the PROTECTED camera files. The findings
+already exist in AUDIT_REPORT.md §B "PROT — camera files"; apply them with
+extra care because a bad change can brick the camera:
+
+Safety protocol (still applies, per original ground rules):
+1. Before touching each file: `mkdir -p camera_backups && cp <file>
+   camera_backups/$(basename <file>).$(date +%Y%m%d-%H%M%S).bak`
+2. Maintain ROLLBACK.md listing, per commit: file, backup name, and the exact
+   restore command (`cp camera_backups/<bak> <file>` or `git checkout main -- <file>`).
+3. One camera fix per commit, tagged NEEDS-HARDWARE — none of these can be
+   fully verified without the live AR0234; build+inspection only locally.
+4. NEVER touch the register/format values themselves: device path, 1920x1080@30,
+   BA10 format, black level 2752, WB gains, intrinsics (constants.hpp:13-50 and
+   the V4L2 S_FMT/S_PARM setup stay byte-identical). The fixes below are
+   robustness around them, not tuning.
+
+Fixes, in order of safety (safest first):
+- a. camera_driver.cpp:57-171 — five unchecked ioctl/munmap/close returns:
+     make deliberate discards explicit `(void)`, log munmap/close failures.
+     Zero behavioral risk.
+- b. camera_driver.cpp:118 — validate kernel-supplied `buf.index <
+     V4L2_BUF_COUNT && buffers_[buf.index] != nullptr` after DQBUF; return
+     false otherwise. One compare per frame.
+- c. camera_node.cpp mains + color_correct NaN-gain precondition
+     (color_correct_engine ctor clamp) — trivial.
+- d. cuas_color_correct_node.cpp:59 — replace `make_unique<Image>(*msg)`
+     (6 MB deep copy @30 fps, ~180 MB/s allocator traffic) with a reused
+     preallocated message double-buffer.
+- e. camera_driver.cpp:128-143 + camera_node.cpp:75-87 — preallocate the ~5
+     per-frame cv::Mats and the Image msg as members (cv ops reuse matching
+     dst buffers). Biggest WCET win in the whole system; test carefully.
+- f. camera_driver.cpp:118 blocking DQBUF — poll() with 500 ms timeout so a
+     dead CSI link can't hang shutdown; on timeout return false and let
+     camera_node's existing retry loop own recovery.
+- g. constants.hpp:49-50 — define CAMERA_IMAGE_W/H as = CAMERA_WIDTH/HEIGHT
+     (derivation, not duplicate literals). Values unchanged.
+
+Hardware verification after EACH of d/e/f (not just at the end):
+`ros2 launch cuas_fusion full.launch.py` → image looks identical (colors,
+exposure, no tearing), `ros2 topic hz /camera/image_raw` ≈ 30 Hz, inference
+still detects. If anything looks off: restore from camera_backups/ (or
+`git revert`), rebuild, relaunch — steps in ROLLBACK.md.
+
+NOTE: once R12 lands, HARDWARE_TEST_PLAN.md §7 (PROTECTED-diff-must-be-empty)
+is intentionally obsolete for these files — replace that check with "diff
+against main reviewed by owner + ROLLBACK.md present".
+
 ## Step 5 — interview-impact improvements (not yet started; suggest-only)
 Ranked impact/effort: (1) GitHub Actions CI: build + colcon test + cppcheck +
 clang-tidy gates — biggest signal, half a day. (2) DEVIATIONS.md at repo root
