@@ -34,12 +34,13 @@ static ReachabilityTrackState build_track_state(
     rstate.x_m = t.position_x_m;
     rstate.y_m = t.position_y_m;
 
-    const float64_t bearing = std::atan2(
-        static_cast<float64_t>(t.position_y_m),
-        static_cast<float64_t>(t.position_x_m));
-    const float32_t vmag = t.velocity_mps;
-    rstate.vx_mps = vmag * static_cast<float32_t>(std::cos(bearing));
-    rstate.vy_mps = vmag * static_cast<float32_t>(std::sin(bearing));
+    // Track.msg carries the estimated velocity vector; use it directly.
+    // Reconstructing velocity as |v| along the position bearing pointed
+    // every target radially outward from the sensor, which made
+    // speed_toward reduce to -|v| and the published intercept geometry
+    // fictitious (never intercept-possible for magnitude velocities).
+    rstate.vx_mps = t.vx_mps;
+    rstate.vy_mps = t.vy_mps;
 
     for (uint32_t r = 0U; r < 4U; ++r) {
         for (uint32_t c = 0U; c < 4U; ++c) {
