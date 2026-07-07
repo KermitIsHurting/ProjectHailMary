@@ -149,7 +149,7 @@ private:
         }
         msg.state           = learned_state;
         msg.frames_learned  = map_.frame_count();
-        msg.frames_required = ClutterMap::kLearnFrames;
+        msg.frames_required = map_.learn_frames();
         msg.occupancy_ratio = map_.occupancy_ratio();
         msg.stamp           = clock_.now();
         pub_status_->publish(msg);

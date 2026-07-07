@@ -131,7 +131,10 @@ float32_t ClutterMap::occupancy_ratio() const
     uint32_t count = 0U;
     for (uint32_t col = 0U; col < kGridW; ++col) {
         for (uint32_t row = 0U; row < kGridH; ++row) {
-            if (grid_[col][row] >= kThreshold) {
+            // Runtime threshold_, not the compile-time default: otherwise
+            // occupancy_ratio disagrees with is_clutter whenever the ROS
+            // parameter overrides kThreshold.
+            if (grid_[col][row] >= threshold_) {
                 ++count;
             }
         }
