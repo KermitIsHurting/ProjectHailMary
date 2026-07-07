@@ -46,8 +46,10 @@ static constexpr float32_t CAMERA_FX                  = 1862.7F;  // checkerboar
 static constexpr float32_t CAMERA_FY                  = 1877.7F;
 static constexpr float32_t CAMERA_CX                  = 1032.8F;
 static constexpr float32_t CAMERA_CY                  = 426.8F;
-static constexpr int32_t   CAMERA_IMAGE_W             = 1920;
-static constexpr int32_t   CAMERA_IMAGE_H             = 1080;
+// Derived, not duplicate literals: these must always equal the capture
+// resolution (values unchanged, R12g).
+static constexpr int32_t   CAMERA_IMAGE_W             = CAMERA_WIDTH;
+static constexpr int32_t   CAMERA_IMAGE_H             = CAMERA_HEIGHT;
 
 static constexpr uint32_t  TRACK_MAX_TRACKS            = 32U;
 static constexpr float32_t TRACK_ASSOCIATION_DIST_M    = 3.0F;
