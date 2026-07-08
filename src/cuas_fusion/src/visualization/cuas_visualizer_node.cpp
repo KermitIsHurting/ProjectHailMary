@@ -5,6 +5,7 @@
 #include "cuas_fusion/common/fixed_types.hpp"
 #include "cuas_fusion/common/ros_image_adapter.hpp"
 #include "cuas_fusion/common/track_state_ids.hpp"
+#include "cuas_fusion/common/types.hpp"
 #include "cuas_fusion/visualization/cuas_visualizer.hpp"
 
 #include <sensor_msgs/msg/image.hpp>
@@ -12,14 +13,12 @@
 
 #include <algorithm>
 #include <array>
-#include <charconv>
 #include <chrono>
 #include <cmath>
 #include <iomanip>
 #include <limits>
 #include <sstream>
 #include <string>
-#include <system_error>
 #include <cstdio>
 
 namespace {
@@ -67,21 +66,6 @@ static constexpr std::array<const char*, kCocoNameCount> kCocoNames = {{
     "toaster", "sink", "refrigerator", "book", "clock",
     "vase", "scissors", "teddy bear", "hair drier", "toothbrush"
 }};
-
-static int32_t parseClassId(const std::string& s)
-{
-    if (s.empty()) {
-        return -1;
-    }
-    int32_t value = 0;
-    const auto* begin_ptr = s.data();
-    const auto* end_ptr   = s.data() + s.size();
-    const auto result = std::from_chars(begin_ptr, end_ptr, value);
-    if (result.ec != std::errc{}) {
-        return -1;
-    }
-    return value;
-}
 
 CuasVisualizerNode::CuasVisualizerNode()
 : Node("cuas_visualizer_node")
