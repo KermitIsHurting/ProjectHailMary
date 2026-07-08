@@ -11,7 +11,19 @@ namespace cuas {
 
 bool FusionEngine::init(const ExtrinsicTransform& extrinsic)
 {
-    extrinsic_   = extrinsic;
+    if (!extrinsicRotationMatrix(extrinsic, rot_)) {
+        return false;
+    }
+    // Negated form: a NaN offset must fail init, not poison every projection.
+    const bool t_ok = (std::abs(extrinsic.t_x_m) < 1.0e6F) &&
+                      (std::abs(extrinsic.t_y_m) < 1.0e6F) &&
+                      (std::abs(extrinsic.t_z_m) < 1.0e6F);
+    if (!t_ok) {
+        return false;
+    }
+    trans_[0]    = extrinsic.t_x_m;
+    trans_[1]    = extrinsic.t_y_m;
+    trans_[2]    = extrinsic.t_z_m;
     miss_count_  = 0U;
     initialized_ = true;
     return true;
@@ -44,12 +56,17 @@ bool FusionEngine::projectAndAssociate(
 
     for (uint32_t rpti = 0U; rpti < radar_pts.size(); ++rpti) {
         const RadarDetection& rpt = radar_pts[rpti];
-        // Radar frame (x right, y forward, z up) to camera frame (x right, y down, z forward)
-        const float32_t x_cam = rpt.x + extrinsic_.x_m;
-        const float32_t z_cam = rpt.y + extrinsic_.y_m;
-        const float32_t y_cam = -(rpt.z + extrinsic_.z_m);
+        // Full SE(3) radar→camera projection; the default extrinsic
+        // quaternion reduces this to the old axis permutation exactly.
+        const float32_t x_cam = (rot_[0] * rpt.x) + (rot_[1] * rpt.y) +
+                                (rot_[2] * rpt.z) + trans_[0];
+        const float32_t y_cam = (rot_[3] * rpt.x) + (rot_[4] * rpt.y) +
+                                (rot_[5] * rpt.z) + trans_[1];
+        const float32_t z_cam = (rot_[6] * rpt.x) + (rot_[7] * rpt.y) +
+                                (rot_[8] * rpt.z) + trans_[2];
 
-        if (z_cam <= 0.0F) {
+        // Negated: a NaN depth takes the skip branch (behind-camera guard).
+        if (!(z_cam > 0.0F)) {
             continue;
         }
 

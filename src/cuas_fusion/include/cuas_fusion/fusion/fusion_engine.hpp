@@ -44,7 +44,9 @@ private:
     EmaState* associateEma(int32_t class_id, float32_t x, float32_t y,
                            float32_t z, int64_t now_ns);
 
-    ExtrinsicTransform extrinsic_{};
+    // SE(3) baked at init: p_cam = rot_ · p_radar + trans_ (row-major R).
+    std::array<float32_t, 9> rot_{};
+    std::array<float32_t, 3> trans_{};
     bool               initialized_ = false;
     uint32_t           miss_count_  = 0U;
     // EMA state keyed by association identity (nearest gate match), not by

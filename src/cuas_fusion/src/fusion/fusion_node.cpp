@@ -15,11 +15,14 @@
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 
+#include <array>
 #include <charconv>
+#include <cmath>
 #include <ctime>
 #include <mutex>
 #include <string>
 #include <system_error>
+#include <vector>
 #include <cstdio>
 
 namespace cuas {
@@ -48,38 +51,68 @@ public:
     FusionNode()
     : Node("fusion_node")
     {
-        declare_parameter<float64_t>("extrinsic.x_offset_m", -0.0075);
-        declare_parameter<float64_t>("extrinsic.y_offset_m",  0.017);
-        declare_parameter<float64_t>("extrinsic.z_offset_m", -0.079);
+        // Radar→camera SE(3): p_cam = R(q)·p_radar + t (see
+        // config/extrinsics.yaml; defaults = nominal mount + tape-measure
+        // lever arm re-expressed in camera axes).
+        declare_parameter<std::vector<float64_t>>("extrinsics.rotation_wxyz",
+            {0.70710678, 0.70710678, 0.0, 0.0});
+        declare_parameter<std::vector<float64_t>>("extrinsics.translation_m",
+            {-0.0075, 0.079, 0.017});
 
-        ExtrinsicTransform ext;
-        ext.x_m = static_cast<float32_t>(get_parameter("extrinsic.x_offset_m").as_double());
-        ext.y_m = static_cast<float32_t>(get_parameter("extrinsic.y_offset_m").as_double());
-        ext.z_m = static_cast<float32_t>(get_parameter("extrinsic.z_offset_m").as_double());
-
-        if (!engine_.init(ext)) {
-            RCLCPP_FATAL(get_logger(), "FusionEngine init failed");
+        const std::vector<float64_t> q =
+            get_parameter("extrinsics.rotation_wxyz").as_double_array();
+        const std::vector<float64_t> t =
+            get_parameter("extrinsics.translation_m").as_double_array();
+        if (q.size() != 4U || t.size() != 3U) {
+            RCLCPP_FATAL(get_logger(),
+                "extrinsics.rotation_wxyz needs 4 values (got %zu), "
+                "extrinsics.translation_m needs 3 (got %zu)",
+                q.size(), t.size());
             rclcpp::shutdown();
             return;
         }
 
-        RCLCPP_INFO(get_logger(), "Extrinsic offsets: x=%.4f y=%.4f z=%.4f",
-                     static_cast<float64_t>(ext.x_m),
-                     static_cast<float64_t>(ext.y_m),
-                     static_cast<float64_t>(ext.z_m));
+        ExtrinsicTransform ext;
+        ext.q_w   = static_cast<float32_t>(q[0]);
+        ext.q_x   = static_cast<float32_t>(q[1]);
+        ext.q_y   = static_cast<float32_t>(q[2]);
+        ext.q_z   = static_cast<float32_t>(q[3]);
+        ext.t_x_m = static_cast<float32_t>(t[0]);
+        ext.t_y_m = static_cast<float32_t>(t[1]);
+        ext.t_z_m = static_cast<float32_t>(t[2]);
+
+        if (!engine_.init(ext)) {
+            RCLCPP_FATAL(get_logger(),
+                "FusionEngine init failed: non-finite or degenerate extrinsics");
+            rclcpp::shutdown();
+            return;
+        }
+
+        RCLCPP_INFO(get_logger(),
+            "Extrinsics q_wxyz=[%.6f %.6f %.6f %.6f] t_cam=[%.4f %.4f %.4f] m",
+            q[0], q[1], q[2], q[3], t[0], t[1], t[2]);
 
         tf_broadcaster_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
         geometry_msgs::msg::TransformStamped tf_msg;
         tf_msg.header.stamp = now();
         tf_msg.header.frame_id = "radar_frame";
         tf_msg.child_frame_id  = "camera_frame";
-        tf_msg.transform.translation.x = static_cast<float64_t>(ext.x_m);
-        tf_msg.transform.translation.y = static_cast<float64_t>(ext.y_m);
-        tf_msg.transform.translation.z = static_cast<float64_t>(ext.z_m);
-        tf_msg.transform.rotation.x = 0.0;
-        tf_msg.transform.rotation.y = 0.0;
-        tf_msg.transform.rotation.z = 0.0;
-        tf_msg.transform.rotation.w = 1.0;
+        // TF carries the CAMERA pose in the RADAR frame — the inverse of the
+        // measurement mapping: R_tf = Rᵀ (conjugate q), t_tf = -Rᵀ·t.
+        std::array<float32_t, 9> rot{};
+        (void)extrinsicRotationMatrix(ext, rot);  // validated by init() above
+        const float64_t qn = std::sqrt((q[0] * q[0]) + (q[1] * q[1]) +
+                                       (q[2] * q[2]) + (q[3] * q[3]));
+        tf_msg.transform.rotation.w = q[0] / qn;
+        tf_msg.transform.rotation.x = -q[1] / qn;
+        tf_msg.transform.rotation.y = -q[2] / qn;
+        tf_msg.transform.rotation.z = -q[3] / qn;
+        tf_msg.transform.translation.x = -static_cast<float64_t>(
+            (rot[0] * ext.t_x_m) + (rot[3] * ext.t_y_m) + (rot[6] * ext.t_z_m));
+        tf_msg.transform.translation.y = -static_cast<float64_t>(
+            (rot[1] * ext.t_x_m) + (rot[4] * ext.t_y_m) + (rot[7] * ext.t_z_m));
+        tf_msg.transform.translation.z = -static_cast<float64_t>(
+            (rot[2] * ext.t_x_m) + (rot[5] * ext.t_y_m) + (rot[8] * ext.t_z_m));
         tf_broadcaster_->sendTransform(tf_msg);
 
         pub_ = create_publisher<cuas_msgs::msg::FusedDetectionArray>(

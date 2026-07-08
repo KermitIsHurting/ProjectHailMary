@@ -17,12 +17,19 @@ def generate_launch_description():
     default_engine_path = os.path.join(
         os.path.expanduser('~'), 'ProjectHailMarry', 'models',
         'yolov8s_int8.engine')
+    default_extrinsics = os.path.join(pkg_share, 'config', 'extrinsics.yaml')
 
     return LaunchDescription([
         DeclareLaunchArgument(
             'engine_path',
             default_value=default_engine_path,
             description='TensorRT engine file for inference_node.',
+        ),
+        DeclareLaunchArgument(
+            'extrinsics_file',
+            default_value=default_extrinsics,
+            description='Radar-to-camera SE(3) extrinsics parameter file '
+                        '(see config/extrinsics.yaml).',
         ),
         Node(
             package='tf2_ros',
@@ -91,7 +98,8 @@ def generate_launch_description():
             package='cuas_fusion',
             executable='fusion_node',
             name='fusion_node',
-            parameters=[{'use_sim_time': False}],
+            parameters=[LaunchConfiguration('extrinsics_file'),
+                        {'use_sim_time': False}],
         ),
         Node(
             package='cuas_fusion',
