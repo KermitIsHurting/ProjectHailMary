@@ -261,3 +261,43 @@ the substance already).
 - The live radar sim is `src/drivers/sim_radar*`; the near-duplicate that
   used to sit at `src/sim_radar_node.cpp` was dead and is deleted — don't
   resurrect it from git history by accident.
+
+## 8. OVERHAUL progress (2026-07-07 evening session, post-freeze recovery)
+
+Written by the session that resumed after the machine froze mid-P3.1 build.
+Read OVERHAUL_PLAN.md for the roadmap; this section is only what a fresh
+session cannot get from it or from git log.
+
+- **State**: P1.1, P1.2, P2.1, P2.2 committed by the earlier session; the
+  freeze (19:40 build, died at 49%) left P3.1 as uncommitted WIP. It was
+  recovered, completed, and committed as `a4f8e42` (P3.1: Track/
+  FusedDetection growth + every cuas_msgs sequence bounded, DEV-011
+  narrowed to strings, VERSION 0.9.0-alpha). `0a06f1c` (P3.2) added
+  `tracking/measurement_models` — radar [pos, r_dot] and camera bearing
+  models with finite-difference-verified Jacobians. Test count is now
+  **136** by colcon's accounting (was 108 at §1's writing; the P1/P2
+  session and P3.1/P3.2 added suites).
+- **Bounded-sequence trap**: message arrays are now
+  `rosidl_runtime_cpp::BoundedVector`. `push_back` past the bound THROWS
+  `std::length_error` (caught by the DEV-001 boundary = node death, not
+  drop). Every current producer is structurally capped below its bound —
+  keep it that way when adding producers; the bounds are commented in the
+  .msg files.
+- **NEXT = P3.3 (association / central tracker core). Open design fork,
+  decide before coding**: the KEPT kalman filters only expose
+  `update(Vector3d z, Matrix3d R)` (position-only). The central tracker
+  needs generalized `(z, H, R)` updates in each sensor's measurement
+  space (radar 4-dim with Doppler, camera 2-dim bearing). Options:
+  (a) extend KalmanCV/CA/CT with an update taking H over the shared
+  6-block (internally lifted to the 9/7-dim private states) — touches
+  tested estimation code, do it behind the existing tests; or (b) give
+  the central tracker its own per-track 6-state EKF update and use the
+  filters only for predict/mixing — less invasive, but splits the update
+  math into a second place. Either way the P3.2 models supply h/H/R and
+  the P3.1 wire format is already sufficient — Track.msg needs NO further
+  change for P3.3–P3.6.
+- **P0 caveat still stands**: zero live hardware runs on this branch.
+  Everything in Phase 3 is built behind unit tests; gate sizes and noise
+  constants (`kRadarDopplerSigmaMps`, `kCameraPixelSigmaPx`) are
+  estimates to be refined against the Phase-0 bag corpus when hardware
+  time happens.
