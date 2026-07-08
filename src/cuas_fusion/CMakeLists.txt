@@ -129,6 +129,21 @@ target_include_directories(camera_node SYSTEM PRIVATE ${OpenCV_INCLUDE_DIRS} ${G
 target_link_libraries(camera_node ${OpenCV_LIBS} ${GST_LIBRARIES})
 target_compile_options(camera_node PRIVATE ${CUAS_SAFETY_FLAGS})
 
+# auto exposure node — lives in drivers/ but is NOT a protected camera
+# file: it only writes V4L2 exposure/gain controls on its own fd; the
+# capture path, formats, and registers are untouched (ROLLBACK.md holds).
+add_executable(auto_exposure_node
+  src/drivers/auto_exposure_node.cpp
+  src/drivers/auto_exposure.cpp
+)
+ament_target_dependencies(auto_exposure_node
+  rclcpp
+  sensor_msgs
+)
+target_include_directories(auto_exposure_node SYSTEM PRIVATE ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(auto_exposure_node ${OpenCV_LIBS})
+target_compile_options(auto_exposure_node PRIVATE ${CUAS_SAFETY_FLAGS})
+
 # TRT detector library (no ROS dependency — use stricter flags)
 add_library(trt_detector STATIC
   src/inference/trt_detector.cpp
@@ -481,6 +496,7 @@ install(TARGETS
   clutter_map_node
   intent_classifier_node
   cuas_color_correct_node
+  auto_exposure_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -544,6 +560,12 @@ if(BUILD_TESTING)
   )
   target_include_directories(test_measurement_models PRIVATE include)
 
+  ament_add_gtest(test_auto_exposure
+    ../../test/unit/test_auto_exposure.cpp
+    src/drivers/auto_exposure.cpp
+  )
+  target_include_directories(test_auto_exposure PRIVATE include)
+
   ament_add_gtest(test_threat_classifier
     ../../test/unit/test_threat_classifier.cpp
     src/classification/threat_classifier.cpp
@@ -604,7 +626,7 @@ if(BUILD_TESTING)
   foreach(cuas_test_target
       test_timestamp_associator test_kalman_cv test_imm_filter
       test_hungarian_solver test_fixed_containers test_eigen_types
-      test_measurement_models test_threat_classifier
+      test_measurement_models test_auto_exposure test_threat_classifier
       test_track_manager test_fusion_engine test_detection_set_buffer
       test_geofence_engine
       test_reachability_engine test_health_monitor test_intent_classifier

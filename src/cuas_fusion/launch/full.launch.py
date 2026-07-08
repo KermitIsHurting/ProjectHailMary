@@ -18,6 +18,7 @@ def generate_launch_description():
     radar_profile = os.path.join(pkg_share, 'config', 'radar_profile.cfg')
 
     color_correct = LaunchConfiguration('color_correct')
+    auto_exposure = LaunchConfiguration('auto_exposure')
     engine_path = LaunchConfiguration('engine_path')
     default_engine_path = os.path.join(
         os.path.expanduser('~'), 'ProjectHailMarry', 'models',
@@ -51,6 +52,12 @@ def generate_launch_description():
             default_value='true',
             description='Insert cuas_color_correct_node between camera and inference '
                         'and remap inference image input to /camera/image_corrected.',
+        ),
+        DeclareLaunchArgument(
+            'auto_exposure',
+            default_value='true',
+            description='Run auto_exposure_node: closed-loop V4L2 exposure/gain '
+                        'servo from /camera/image_raw brightness.',
         ),
         DeclareLaunchArgument(
             'extrinsics_file',
@@ -107,6 +114,13 @@ def generate_launch_description():
             executable='camera_node',
             name='camera_node',
             parameters=[{'use_sim_time': False}],
+        ),
+        Node(
+            package='cuas_fusion',
+            executable='auto_exposure_node',
+            name='auto_exposure_node',
+            parameters=[{'use_sim_time': False}],
+            condition=IfCondition(auto_exposure),
         ),
         Node(
             package='cuas_fusion',
