@@ -4,9 +4,7 @@
 
 #include "cuas_fusion/common/fixed_types.hpp"
 
-#include <array>
 #include <cstddef>
-#include <string_view>
 
 namespace cuas {
 
@@ -102,15 +100,6 @@ static constexpr float32_t kMaxUncertaintyRadiusM      = 5.0F;
 static constexpr float64_t kPredictionStaleSec         = 0.5;
 
 static constexpr uint32_t  FUSION_MAX_DETECTIONS       = 128U;
-static constexpr uint32_t  FUSION_MAX_CLASSES          = 80U;
-
-static constexpr std::array<std::string_view, 3> THREAT_DRONE_CLASSES = {
-    "14", "4", "33"   // bird, airplane, kite (COCO numeric IDs)
-};
-
-static constexpr std::array<std::string_view, 5> THREAT_BENIGN_CLASSES = {
-    "0", "2", "7", "3", "1"  // person, car, truck, motorcycle, bicycle (COCO numeric IDs)
-};
 
 static constexpr float32_t kOverlayLabelFontScale   = 1.2F;
 static constexpr float32_t kOverlayTrackIdFontScale = 0.9F;
