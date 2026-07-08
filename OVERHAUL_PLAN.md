@@ -6,14 +6,31 @@ indoor-demo-scale pipeline into a real counter-UAS sensor-fusion system
 that detects and tracks fast drones. Phases are ordered by dependency —
 do not reorder 0→1→2→3; 4 and 5 can interleave after 3.
 
+## Target set (what "detect" means here)
+
+The system tracks **people and drones simultaneously** — it is not a
+drone-only sensor. The two classes stress different parts of the design:
+
+- **People** (≤ ~3 m/s, large RCS, large in image): stress *multi-target
+  association* — several people at once, crossing paths, partial occlusion,
+  correct benign classification so they don't trip threat output.
+- **Drones** (fast, small RCS, small in image): stress *speed* — Doppler
+  ambiguity, temporal alignment, gate sizes, small-object detection.
+
+A change that helps drones must not regress the multi-person case, and
+vice versa; the bag corpus and metrics score BOTH on every run.
+
 ## Definition of done (measurable, not vibes)
 
 - Detect and maintain a confirmed, correctly-labeled track on a drone
   crossing the field of view at ≥ 10 m/s radial or tangential, out to the
   radar's redesigned range, with < 1 s track initiation and no track loss
   through a 1 s single-sensor dropout.
-- Projected radar track lands inside the drone's image bounding box
-  (not a 25%-padded guess) across the full FOV.
+- Simultaneously track ≥ 3 people with zero ID switches through one
+  path-crossing event, each labeled person/benign — while the drone track
+  above stays intact.
+- Projected radar track lands inside the target's image bounding box
+  (not a 25%-padded guess) across the full FOV, for both classes.
 - End-to-end latency (photon/chirp → /threat/reports) measured and bounded,
   with a published budget per stage.
 - Every claim above demonstrated by a repeatable rosbag replay test in CI.
@@ -47,9 +64,11 @@ You cannot 10x what you cannot measure. Everything later is judged here.
 1. **Hardware bring-up check**: run `full.launch.py`, verify the three
    NEEDS-HARDWARE camera commits per ROLLBACK.md, verify radar frames at
    20 Hz, `ros2 topic hz` on every stage.
-2. **Rosbag corpus**: record synchronized runs — static scene, walking
-   person (benign), small drone slow, drone fast passes, drone + person
-   together, sensor-dropout runs (cover the radar; cap the lens). These
+2. **Rosbag corpus**: record synchronized runs — static scene, one walking
+   person (benign), **multiple people crossing paths**, small drone slow,
+   drone fast passes, **drone + people together** (the money scenario: the
+   fast small target must stay tracked while the big slow ones dominate
+   returns), sensor-dropout runs (cover the radar; cap the lens). These
    bags are the project's most valuable asset from this point on.
 3. **Projection-overlay truth tool**: extend the visualizer (or a small new
    node) to draw *raw projected radar clusters* (not tracks) on the image.
@@ -120,9 +139,13 @@ Hungarian solver (stride-flexible Ref), FixedVector/Map.
    class per track) instead of last-write-wins.
 6. **Confirm policy**: one M-of-N policy, one place (kills the 5-vs-3
    discrepancy flagged in HANDOFF §6.4).
-7. Acceptance: crossing-targets bag with zero ID switches; dropout bag with
-   no track loss; unit tests in the existing style (assert the old failure
-   mode is impossible).
+7. Acceptance: multi-person crossing bag with zero ID switches; the
+   drone-plus-people bag holds all tracks with correct labels (person =
+   benign, drone = threat-eligible); dropout bag with no track loss; unit
+   tests in the existing style (assert the old failure mode is impossible).
+   Note the same-class problem is already regression-tested at the unit
+   level (test_fusion_engine two-same-class-targets) — these bags are the
+   system-level version of that test.
 
 ## Phase 4 — Fast-target capability
 
@@ -134,8 +157,12 @@ Hungarian solver (stride-flexible Ref), FixedVector/Map.
    of hardcoding. **Recompute the ambiguity numbers from first principles;
    the ±5 m/s figure above is an estimate to be verified.** Keep the old
    profile as `radar_profile_indoor.cfg`.
-2. **Detector that knows what a drone is**: fine-tune YOLOv8 (s or n) on
-   drone datasets (Anti-UAV, Det-Fly, VisDrone-UAV, plus own bags), export
+2. **Detector that knows what a drone is** — while keeping person
+   performance: the stock COCO model is already strong on people, which is
+   why the pipeline works on them today. Fine-tune YOLOv8 (s or n) on
+   drone datasets (Anti-UAV, Det-Fly, VisDrone-UAV, plus own bags) *mixed
+   with person data* so person recall doesn't regress (evaluate both
+   classes before/after; the metrics harness scores this), export
    → ONNX → TRT engine (pipeline exists; A2.8 shape validation will catch a
    class-count change — update `INFERENCE_NUM_CLASSES` and the 1×84×8400
    expectation together). For small/distant targets evaluate: higher input
