@@ -414,7 +414,7 @@ The CoT event UID format is `CUAS-TRACK-<track_id>`; `type` is `a-u-G` (atom, un
 | Field      | Type                | Units | Description                  |
 |------------|---------------------|-------|------------------------------|
 | header     | std_msgs/Header     | —     | Frame stamp and `frame_id`   |
-| detections | RadarDetection[]    | —     | Variable-length return array |
+| detections | RadarDetection[<=256] | —   | Bounded return array (DEV-011) |
 
 ### cuas_msgs/msg/FusedDetection
 
@@ -437,6 +437,7 @@ The CoT event UID format is `CUAS-TRACK-<track_id>`; `type` is `a-u-G` (atom, un
 | azimuth_deg     | float32 | deg     | Azimuth angle from boresight                   |
 | bbox_width_px   | float32 | px      | YOLO bounding-box width                        |
 | bbox_height_px  | float32 | px      | YOLO bounding-box height                       |
+| source_mask     | uint8   | bits    | Bit 0 = radar, bit 1 = camera contributed      |
 
 ### cuas_msgs/msg/FusedDetectionArray
 
@@ -447,7 +448,7 @@ The CoT event UID format is `CUAS-TRACK-<track_id>`; `type` is `a-u-G` (atom, un
 | Field      | Type              | Units | Description                  |
 |------------|-------------------|-------|------------------------------|
 | header     | std_msgs/Header   | —     | Frame stamp and `frame_id`   |
-| detections | FusedDetection[]  | —     | Variable-length detections   |
+| detections | FusedDetection[<=128] | — | Bounded detections (DEV-011) |
 
 ### cuas_msgs/msg/Track
 
@@ -473,6 +474,12 @@ The CoT event UID format is `CUAS-TRACK-<track_id>`; `type` is `a-u-G` (atom, un
 | track_state_id         | uint8   | —     | Enum equivalent of `track_state`                                    |
 | vx_mps                 | float32 | m/s   | Velocity X component in `base_link`                                 |
 | vy_mps                 | float32 | m/s   | Velocity Y component in `base_link`                                 |
+| vz_mps                 | float32 | m/s   | Velocity Z component in `base_link`                                 |
+| ax_mps2                | float32 | m/s²  | Acceleration X estimate (0 until a CA-capable tracker populates it) |
+| ay_mps2                | float32 | m/s²  | Acceleration Y estimate                                             |
+| az_mps2                | float32 | m/s²  | Acceleration Z estimate                                             |
+| covariance             | float64[21] | — | Row-major upper triangle of the 6×6 `[pos,vel]` covariance; all-zero = not populated |
+| source_mask            | uint8   | bits  | Bit 0 = radar, bit 1 = camera contributed (`cuas::track_source`)    |
 
 ### cuas_msgs/msg/TrackArray
 
@@ -483,7 +490,7 @@ The CoT event UID format is `CUAS-TRACK-<track_id>`; `type` is `a-u-G` (atom, un
 | Field  | Type            | Units | Description                |
 |--------|-----------------|-------|----------------------------|
 | header | std_msgs/Header | —     | Frame stamp and `frame_id` |
-| tracks | Track[]         | —     | Variable-length track set  |
+| tracks | Track[<=32]     | —     | Bounded track set (DEV-011)|
 
 ### cuas_msgs/msg/ThreatReport
 
@@ -508,7 +515,7 @@ The CoT event UID format is `CUAS-TRACK-<track_id>`; `type` is `a-u-G` (atom, un
 | escalation_state            | string                     | —     | UNKNOWN/BENIGN/SUSPECT/THREAT/THREATENING/ENGAGED |
 | predicted_impact_x_m        | float32                    | m     | Forward impact projection X                       |
 | predicted_impact_y_m        | float32                    | m     | Forward impact projection Y                       |
-| exclusion_zones_violated    | geometry_msgs/Point[]      | —     | Zone-centre points violated by this track         |
+| exclusion_zones_violated    | geometry_msgs/Point[<=16]  | —     | Zone-centre points violated by this track         |
 | prediction_horizon_s        | float32                    | s     | Adaptive horizon (echoed back to the tracker)     |
 | threat_level_id             | uint8                      | —     | Enum equivalent of `threat_level`                 |
 
@@ -521,7 +528,7 @@ The CoT event UID format is `CUAS-TRACK-<track_id>`; `type` is `a-u-G` (atom, un
 | Field   | Type            | Units | Description                |
 |---------|-----------------|-------|----------------------------|
 | header  | std_msgs/Header | —     | Frame stamp and `frame_id` |
-| reports | ThreatReport[]  | —     | Variable-length reports    |
+| reports | ThreatReport[<=32] | —  | Bounded reports (DEV-011)  |
 
 ### cuas_msgs/msg/IntentReport
 
@@ -546,7 +553,7 @@ The CoT event UID format is `CUAS-TRACK-<track_id>`; `type` is `a-u-G` (atom, un
 
 | Field   | Type                    | Units | Description           |
 |---------|-------------------------|-------|-----------------------|
-| reports | IntentReport[]          | —     | Variable-length array |
+| reports | IntentReport[<=32]      | —     | Bounded array (DEV-011) |
 | stamp   | builtin_interfaces/Time | —     | Publish timestamp     |
 
 ### cuas_msgs/msg/PredictedTrack
@@ -585,13 +592,13 @@ The CoT event UID format is `CUAS-TRACK-<track_id>`; `type` is `a-u-G` (atom, un
 |----------------------|-----------------|-------|--------------------------------------|
 | header               | std_msgs/Header | —     | Frame stamp and `frame_id`           |
 | track_id             | uint32          | —     | Track reference                      |
-| waypoints_x_m        | float64[]       | m     | Per-step X positions                 |
-| waypoints_y_m        | float64[]       | m     | Per-step Y positions                 |
-| waypoints_z_m        | float64[]       | m     | Per-step Z positions                 |
-| timestamps_sec       | float64[]       | s     | Per-step time-from-now               |
-| uncertainty_radii_m  | float64[]       | m     | Per-step 1σ uncertainty radius       |
-| bearing_deg          | float64[]       | deg   | Per-step bearing                     |
-| elevation_deg        | float64[]       | deg   | Per-step elevation                   |
+| waypoints_x_m        | float64[<=64]   | m     | Per-step X positions                 |
+| waypoints_y_m        | float64[<=64]   | m     | Per-step Y positions                 |
+| waypoints_z_m        | float64[<=64]   | m     | Per-step Z positions                 |
+| timestamps_sec       | float64[<=64]   | s     | Per-step time-from-now               |
+| uncertainty_radii_m  | float64[<=64]   | m     | Per-step 1σ uncertainty radius       |
+| bearing_deg          | float64[<=64]   | deg   | Per-step bearing                     |
+| elevation_deg        | float64[<=64]   | deg   | Per-step elevation                   |
 
 ### cuas_msgs/msg/GeofenceEvent
 
@@ -615,7 +622,7 @@ The CoT event UID format is `CUAS-TRACK-<track_id>`; `type` is `a-u-G` (atom, un
 
 | Field   | Type                    | Units | Description           |
 |---------|-------------------------|-------|-----------------------|
-| events  | GeofenceEvent[]         | —     | Variable-length array |
+| events  | GeofenceEvent[<=64]     | —     | Bounded array (DEV-011) |
 | stamp   | builtin_interfaces/Time | —     | Publish timestamp     |
 
 ### cuas_msgs/msg/InterceptReport
@@ -643,7 +650,7 @@ The CoT event UID format is `CUAS-TRACK-<track_id>`; `type` is `a-u-G` (atom, un
 
 | Field   | Type                    | Units | Description           |
 |---------|-------------------------|-------|-----------------------|
-| reports | InterceptReport[]       | —     | Variable-length array |
+| reports | InterceptReport[<=32]   | —     | Bounded array (DEV-011) |
 | stamp   | builtin_interfaces/Time | —     | Publish timestamp     |
 
 ### cuas_msgs/msg/SystemHealth
@@ -674,7 +681,7 @@ The CoT event UID format is `CUAS-TRACK-<track_id>`; `type` is `a-u-G` (atom, un
 
 | Field   | Type                    | Units | Description           |
 |---------|-------------------------|-------|-----------------------|
-| reports | SystemHealth[]          | —     | Variable-length array |
+| reports | SystemHealth[<=32]      | —     | Bounded array (DEV-011) |
 | stamp   | builtin_interfaces/Time | —     | Publish timestamp     |
 
 ### cuas_msgs/msg/ClutterStatus
@@ -763,7 +770,13 @@ The static frame tree is rooted at `base_link`. The launch file publishes a stat
 
 The following interface-affecting changes are recorded in `CHANGELOG.md`. Only entries that introduced, removed, or modified a topic name, message field, or external interface are reproduced here.
 
-### 0.8.0-alpha — current
+### 0.9.0-alpha — current
+
+- Added fields to `cuas_msgs/Track` (all additive; bags recorded before this version replay with zeros): `vz_mps` (float32), `ax_mps2`/`ay_mps2`/`az_mps2` (float32), `covariance` (float64[21], row-major upper triangle of the 6×6 `[pos,vel]` covariance, all-zero = not populated), and `source_mask` (uint8 sensor-contribution bits, constants in `cuas::track_source`). `imm_tracker_node` publishes its mixed IMM covariance; the legacy `track_manager_node` leaves `covariance` unpopulated.
+- Added field `source_mask` (uint8) to `cuas_msgs/FusedDetection`: bit 0 = radar, bit 1 = camera contributed to the detection.
+- Bounded every sequence in `cuas_msgs` (closes the sequence half of DEV-011): `TrackArray.tracks` ≤ 32, `FusedDetectionArray.detections` ≤ 128, `RadarFrame.detections` ≤ 256, `ThreatReportArray.reports` / `IntentReportArray.reports` / `InterceptReportArray.reports` ≤ 32, `GeofenceEventArray.events` ≤ 64, `SystemHealthArray.reports` ≤ 32, all seven `TrajectoryWaypoints` step arrays ≤ 64, `ThreatReport.exclusion_zones_violated` ≤ 16. The CDR wire form of a bounded sequence is identical to the unbounded one (length-prefixed), so existing bags replay unchanged; producers already enforce every bound structurally via fixed-capacity pools.
+
+### 0.8.0-alpha
 
 - Added topic `/intent/reports` carrying `cuas_msgs/IntentReportArray` (intent classifier node).
 - Added topic `/clutter/status` carrying `cuas_msgs/ClutterStatus`, replacing the prior string-typed clutter publisher (see 0.5.0 entry below).

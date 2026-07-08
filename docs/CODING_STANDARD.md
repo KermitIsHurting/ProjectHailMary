@@ -160,13 +160,13 @@ deviation requires re-approval; a shrunken one only a changelog entry.
 - **Risk & precautions**: this record is void if a MultiThreadedExecutor is ever adopted; mutexes then become mandatory. Adding them preemptively is the recommended eventual state.
 - **Locations**: geofence, reachability, kinematic/occlusion predictor, imm_tracker, intent classifier nodes.
 
-### DEV-011: unbounded sequences/strings in cuas_msgs
+### DEV-011: unbounded strings in cuas_msgs (sequences bounded in 0.9.0-alpha)
 
 - **Guidelines**: DO-178C D1, JPL P2 at the interface.
 - **Reason**: R1 (deferred interface change).
-- **Circumstances**: the .msg files use unbounded sequences/strings although bounds exist as constants (32/64/128). Bounding the IDL is an interface-breaking change (regeneration, downstream consumers, rosbag compatibility) — deferred deliberately; the `*_id` integer fields already present are the migration path.
-- **Risk & precautions**: middleware-side allocation per publish (subsumed by DEV-006); producers enforce the bounds before publishing.
-- **Locations**: `msgs/cuas_msgs/msg/*.msg`.
+- **Circumstances**: originally every .msg sequence and string was unbounded. OVERHAUL P3.1 (2026-07-07, 0.9.0-alpha) bounded all sequences to their producer-side capacity constants (32/64/128/256); the CDR wire form is unchanged, so old bags replay. The deviation now covers only the **string** fields (`class_label`, `track_state`, `threat_level`, `escalation_state`, `zone_id`), which remain unbounded: they cross the wire only via the `common/types.hpp` chokepoint helpers, and the `*_id` integer fields already present are the migration path that retires them.
+- **Risk & precautions**: middleware-side string allocation per publish (subsumed by DEV-006); sequence bounds are enforced by construction (fixed-capacity producer pools).
+- **Locations**: string fields in `msgs/cuas_msgs/msg/*.msg`.
 
 ### DEV-012: display/test-utility path allocations
 

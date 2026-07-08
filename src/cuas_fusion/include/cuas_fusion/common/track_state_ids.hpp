@@ -22,6 +22,14 @@ namespace track_state {
     static constexpr uint8_t kDeleted    = 7U;
 }  // namespace track_state
 
+// Track.msg source_mask bits: which sensors contributed to the current
+// track state (P3.1). A bearing-only candidate that has never seen radar
+// is kCamera alone; the legacy radar cascade is kRadar alone.
+namespace track_source {
+    static constexpr uint8_t kRadar  = 1U;
+    static constexpr uint8_t kCamera = 2U;
+}  // namespace track_source
+
 namespace threat_level {
     static constexpr uint8_t kUnknown     = 0U;
     static constexpr uint8_t kBenign      = 1U;

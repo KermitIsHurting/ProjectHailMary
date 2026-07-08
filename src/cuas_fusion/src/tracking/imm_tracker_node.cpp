@@ -1,6 +1,7 @@
 // @file imm_tracker_node.cpp
 // @brief ROS 2 node wrapping IMMTracker for radar point-cloud input.
 #include "cuas_fusion/tracking/imm_tracker.hpp"
+#include "cuas_fusion/common/eigen_types.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 #include "cuas_fusion/common/constants.hpp"
@@ -190,6 +191,11 @@ private:
             t.track_state  = trackStateToString(tracker.getState());
             t.track_state_id = track_state_to_id(t.track_state);
             t.timestamp_ns = static_cast<int64_t>(tracker.lastUpdateTime() * 1.0e9);
+            t.vz_mps = static_cast<float32_t>(vel(2));
+            // P3.1: real covariance on the wire (mixed IMM 6x6 triangle);
+            // acceleration stays 0 — the legacy cascade has no CA output.
+            packUpperTriangle6(tracker.getCovariance(), t.covariance);
+            t.source_mask = track_source::kRadar;
             t.is_maneuvering     = tracker.isManeuvering();
             t.imm_ct_probability = tracker.getCtProbability();
             // WHY: tracker owns Track enrichment and is the single join point

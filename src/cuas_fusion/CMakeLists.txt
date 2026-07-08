@@ -532,6 +532,11 @@ if(BUILD_TESTING)
   )
   target_include_directories(test_fixed_containers PRIVATE include)
 
+  ament_add_gtest(test_eigen_types
+    ../../test/unit/test_eigen_types.cpp
+  )
+  target_include_directories(test_eigen_types PRIVATE include)
+
   ament_add_gtest(test_threat_classifier
     ../../test/unit/test_threat_classifier.cpp
     src/classification/threat_classifier.cpp
@@ -591,7 +596,8 @@ if(BUILD_TESTING)
   # The zero-warning policy gates tests too — they are shipped evidence.
   foreach(cuas_test_target
       test_timestamp_associator test_kalman_cv test_imm_filter
-      test_hungarian_solver test_fixed_containers test_threat_classifier
+      test_hungarian_solver test_fixed_containers test_eigen_types
+      test_threat_classifier
       test_track_manager test_fusion_engine test_detection_set_buffer
       test_geofence_engine
       test_reachability_engine test_health_monitor test_intent_classifier

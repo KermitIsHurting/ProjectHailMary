@@ -3,6 +3,7 @@
 #include "cuas_fusion/common/constants.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
+#include "cuas_fusion/common/track_state_ids.hpp"
 #include "cuas_fusion/common/types.hpp"
 #include "cuas_fusion/tracking/track_manager.hpp"
 
@@ -77,6 +78,11 @@ private:
             tm.confidence    = t.confidence_;
             tm.track_state   = trackStateToString(t.state_);
             tm.timestamp_ns  = t.timestamp_ns_;
+            // Positions come from radar; the label (when present) rode in
+            // via the fusion camera join (P3.1).
+            tm.source_mask = (t.class_id_ >= 0)
+                ? static_cast<uint8_t>(track_source::kRadar | track_source::kCamera)
+                : track_source::kRadar;
             out.tracks.push_back(tm);
         }
 

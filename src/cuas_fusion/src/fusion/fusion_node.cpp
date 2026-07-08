@@ -3,6 +3,7 @@
 #include "cuas_fusion/common/constants.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
+#include "cuas_fusion/common/track_state_ids.hpp"
 #include "cuas_fusion/common/types.hpp"
 #include "cuas_fusion/fusion/detection_set_buffer.hpp"
 #include "cuas_fusion/fusion/fusion_engine.hpp"
@@ -199,6 +200,11 @@ private:
             det.azimuth_deg  = fd.azimuth_deg;
             det.bbox_width_px  = fd.bbox_width_px;
             det.bbox_height_px = fd.bbox_height_px;
+            // P3.1: engine output is radar-anchored; the camera bit is set
+            // iff a YOLO label joined this detection.
+            det.source_mask = (fd.class_id >= 0)
+                ? static_cast<uint8_t>(track_source::kRadar | track_source::kCamera)
+                : track_source::kRadar;
             out.detections.push_back(det);
         }
 

@@ -13,7 +13,8 @@ float32 dwell_time_s
 string  escalation_state
 float32 predicted_impact_x_m
 float32 predicted_impact_y_m
-geometry_msgs/Point[] exclusion_zones_violated
+# Bound = GEOFENCE_MAX_ZONES in geofence_engine.hpp (P3.1 / DEV-011).
+geometry_msgs/Point[<=16] exclusion_zones_violated
 float32 prediction_horizon_s
 uint8 threat_level_id
 

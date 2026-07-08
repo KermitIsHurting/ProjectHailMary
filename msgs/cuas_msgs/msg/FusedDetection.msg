@@ -11,3 +11,8 @@ float32 range_m
 float32 azimuth_deg
 float32 bbox_width_px
 float32 bbox_height_px
+
+# --- OVERHAUL P3.1 additive field (old bags replay with zero here) ---
+# Bit 0 = radar, bit 1 = camera contributed to this detection
+# (track_source constants in common/track_state_ids.hpp).
+uint8 source_mask

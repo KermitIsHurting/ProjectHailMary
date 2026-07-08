@@ -1,2 +1,3 @@
-IntentReport[] reports
+# Bound = TRACK_MAX_TRACKS: at most one report per track (P3.1 / DEV-011).
+IntentReport[<=32] reports
 builtin_interfaces/Time stamp

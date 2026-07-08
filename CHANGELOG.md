@@ -1,6 +1,11 @@
 # ProjectHailMary Changelog
 
-## [0.8.0-alpha] — current
+## [0.9.0-alpha] — current
+- OVERHAUL P3.1 interface growth: `Track` gains vz / acceleration / 6×6-covariance-triangle / source_mask; `FusedDetection` gains source_mask (all additive — earlier bags replay with zeros)
+- Every cuas_msgs sequence bounded to its producer capacity (DEV-011 narrowed to strings only)
+- Shared covariance wire packer `cuas::packUpperTriangle6` with layout-anchor unit tests
+
+## [0.8.0-alpha]
 - Intent classifier node: APPROACHING/LOITERING/ORBITING/DEPARTING/TRANSITING behavioral classification
 - Unit tests wired into colcon for all pure math classes
 - Config management: VERSION, setup_env.sh, CHANGELOG.md
