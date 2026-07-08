@@ -14,7 +14,7 @@
 #   from the old radar-frame form (-0.0075, 0.017, -0.079) via the nominal
 #   rotation.
 #
-# Replace both with the output of tools/calibrate_extrinsics.py after a
+# Replace both with the output of scripts/calibrate_extrinsics.py after a
 # corner-reflector calibration run, and record the solver residual here:
 #   calibration: <date> <n_pairs> pairs, RMS <x.x> px  (residual is the
 #   floor for any pixel-space association gate).

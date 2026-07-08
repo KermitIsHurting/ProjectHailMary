@@ -88,7 +88,7 @@ struct BoundingBox {
 // (x right, y down, z forward). The default quaternion is +90° about
 // radar x — exactly the radar→camera axis convention for a perfectly
 // aligned mount, so a default-constructed transform reproduces the
-// legacy hardcoded projection. Calibration (tools/calibrate_extrinsics.py)
+// legacy hardcoded projection. Calibration (scripts/calibrate_extrinsics.py)
 // folds real mount misalignment into q. Translation is the radar origin
 // expressed in CAMERA axes (not the old radar-frame offsets).
 struct ExtrinsicTransform {
