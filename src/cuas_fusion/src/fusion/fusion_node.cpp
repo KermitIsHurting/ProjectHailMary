@@ -4,6 +4,7 @@
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 #include "cuas_fusion/common/types.hpp"
+#include "cuas_fusion/fusion/detection_set_buffer.hpp"
 #include "cuas_fusion/fusion/fusion_engine.hpp"
 
 #include <rclcpp/rclcpp.hpp>
@@ -18,7 +19,6 @@
 #include <array>
 #include <charconv>
 #include <cmath>
-#include <ctime>
 #include <mutex>
 #include <string>
 #include <system_error>
@@ -29,18 +29,10 @@ namespace cuas {
 
 namespace {
 
-// YOLO boxes older than this are not fused against live radar tracks (A1.7)
-constexpr int64_t kYoloMaxAgeNs = 500'000'000LL;
-
-// Local monotonic clock for the staleness gate: the camera pipeline stamps
-// CLOCK_MONOTONIC while the tracker stamps ROS system time, so message
-// stamps cannot be compared across the two streams.
-inline int64_t monotonicNowNs()
+inline int64_t stampToNs(const builtin_interfaces::msg::Time& t)
 {
-    struct timespec ts{};
-    (void)clock_gettime(CLOCK_MONOTONIC, &ts);
-    return static_cast<int64_t>(ts.tv_sec) * 1'000'000'000LL
-         + static_cast<int64_t>(ts.tv_nsec);
+    return (static_cast<int64_t>(t.sec) * 1'000'000'000LL) +
+           static_cast<int64_t>(t.nanosec);
 }
 
 } // namespace
@@ -132,34 +124,46 @@ public:
 private:
     void trackCallback(const cuas_msgs::msg::TrackArray::ConstSharedPtr& msg)
     {
-        FixedVector<RadarDetection, TRACK_MAX_TRACKS> radar_pts;
+        // Per-measurement temporal alignment (P2.2): pick the camera
+        // detection set whose stamp is nearest the track stamp (both
+        // CLOCK_MONOTONIC per ICD §2), then extrapolate each track to
+        // that instant with its own velocity before projecting. This
+        // replaces the latest-box-within-500-ms-of-arrival heuristic,
+        // whose association error grew linearly with target speed.
+        const int64_t t_track_ns = stampToNs(msg->header.stamp);
 
-        for (std::size_t i = 0U; i < msg->tracks.size(); ++i) {
-            const auto& track = msg->tracks[i];
-            RadarDetection rd;
-            rd.x = track.position_x_m;
-            rd.y = track.position_y_m;
-            rd.z = track.position_z_m;
-            rd.velocity = track.velocity_mps;
-            rd.timestamp_ns = track.timestamp_ns;
-            if (!radar_pts.push_back(rd)) {
-                break;
+        DetectionSetBuffer::BoxSet yolo_boxes;
+        int64_t t_cam_ns = 0;
+        {
+            std::lock_guard<std::mutex> lock(yolo_mutex_);
+            if (!yolo_buffer_.selectNearest(t_track_ns, MAX_TIMESTAMP_DELTA_NS,
+                                            yolo_boxes, t_cam_ns)) {
+                RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+                    "no camera detections within %d ms of track stamp — "
+                    "skipping label fusion",
+                    static_cast<int32_t>(MAX_TIMESTAMP_DELTA_NS / 1'000'000LL));
+                return;
             }
         }
 
-        FixedVector<BoundingBox, 128U> yolo_boxes;
-        {
-            std::lock_guard<std::mutex> lock(yolo_mutex_);
-            if (latest_yolo_boxes_.empty()) {
-                return;
+        const float32_t dt_s =
+            static_cast<float32_t>(t_cam_ns - t_track_ns) * 1.0e-9F;
+
+        FixedVector<RadarDetection, TRACK_MAX_TRACKS> radar_pts;
+        for (std::size_t i = 0U; i < msg->tracks.size(); ++i) {
+            const auto& track = msg->tracks[i];
+            RadarDetection rd;
+            // Track state extrapolated to the camera instant. Track.msg
+            // carries no vertical rate yet (vz lands with P3.1), so z is
+            // held — acceptable at ≤150 ms for the current target set.
+            rd.x = track.position_x_m + (track.vx_mps * dt_s);
+            rd.y = track.position_y_m + (track.vy_mps * dt_s);
+            rd.z = track.position_z_m;
+            rd.velocity = track.velocity_mps;
+            rd.timestamp_ns = t_cam_ns;
+            if (!radar_pts.push_back(rd)) {
+                break;
             }
-            if (monotonicNowNs() - latest_yolo_rx_ns_ > kYoloMaxAgeNs) {
-                RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
-                    "YOLO detections older than %d ms — skipping label fusion",
-                    static_cast<int32_t>(kYoloMaxAgeNs / 1'000'000LL));
-                return;
-            }
-            yolo_boxes = latest_yolo_boxes_;
         }
 
         FixedVector<FusedDetection, TRACK_MAX_TRACKS> fused;
@@ -173,6 +177,9 @@ private:
 
         cuas_msgs::msg::FusedDetectionArray out;
         out.header = msg->header;
+        // Output state is valid at the camera instant it was aligned to.
+        out.header.stamp.sec     = static_cast<int32_t>(t_cam_ns / 1'000'000'000LL);
+        out.header.stamp.nanosec = static_cast<uint32_t>(t_cam_ns % 1'000'000'000LL);
         out.header.frame_id = "radar_frame";
         out.detections.reserve(fused.size());
 
@@ -200,17 +207,12 @@ private:
 
     void yoloCallback(const vision_msgs::msg::Detection2DArray::ConstSharedPtr& msg)
     {
-        std::lock_guard<std::mutex> lock(yolo_mutex_);
-
-        const int64_t ts_ns = static_cast<int64_t>(msg->header.stamp.sec) * 1'000'000'000LL
-                      + static_cast<int64_t>(msg->header.stamp.nanosec);
-        latest_yolo_rx_ns_ = monotonicNowNs();
+        const int64_t ts_ns = stampToNs(msg->header.stamp);
 
         // An empty detection array is valid information — the frame really
-        // contains no targets — so it clears the cache rather than leaving
-        // the previous boxes to be fused forever (A1.7).
-        latest_yolo_boxes_.clear();
-
+        // contains no targets — so it is buffered as an empty set: a track
+        // aligned to that instant fuses against nothing (A1.7 semantics).
+        DetectionSetBuffer::BoxSet boxes;
         for (std::size_t i = 0U; i < msg->detections.size(); ++i) {
             const auto& det = msg->detections[i];
             BoundingBox bb;
@@ -228,10 +230,13 @@ private:
             }
             bb.timestamp_ns = ts_ns;
 
-            if (!latest_yolo_boxes_.push_back(bb)) {
+            if (!boxes.push_back(bb)) {
                 break;
             }
         }
+
+        std::lock_guard<std::mutex> lock(yolo_mutex_);
+        yolo_buffer_.addSet(boxes, ts_ns);
     }
 
     FusionEngine engine_;
@@ -241,8 +246,7 @@ private:
     rclcpp::Subscription<vision_msgs::msg::Detection2DArray>::SharedPtr yolo_sub_;
 
     std::mutex yolo_mutex_;
-    FixedVector<BoundingBox, 128U> latest_yolo_boxes_;
-    int64_t latest_yolo_rx_ns_ = 0;
+    DetectionSetBuffer yolo_buffer_;
 };
 
 } // namespace cuas
