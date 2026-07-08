@@ -176,3 +176,60 @@ commit, deviations documented, camera-file protocol per ROLLBACK.md.
 The single highest-leverage first week: Phase 0 items 1–3 plus the Phase 1
 calibration. Everything else is guesswork until the overlay tool shows
 radar returns sitting on top of the things that caused them.
+
+---
+
+## Phase 6 — Prime-contractor evidence package (the "this is how we do it" bar)
+
+What Lockheed Martin / Northrop Grumman / Anduril-class review would ask
+for. The engineering *style* on this branch (MISRA + deviation records,
+-Werror, finding register with IDs, config control) is already recognizable
+to them; what's missing is the **evidence artifact set**. In the order a
+review board would ask:
+
+1. **SRS + Requirements Traceability Matrix — the #1 gap.** Write a
+   requirements spec (numbered, testable: "REQ-TRK-012: maintain track
+   through a 1 s single-sensor dropout at ≤ 15 m/s target speed"), then an
+   RTM mapping requirement → design element → code → test → result. The
+   Definition-of-done at the top of this file is the seed requirement set.
+   Every existing gtest gets a REQ tag; new requirements without tests are
+   the to-do list. This retroactively turns the whole audit branch into a
+   DO-178C-shaped story.
+2. **Detection & Tracking Performance Report.** Pd/Pfa curves vs range and
+   target speed against a defined target set; track purity (ID switches,
+   fragmentation, initiation latency); classifier ROC. Produced by the
+   Phase-0 metrics harness run over the bag corpus — the report is the
+   harness's output formalized, with every number reproducible from a bag.
+3. **Truth instrumentation.** Put RTK GNSS (or at minimum logged GPS) on
+   the test drone so every flight yields ground truth to score against.
+   This upgrades the Phase-0 corpus from "looks right" to measured error.
+4. **Real-time evidence.** Measured WCET per node under worst-case load,
+   CPU/memory budgets, executor/scheduling analysis; docs/latency_budget.md
+   filled with worst-case numbers (not typical) and a health-monitor alarm
+   on budget violation. The no-heap work on this branch is the enabler;
+   the measurement campaign is the deliverable.
+5. **FMEA + degraded-modes matrix + fault-injection tests.** For every
+   element (camera, radar, TRT engine, serial link, clock, config file):
+   failure mode → detection → system response → safe state, each row backed
+   by an executable fault-injection test. The health monitor and retry
+   loops are the mechanisms; the analysis and proof are missing.
+6. **ML artifact provenance / model card.** The .engine files are
+   unversioned blobs today. Required: dataset version + hash, training
+   recipe, ONNX hash, TRT build flags, per-class eval, edge/OOD behavior,
+   and the A2.8 shape contract — one MODEL_CARD.md per engine, artifacts
+   pinned. (Anduril-style CI/CD would rebuild and re-qualify the engine
+   from the recipe.)
+7. **Simulation-first V&V.** Grow drivers/sim_radar into a scenario
+   generator (target kinematics, RCS model, clutter, dropout injection) and
+   run Monte-Carlo campaigns — thousands of engagement geometries scored by
+   the metrics harness before any range time. Primes buy range hours with
+   sim results.
+8. **MOSA posture.** Keep the ICD authoritative, keep CoT/TAK as the open
+   integration boundary, bound the IDL (DEV-011), version the interfaces.
+   "Modular Open Systems Approach" is a DoD mandate word worth using
+   accurately in the docs.
+
+Sequencing: item 1 (SRS/RTM) can start immediately and retro-tags existing
+tests; items 2–3 ride on Phase 0; item 4 after Phase 4's latency work;
+items 5–8 interleave. None of it blocks Phases 0–5 — it is the evidence
+layer wrapped around them.
