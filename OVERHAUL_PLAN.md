@@ -206,6 +206,83 @@ radar returns sitting on top of the things that caused them.
 
 ---
 
+## Code work breakdown — keep / modify / rewrite / new
+
+The phases above are the *what*; this is the *which files*. The overhaul is
+large but it is NOT a rewrite-the-world: the audited foundation is the asset.
+
+### KEEP as-is (proven, tested, reusable building blocks)
+
+- `common/fixed_containers.hpp`, `common/eigen_types.hpp`,
+  `common/fixed_types.hpp`, `common/param_utils.hpp` — the no-heap substrate.
+- `tracking/hungarian_solver.*` — association workhorse for the new core
+  (stride-flexible Ref was built for exactly this reuse).
+- `estimation/kalman_cv|ca|ct.*`, `imm_filter.*` — become the *motion models*
+  inside the new central tracker; their tests keep guarding the math.
+- Drivers: `radar_parser_node` (hardened this branch), `camera_driver`/
+  `camera_node` (R12), `clutter_map`, `color_correct`.
+- `health_monitor*`, `geofence_engine`, `reachability_engine`,
+  `cot_publisher_node` (consumes whatever tracker wins).
+- The build system, flags, -Werror gate, test registration pattern.
+
+### MODIFY in place (interface-compatible or additive changes)
+
+- `common/types.hpp`: `ExtrinsicTransform` → full SE(3) (Phase 1).
+- `msgs/cuas_msgs`: **additive** fields on Track/FusedDetection —
+  covariance triangle, acceleration, source-sensor mask; bound sequences
+  (DEV-011). Additive = old bags still replay.
+- `fusion/fusion_engine.*` + `fusion_node`: time-aligned buffered
+  association (Phase 2) — reuse `TimestampAssociator`.
+- `radar_parser_node`: range/velocity gates become profile-derived params
+  (one YAML shared with the config-send script) instead of constants.
+- `inference/trt_detector.*`: class-count/shape constants follow the new
+  engine; radar-cued ROI mode is an added path, not a rewrite.
+- Launch files: new args (`extrinsics_file`, `profile`, `tracker:=central|legacy`).
+
+### REWRITE / NEW (the actual big code)
+
+- **`fusion_tracker_lib` + `central_tracker_node`** (Phase 3, the core):
+  measurement models (radar pos+Doppler, camera bearing-ray + class
+  evidence), per-sensor gating, GNN association over the Hungarian solver,
+  IMM per track using the KEPT kalman filters, M-of-N lifecycle (one
+  policy), Bayesian class fusion, bearing-only initiation. Expect a few
+  thousand lines including its gtest suite — comparable to the existing
+  tracking+fusion code it replaces, written against the same standards
+  (fixed-size, NaN-safe idiom, deviation process).
+- **Calibration tooling** (Phase 1): offline solver script (Python is fine
+  — it's ground equipment, not flight code) + `extrinsics.yaml` loader.
+- **Metrics/eval harness** (Phase 0): bag-replay scorer (Python) emitting
+  the per-bag report; later the CI gate and the Phase-6 performance report
+  generator.
+- **Scenario generator** (Phase 5/6): grow `drivers/sim_radar` into
+  multi-target kinematics + RCS + clutter + dropout injection.
+- **Detector training pipeline** (Phase 4): lives OUTSIDE this repo tree
+  (own repo or `training/` with its own environment); this repo receives
+  only the versioned .onnx/.engine + MODEL_CARD.md.
+
+### Migration strategy — strangler pattern, never break the working system
+
+1. Build `central_tracker_node` alongside the existing cascade; both run
+   from the same bags. A `tracker:=central|legacy` launch argument selects
+   which one feeds `/tracks/confirmed` downstream.
+2. The metrics harness scores both on every corpus bag. The new core earns
+   the default **only when it beats the cascade on every metric** — until
+   then the legacy path stays the default and CI keeps it green.
+3. Downstream consumers (threat, geofence, prediction, CoT) are untouched
+   during the swap because the Track interface only grew additively.
+4. Delete the legacy cascade (imm_tracker_node's tracker role +
+   track_manager_node + fusion label-join) only after the default has
+   flipped and soaked; the deletion is one commit, reversible by revert.
+5. Branch discipline unchanged throughout: 0 warnings under -Werror, all
+   tests green at every commit, one concern per commit, deviations for
+   anything that needs one.
+
+This is how the "huge overhaul" stays shippable at every single commit —
+which is itself part of the prime-grade story: the evidence (Phase 6) is
+generated *by* the migration, not written after it.
+
+---
+
 ## Phase 6 — Prime-contractor evidence package (the "this is how we do it" bar)
 
 What Lockheed Martin / Northrop Grumman / Anduril-class review would ask
