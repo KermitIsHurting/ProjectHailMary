@@ -176,7 +176,7 @@ Hungarian solver (stride-flexible Ref), FixedVector/Map.
    WCET headroom.
 4. **Camera exposure for motion**: AR0234 is global-shutter (good); verify
    exposure time short enough at 30 fps that a 15 m/s crossing target
-   doesn't smear (register work = camera-file protocol per the repo rules file).
+   doesn't smear (register work = camera-file protocol per ROLLBACK.md).
 5. Acceptance: the Definition-of-done drone passes, on bags and live.
 
 ## Phase 5 — Deployment hardening (interleave after 3)
