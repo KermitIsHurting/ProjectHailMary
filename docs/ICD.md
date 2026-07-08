@@ -13,6 +13,8 @@ The central data type is `cuas_msgs/msg/Track`, carried on the `/tracks` topic. 
 
 No node sets a custom `rclcpp::QoS` profile. Every publisher and subscriber is constructed with a plain integer history depth, so every topic uses the ROS 2 default profile: **Reliable** reliability, **Volatile** durability, **Keep Last** history, with the depth declared at construction. Where a topic's nominal rate is governed by a YAML parameter rather than a hard-coded timer, this document records the launch-file value; where it is governed by upstream callbacks, the rate is the upstream rate.
 
+**Time base (measurement path).** Every stamp on the measurement path — `/radar/detections` and `/radar/filtered` (radar_parser_node / sim_radar_node, forwarded by clutter_map_node), `/camera/image_raw` / `/camera/image_corrected`, `/inference/detections` (copies the camera stamp), and `/tracks` (`header.stamp` and per-track `timestamp_ns`) — is **CLOCK_MONOTONIC** (equivalently `RCL_STEADY_TIME`). Stamps within this set are directly comparable, and `fusion_node` performs per-measurement temporal alignment on them. Stamps outside this set (`/predicted_tracks*`, `/threat/reports`, diagnostic `stamp` fields) remain ROS system time and are used only for arrival-age checks inside a single node; they must never be differenced against a measurement-path stamp. Nodes needing wall-clock time for external output (CoT timestamps) obtain it independently of message stamps.
+
 ## 3. Topic Interface Definitions
 
 ### /radar/detections
@@ -133,7 +135,7 @@ No node sets a custom `rclcpp::QoS` profile. Every publisher and subscriber is c
 | QoS          | ROS 2 default (Reliable, Volatile, Keep Last 10)                                                                                            |
 | Frame ID     | base_link                                                                                                                                   |
 
-**Description:** Authoritative confirmed-track stream; the central data type of the system.
+**Description:** Authoritative confirmed-track stream; the central data type of the system. `header.stamp` is CLOCK_MONOTONIC (the publish tick on the tracker's steady clock) and per-track `timestamp_ns` is the last radar measurement stamp in the same domain — both comparable with camera/radar stamps per the §2 time-base contract.
 
 ### /tracks/confirmed
 

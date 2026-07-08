@@ -86,7 +86,14 @@ private:
 
     void radar_callback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg)
     {
-        const float64_t now = clock_->now().seconds();
+        // Measurement time is the SENSOR stamp (CLOCK_MONOTONIC from the
+        // parser), not arrival time: update() velocity gating and fusion's
+        // camera alignment both need the instant the return was observed,
+        // free of transport jitter (P2.1). Same clock family as clock_
+        // (RCL_STEADY_TIME), so predict/evict math stays in one domain.
+        const float64_t now =
+            static_cast<float64_t>(msg->header.stamp.sec) +
+            (static_cast<float64_t>(msg->header.stamp.nanosec) * 1.0e-9);
 
         sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x");
         sensor_msgs::PointCloud2ConstIterator<float> iter_y(*msg, "y");
@@ -154,7 +161,10 @@ private:
         }
 
         cuas_msgs::msg::TrackArray out;
-        out.header.stamp    = this->now();
+        // Steady (CLOCK_MONOTONIC) stamp: /tracks is on the measurement
+        // path, and fusion aligns it against camera stamps in the same
+        // domain. this->now() (system time) is NOT comparable (P2.1).
+        out.header.stamp    = clock_->now();
         out.header.frame_id = "base_link";
         out.tracks.reserve(active_tracks_.size());
 

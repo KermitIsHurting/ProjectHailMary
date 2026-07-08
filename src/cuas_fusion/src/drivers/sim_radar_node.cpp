@@ -10,10 +10,28 @@
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 
 #include <cmath>
+#include <ctime>
 #include <string>
 #include <cstdio>
 
 namespace cuas {
+
+namespace {
+
+// Same time base as the hardware radar_parser_node (CLOCK_MONOTONIC):
+// the sim must be indistinguishable from the real sensor downstream,
+// and the pipeline measurement path runs on one monotonic clock (P2.1).
+builtin_interfaces::msg::Time monotonic_stamp()
+{
+    struct timespec ts{};
+    (void)clock_gettime(CLOCK_MONOTONIC, &ts);
+    builtin_interfaces::msg::Time t;
+    t.sec     = static_cast<int32_t>(ts.tv_sec);
+    t.nanosec = static_cast<uint32_t>(ts.tv_nsec);
+    return t;
+}
+
+} // namespace
 
 class SimRadarNode : public rclcpp::Node
 {
@@ -155,7 +173,7 @@ private:
     void publish_cloud(const FixedVector<SimRadarPoint, kSimRadarMaxPoints>& pts)
     {
         sensor_msgs::msg::PointCloud2 msg;
-        msg.header.stamp    = this->now();
+        msg.header.stamp    = monotonic_stamp();
         msg.header.frame_id = "radar_frame";
         msg.height          = 1U;
         msg.width           = pts.size();
