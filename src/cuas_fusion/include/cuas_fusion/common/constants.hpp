@@ -57,6 +57,13 @@ static constexpr int32_t   TRACK_MAX_MISSES            = 5;
 // deletion happens at TRACK_MAX_MISSES.
 static constexpr int32_t   TRACK_COAST_MISSES          = 2;
 static constexpr float64_t kRadarDetectionSigmaM       = 0.15;
+// P3.2 measurement models. Doppler sigma is an indoor-profile estimate
+// (P4.1 derives it from the radar profile YAML); pixel sigma is detector
+// box-centre jitter, to be refined against the P0 bag corpus.
+static constexpr float64_t kRadarDopplerSigmaMps       = 0.2;
+static constexpr float64_t kRadarMinRangeM             = 0.5;
+static constexpr float64_t kCameraPixelSigmaPx         = 4.0;
+static constexpr float64_t kCameraMinDepthM            = 0.1;
 
 static constexpr float32_t kConfidenceDecayRate        = 0.05F;
 static constexpr float32_t kConfidenceGainRate         = 0.20F;

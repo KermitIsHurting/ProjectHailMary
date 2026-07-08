@@ -184,6 +184,7 @@ target_compile_options(fusion_node PRIVATE ${CUAS_SAFETY_FLAGS})
 add_library(tracking_lib STATIC
   src/tracking/track_manager.cpp
   src/tracking/hungarian_solver.cpp
+  src/tracking/measurement_models.cpp
   src/common/types.cpp
 )
 target_include_directories(tracking_lib PUBLIC include)
@@ -537,6 +538,12 @@ if(BUILD_TESTING)
   )
   target_include_directories(test_eigen_types PRIVATE include)
 
+  ament_add_gtest(test_measurement_models
+    ../../test/unit/test_measurement_models.cpp
+    src/tracking/measurement_models.cpp
+  )
+  target_include_directories(test_measurement_models PRIVATE include)
+
   ament_add_gtest(test_threat_classifier
     ../../test/unit/test_threat_classifier.cpp
     src/classification/threat_classifier.cpp
@@ -597,7 +604,7 @@ if(BUILD_TESTING)
   foreach(cuas_test_target
       test_timestamp_associator test_kalman_cv test_imm_filter
       test_hungarian_solver test_fixed_containers test_eigen_types
-      test_threat_classifier
+      test_measurement_models test_threat_classifier
       test_track_manager test_fusion_engine test_detection_set_buffer
       test_geofence_engine
       test_reachability_engine test_health_monitor test_intent_classifier
