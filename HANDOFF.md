@@ -134,18 +134,117 @@ obsolete; §7b (register-values invariant) replaces it.
 
 ## 6. Known-open items (beyond RESUME_PLAN's banner)
 
-- Radar R1.5 (NEEDS-HARDWARE): VMIN=0/VTIME or poll() on the serial fd,
-  reopen-with-backoff in `parse_loop` (mirror camera_node's retry), and a
-  dedicated `RADAR_MAX_POINTS_PER_FRAME` (raw points currently borrow
-  `TRACK_MAX_TRACKS` = 32, dropping points 33+ before DBSCAN).
-- `THREAT_DRONE_CLASSES` / `THREAT_BENIGN_CLASSES` in constants.hpp are
-  string_view arrays of numeric-id strings; after A3.8 they may be unused —
-  verify before deleting (was not checked this session).
-- `cuas_visualizer_node.cpp` still has its own file-local `parseClassId`
-  duplicating the shared one in types.hpp — harmless, tidy someday (R11).
-- `FUSION_MAX_CLASSES` may be orphaned after the EMA rework — verify.
-- R11 list (visualizer split, magic numbers, std::bind→lambdas, `final`,
-  CUAS_CHECK macro) and Step 5 (CI first — biggest signal) are untouched.
+### 6.1 Radar hardening, R1 item 5 — NEEDS-HARDWARE, three distinct fixes
+
+All in `src/drivers/radar_parser_node.cpp`. They were deliberately skipped
+because none can be *observed* without the live IWR6843ISK; the software
+changes themselves are straightforward.
+
+**(a) Blocking serial read defeats shutdown.** `open_port()` sets termios
+`VMIN=1/VTIME=0`, so `::read()` in `read_exact()` blocks until at least one
+byte arrives. A radar that goes silent (powered but not streaming, or config
+port never sent the profile) parks the parse thread inside `read()`, where it
+cannot check `running_` — the destructor's `join()` then hangs and Ctrl-C
+doesn't exit. This is the exact same failure class as the camera DQBUF hang
+that R12f fixed (commit `7d9cd7b`); mirror that fix: `poll()` on `fd_` with a
+timeout before each read (preferred — keeps termios untouched), or switch to
+`VMIN=0/VTIME=5`. Verify on hardware: start with the radar silent, and
+unplug it mid-run — Ctrl-C must exit promptly both times.
+
+**(b) Parse-thread errors leave a zombie node.** Every failure path in
+`parse_loop()` is `break` — the thread exits, but the node keeps spinning and
+looks alive to ROS while publishing nothing. Contrast `camera_node.cpp`'s
+`capture_loop()`, which closes, then retries `open()` every
+`CAMERA_RETRY_INTERVAL_MS` forever — that loop is the in-repo pattern to
+mirror (reopen with backoff instead of `break`). While there, consider
+publishing a health signal so the health monitor sees the outage rather than
+inferring it from silence.
+
+**(c) Raw radar points are capped at 32 by the wrong constant.**
+`filterPoints`/`dbscanCluster` use
+`FixedVector<DetectedPoint, TRACK_MAX_TRACKS>` — but `TRACK_MAX_TRACKS` (32)
+is the *post-clustering track* cap, borrowed for *pre-clustering raw points*,
+which is a different concept. The IWR6843 can emit far more than 32 points
+per frame in a dense scene; points 33+ are silently dropped **before**
+filtering and DBSCAN, so exactly the frames with the most information lose
+data. Fix: a dedicated `RADAR_MAX_POINTS_PER_FRAME` (plan says 256) threaded
+through `filterPoints`, `dbscanCluster`, and its `label`/`neighbors` arrays.
+Two cautions: DBSCAN here is O(n²) in distance checks (256 points ≈ 65k
+pairs/frame — measure CPU on target), and the *output* (centroids) can stay
+capped at `TRACK_MAX_TRACKS` since downstream is sized for that. It's
+buildable and testable in software; it's tagged NEEDS-HARDWARE because the
+behavior change should be observed against real dense returns.
+
+### 6.2 Dead constants — now VERIFIED dead (grep-confirmed 2026-07-07)
+
+`THREAT_DRONE_CLASSES`, `THREAT_BENIGN_CLASSES`, and `FUSION_MAX_CLASSES` in
+`constants.hpp` have **zero references outside their own definitions**.
+
+- The two THREAT arrays (string_view lists of COCO numeric-id *strings*,
+  e.g. "14"/"4"/"33") look like an aspirational class-based threat policy
+  that was never wired in: `threat_classifier.cpp` classifies on
+  `class_id == 0` (person) and confidence only, and never consulted these
+  lists even before A3.8. Two honest options: delete them (safe, one
+  dead-code commit in the A6 style), or actually implement the drone/benign
+  class policy they imply inside `ThreatClassifier::classify` — in which
+  case convert them to `int32_t` arrays first (the string forms are
+  incompatible with the post-A3.8 `class_id` world).
+- `FUSION_MAX_CLASSES` (80) sized the old class-keyed EMA `FixedMap` that
+  A1.8 (commit `fd691cc`) replaced with the identity-keyed slot pool sized
+  by `TRACK_MAX_TRACKS`. Nothing uses it. Delete.
+
+### 6.3 Duplicate `parseClassId` in the visualizer
+
+`cuas_visualizer_node.cpp:71` has a file-`static` `parseClassId` that is
+byte-for-byte the same logic as the shared `cuas::parseClassId` added to
+`common/types.hpp` by A3.8 (commit `6f8c6ca`). It compiles cleanly because
+the file-static shadows the namespace-level inline. Harmless, but it's the
+kind of drift that bites when one copy gets a fix. Cleanup: delete the local
+one and rely on the types.hpp include (verify the include is present; the
+call site is line ~315). Left alone this session only because the visualizer
+wasn't otherwise being touched and R11 owns visualizer cleanup wholesale.
+
+### 6.4 R11 "interview polish" list — untouched, in rough value order
+
+- **CUAS_CHECK macro + assertion density (JPL P5).** P5 wants ~2 assertions
+  per function; the codebase relies on early-return guards instead. A
+  `CUAS_CHECK(cond)` log-and-return macro would make preconditions visible
+  and countable. Design decision needed first: what does a failed check do
+  in a node callback vs. a pure math class (log+return vs. return false)?
+- **The two different confirmation thresholds.** `IMMTracker::kConfirmHits`
+  = 5 (imm_tracker.hpp:63) vs `TRACK_CONFIRM_HITS` = 3 (constants.hpp:56,
+  used by TrackManager). Two trackers, two confirm policies, no comment
+  saying whether that's deliberate. Either unify or document why they
+  differ — silently different is the only wrong state.
+- **Magic-number batch**: visualizer layout literals, the threat ENGAGED
+  gate, the sim RCS model, and a local pi instead of a shared `kPi`.
+- **`std::bind` → explicit-capture lambdas** across all node constructors,
+  and `final` on all node classes (enables devirtualization, documents
+  no-inheritance intent).
+- **Visualizer structural work** (`cuas_visualizer_node.cpp`, 956 lines):
+  split the ~562-line `imageCallback` into draw helpers; the mutex is held
+  for the entire render, which blocks every data callback for the frame
+  duration — take a snapshot of the shared state under the lock, render
+  outside it; add ROI-vs-frame-size guards (a frame narrower than ~320 px
+  currently throws `cv::Exception` out of the callback — it's caught by the
+  DEV-001 boundary now, but that kills the node instead of degrading).
+
+### 6.5 Step 5 — suggested improvements, none started (suggest-only)
+
+Ranked by impact/effort in the original plan; the ranking still holds:
+(1) **GitHub Actions CI** — build + `colcon test` + cppcheck + clang-tidy
+gates; biggest external signal, ~half a day; note the runner needs a
+non-Jetson build path or a self-hosted runner because of the CUDA/TRT and
+aarch64 dependencies — stubbing the TRT lib or gating those targets behind
+an option is the pragmatic first step. (2) DEVIATIONS.md at repo root
+(R10's records could be lifted out of docs/CODING_STANDARD.md). (3)
+Requirements traceability matrix REQ-ID → code → gtest anchored on
+docs/ICD.md. (4) gcovr coverage with a stated statement/decision target.
+(5) Fault-injection tests (corrupt TLV frames, NaN measurements — several
+already exist on this branch: the TLV bounds test gap is the notable
+missing one). (6) Sensor-degradation-modes doc (what the system does when
+radar/camera dies; the health monitor + camera/radar retry work is most of
+the substance already).
 
 ## 7. Process rules that were in force (keep them)
 
