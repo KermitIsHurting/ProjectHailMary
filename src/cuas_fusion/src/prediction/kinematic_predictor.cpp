@@ -77,18 +77,17 @@ Vector6d KinematicPredictor::predictCvStep(
     return x;
 }
 
-Eigen::VectorXd KinematicPredictor::build_state_from_position_speed(
-    float64_t x_m, float64_t y_m, float64_t z_m, float64_t speed_mps)
+Eigen::VectorXd KinematicPredictor::build_state_from_position_velocity(
+    float64_t x_m, float64_t y_m, float64_t z_m,
+    float64_t vx_mps, float64_t vy_mps, float64_t vz_mps)
 {
     Eigen::VectorXd state = Eigen::VectorXd::Zero(6);
     state(0) = x_m;
     state(1) = y_m;
     state(2) = z_m;
-    if (speed_mps > 0.0) {
-        const float64_t bearing = std::atan2(y_m, x_m);
-        state(3) = speed_mps * std::cos(bearing);
-        state(4) = speed_mps * std::sin(bearing);
-    }
+    state(3) = vx_mps;
+    state(4) = vy_mps;
+    state(5) = vz_mps;
     return state;
 }
 

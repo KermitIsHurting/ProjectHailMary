@@ -112,9 +112,11 @@ private:
             }
 
             const Eigen::VectorXd state =
-                KinematicPredictor::build_state_from_position_speed(
+                KinematicPredictor::build_state_from_position_velocity(
                     t.position_x_m, t.position_y_m, t.position_z_m,
-                    static_cast<float64_t>(t.velocity_mps));
+                    static_cast<float64_t>(t.vx_mps),
+                    static_cast<float64_t>(t.vy_mps),
+                    static_cast<float64_t>(t.vz_mps));
 
             CovarianceCache* cache = cov_cache_.find(t.track_id);
             if (cache == nullptr) {

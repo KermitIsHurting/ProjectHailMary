@@ -91,9 +91,11 @@ private:
                 if (ghost_tracks_.find(t.track_id) == nullptr) {
                     OcclusionPredictor::GhostTrack ghost;
                     ghost.track_id = t.track_id;
-                    ghost.state    = KinematicPredictor::build_state_from_position_speed(
+                    ghost.state    = KinematicPredictor::build_state_from_position_velocity(
                         t.position_x_m, t.position_y_m, t.position_z_m,
-                        static_cast<float64_t>(t.velocity_mps));
+                        static_cast<float64_t>(t.vx_mps),
+                        static_cast<float64_t>(t.vy_mps),
+                        static_cast<float64_t>(t.vz_mps));
                     ghost.covariance = KinematicPredictor::build_initial_covariance_6d();
                     ghost.occlusion_start_time_sec = now;
                     (void)ghost_tracks_.insert_or_assign(t.track_id, ghost);

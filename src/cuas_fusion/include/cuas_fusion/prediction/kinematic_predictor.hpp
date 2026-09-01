@@ -41,8 +41,13 @@ public:
 
     static Vector6d predictCvStep(const Vector6d& state, float64_t dt);
 
-    static Eigen::VectorXd build_state_from_position_speed(
-        float64_t x_m, float64_t y_m, float64_t z_m, float64_t speed_mps);
+    // Takes the track's velocity vector as-is. The previous builder took a
+    // speed and pointed it along the position bearing, so every forecast
+    // ran radially outward regardless of true heading (same defect as
+    // reachability A1.3).
+    static Eigen::VectorXd build_state_from_position_velocity(
+        float64_t x_m, float64_t y_m, float64_t z_m,
+        float64_t vx_mps, float64_t vy_mps, float64_t vz_mps);
     static Eigen::MatrixXd build_initial_covariance_6d();
     static Eigen::MatrixXd build_transition_matrix_6d(float64_t step_dt);
     static Eigen::MatrixXd build_process_noise_6d(float64_t step_dt,

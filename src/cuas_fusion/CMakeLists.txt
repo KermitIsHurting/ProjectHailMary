@@ -592,6 +592,12 @@ if(BUILD_TESTING)
   )
   target_include_directories(test_detection_set_buffer PRIVATE include)
 
+  ament_add_gtest(test_kinematic_predictor
+    ../../test/unit/test_kinematic_predictor.cpp
+    src/prediction/kinematic_predictor.cpp
+  )
+  target_include_directories(test_kinematic_predictor PRIVATE include)
+
   ament_add_gtest(test_geofence_engine
     test/test_geofence_engine.cpp
     src/geofence_engine.cpp)
@@ -628,7 +634,7 @@ if(BUILD_TESTING)
       test_hungarian_solver test_fixed_containers test_eigen_types
       test_measurement_models test_auto_exposure test_threat_classifier
       test_track_manager test_fusion_engine test_detection_set_buffer
-      test_geofence_engine
+      test_kinematic_predictor test_geofence_engine
       test_reachability_engine test_health_monitor test_intent_classifier
       test_clutter_map test_color_correct_engine)
     target_compile_options(${cuas_test_target} PRIVATE ${CUAS_SAFETY_FLAGS})
