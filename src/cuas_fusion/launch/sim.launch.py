@@ -44,7 +44,7 @@ def generate_launch_description():
             parameters=[{
                 'use_sim_time': False,
                 'scenario': 'approach',
-                'publish_rate_hz': 16.0,
+                'publish_rate_hz': 20.0,
                 'noise_seed': 42,
             }],
         ),

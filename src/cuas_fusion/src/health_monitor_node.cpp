@@ -31,7 +31,7 @@ public:
         float64_t rate = get_parameter("publish_rate_hz").as_double();
         rate = clamp_rate_hz(get_logger(), "publish_rate_hz", rate, 1.0);
 
-        monitor_.set_expected_hz(kTopicRadar,      16.0F);
+        monitor_.set_expected_hz(kTopicRadar,      20.0F);
         monitor_.set_expected_hz(kTopicCamera,     30.0F);
         monitor_.set_expected_hz(kTopicTracker,    20.0F);
         monitor_.set_expected_hz(kTopicClassifier, 20.0F);

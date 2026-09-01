@@ -40,14 +40,14 @@ public:
     : Node("sim_radar_node")
     , sim_radar_(42U)
     , is_circle_(false)
-    , publish_rate_hz_(16.0F)
+    , publish_rate_hz_(20.0F)
     {
-        (void)declare_parameter<float64_t>("publish_rate_hz", 16.0);
+        (void)declare_parameter<float64_t>("publish_rate_hz", 20.0);
         (void)declare_parameter<std::string>("scenario", "approach");
         (void)declare_parameter<int64_t>("noise_seed", 42);
 
         float64_t rate = get_parameter("publish_rate_hz").as_double();
-        rate = clamp_rate_hz(get_logger(), "publish_rate_hz", rate, 16.0);
+        rate = clamp_rate_hz(get_logger(), "publish_rate_hz", rate, 20.0);
         const std::string scenario = get_parameter("scenario").as_string();
         const int64_t seed = get_parameter("noise_seed").as_int();
 
