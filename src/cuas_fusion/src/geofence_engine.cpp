@@ -41,13 +41,22 @@ bool GeofenceEngine::evaluate(
     // re-deriving it; the engine itself is stateless and does not use it.
     (void)track_id;
 
-    for (uint32_t i = 0U; i < GEOFENCE_ZONE_ID_LEN; ++i) {
-        result.zone_id[i] = '\0';
+    FixedVector<GeofenceResult, GEOFENCE_MAX_ZONES> all;
+    const uint32_t n = evaluateAll(x_m, y_m, all);
+    if (n == 0U) {
+        result = GeofenceResult{};
+        return false;
     }
-    result.event_type = static_cast<uint8_t>(GeofenceEventType::INSIDE_THREAT);
-    result.signed_distance_m = 0.0F;
-    result.triggered = false;
+    result = all[0];
+    return true;
+}
 
+uint32_t GeofenceEngine::evaluateAll(
+    float32_t x_m,
+    float32_t y_m,
+    FixedVector<GeofenceResult, GEOFENCE_MAX_ZONES>& results) const
+{
+    results.clear();
     const uint32_t n_zones = zones_.size();
     for (uint32_t zi = 0U; zi < n_zones; ++zi) {
         const ZoneConfig& zone = zones_[zi];
@@ -70,16 +79,38 @@ bool GeofenceEngine::evaluate(
         }
 
         if (inside) {
+            GeofenceResult r;
             for (uint32_t k = 0U; k < GEOFENCE_ZONE_ID_LEN; ++k) {
-                result.zone_id[k] = zone.id[k];
+                r.zone_id[k] = zone.id[k];
             }
-            result.signed_distance_m = signed_dist;
-            result.triggered = true;
-            return true;
+            r.signed_distance_m = signed_dist;
+            r.triggered = true;
+            (void)results.push_back(r);
         }
     }
+    return results.size();
+}
 
-    return false;
+uint16_t GeofenceEngine::membershipMask(float32_t x_m, float32_t y_m) const
+{
+    uint16_t mask = 0U;
+    const uint32_t n_zones = zones_.size();
+    for (uint32_t zi = 0U; zi < n_zones; ++zi) {
+        const ZoneConfig& zone = zones_[zi];
+        float32_t signed_dist = 0.0F;
+        bool inside = false;
+        if (static_cast<ZoneShape>(zone.type) == ZoneShape::CIRCLE) {
+            inside = point_in_circle(zone, x_m, y_m, signed_dist);
+        } else if (static_cast<ZoneShape>(zone.type) == ZoneShape::POLYGON) {
+            inside = point_in_polygon(zone, x_m, y_m, signed_dist);
+        } else {
+            inside = false;
+        }
+        if (inside) {
+            mask = static_cast<uint16_t>(mask | static_cast<uint16_t>(1U << zi));
+        }
+    }
+    return mask;
 }
 
 bool GeofenceEngine::point_in_circle(

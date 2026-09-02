@@ -49,6 +49,30 @@ cuas::ZoneConfig make_left_polygon_zone()
 
 } // namespace
 
+// RC-16: a point inside both the perimeter circle and the no-fly polygon
+// must be reported for BOTH zones; the first-hit API masked the polygon.
+TEST(GeofenceEngineTest, OverlappingZonesAreAllReported)
+{
+    cuas::FixedVector<cuas::ZoneConfig, cuas::GEOFENCE_MAX_ZONES> zones;
+    ASSERT_TRUE(zones.push_back(make_circle_zone("perimeter", 0.0F, 0.0F, 20.0F)));
+    ASSERT_TRUE(zones.push_back(make_left_polygon_zone()));
+    cuas::GeofenceEngine engine;
+    engine.load_zones(zones);
+
+    cuas::FixedVector<cuas::GeofenceResult, cuas::GEOFENCE_MAX_ZONES> hits;
+    EXPECT_EQ(engine.evaluateAll(-2.0F, 3.0F, hits), 2U);
+    ASSERT_EQ(hits.size(), 2U);
+    EXPECT_STREQ(hits[0].zone_id, "perimeter");
+    EXPECT_STREQ(hits[1].zone_id, "no_fly_left");
+    EXPECT_EQ(engine.membershipMask(-2.0F, 3.0F), 0x3U);
+    EXPECT_EQ(engine.membershipMask(5.0F, 3.0F), 0x1U);
+    EXPECT_EQ(engine.membershipMask(50.0F, 3.0F), 0x0U);
+
+    cuas::GeofenceResult first;
+    EXPECT_TRUE(engine.evaluate(-2.0F, 3.0F, 1U, first));
+    EXPECT_STREQ(first.zone_id, "perimeter");
+}
+
 TEST(GeofenceEngineTest, CircleInside)
 {
     cuas::GeofenceEngine engine;

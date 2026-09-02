@@ -9,6 +9,7 @@
 
 #include <gtest/gtest.h>
 #include <Eigen/Dense>
+#include <limits>
 
 namespace {
 
@@ -22,6 +23,26 @@ KinematicPredictor::TrajectoryResult propagate(const Eigen::VectorXd& state,
     const Eigen::MatrixXd F = KinematicPredictor::build_transition_matrix_6d(dt);
     const Eigen::MatrixXd Q = KinematicPredictor::build_process_noise_6d(dt, 0.25);
     return predictor.propagateForward(state, P, F, Q, dt, steps);
+}
+
+// RC-28: the per-track horizon decides the step count; past the 64-step
+// buffer the step coarsens so the last waypoint still lands on the horizon.
+TEST(KinematicPredictor, StepPlanFollowsHorizon)
+{
+    const auto p3 = KinematicPredictor::planSteps(3.0, 0.1, 5.0);
+    EXPECT_EQ(p3.n_steps, 30);
+    EXPECT_NEAR(p3.step_dt, 0.1, 1e-9);
+    EXPECT_NEAR(p3.n_steps * p3.step_dt, 3.0, 1e-9);
+
+    const auto p10 = KinematicPredictor::planSteps(10.0, 0.1, 5.0);
+    EXPECT_EQ(p10.n_steps, static_cast<int32_t>(cuas::kMaxTrajectorySteps));
+    EXPECT_NEAR(p10.n_steps * p10.step_dt, 10.0, 1e-9);
+
+    const auto fallback = KinematicPredictor::planSteps(0.0, 0.1, 5.0);
+    EXPECT_NEAR(fallback.n_steps * fallback.step_dt, 5.0, 1e-9);
+    const auto nan_h = KinematicPredictor::planSteps(
+        std::numeric_limits<double>::quiet_NaN(), 0.1, 5.0);
+    EXPECT_NEAR(nan_h.n_steps * nan_h.step_dt, 5.0, 1e-9);
 }
 
 TEST(KinematicPredictor, StateBuilderCarriesGivenVelocity)

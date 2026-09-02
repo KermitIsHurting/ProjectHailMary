@@ -1,5 +1,6 @@
 // @file fusion_engine.cpp
 // @brief Projects radar detections into camera frame and joins them with YOLO boxes.
+#include "cuas_fusion/common/bearing.hpp"
 #include "cuas_fusion/fusion/fusion_engine.hpp"
 #include "cuas_fusion/common/constants.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
@@ -166,7 +167,7 @@ bool FusionEngine::projectAndAssociate(
         fd.timestamp_ns = acc.timestamp_ns;
         // Euclidean range, not the forward coordinate (RC-29).
         fd.range_m      = std::sqrt((rx * rx) + (ry * ry) + (rz * rz));
-        fd.azimuth_deg  = std::atan2(rx, ry) * 180.0F / static_cast<float32_t>(M_PI);
+        fd.azimuth_deg  = bearingDegBoresightZero(rx, ry);
         fd.bbox_width_px  = acc.box->w;
         fd.bbox_height_px = acc.box->h;
         (void)fused_out.push_back(fd);

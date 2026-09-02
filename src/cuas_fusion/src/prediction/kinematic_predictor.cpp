@@ -2,6 +2,7 @@
 // @brief Constant-velocity forward-propagation trajectory prediction.
 #include "cuas_fusion/prediction/kinematic_predictor.hpp"
 #include "cuas_fusion/common/constants.hpp"
+#include "cuas_fusion/common/bearing.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 
 #include <algorithm>
@@ -47,7 +48,10 @@ KinematicPredictor::TrajectoryResult KinematicPredictor::propagateForward(
         const float64_t rms       = std::sqrt(trace_pos / 3.0);
         const float64_t unc       = std::min(rms,
             static_cast<float64_t>(cuas::kMaxUncertaintyRadiusM));
-        const float64_t b   = std::atan2(pos.y(), pos.x()) * 180.0 / M_PI;
+        // Boresight-zero bearing like every other producer (RC-21); this
+        // was atan2(y, x), 90 deg off from fusion/classifier/CoT.
+        const float64_t b   = static_cast<float64_t>(bearingDegBoresightZero(
+            static_cast<float32_t>(pos.x()), static_cast<float32_t>(pos.y())));
         const float64_t xy  = std::sqrt(pos.x() * pos.x() +
                                         pos.y() * pos.y());
         const float64_t e   = std::atan2(pos.z(), xy) * 180.0 / M_PI;
@@ -65,6 +69,29 @@ KinematicPredictor::TrajectoryResult KinematicPredictor::propagateForward(
     }
 
     return result;
+}
+
+KinematicPredictor::StepPlan KinematicPredictor::planSteps(
+    float64_t horizon_s, float64_t step_dt, float64_t fallback_horizon_s)
+{
+    StepPlan plan;
+    float64_t h = horizon_s;
+    if (!(h > 0.0) || !std::isfinite(h)) {
+        h = fallback_horizon_s;
+    }
+    float64_t dt = step_dt;
+    if (!(dt > 0.0) || !std::isfinite(dt)) {
+        dt = 0.1;
+    }
+    const float64_t raw = std::ceil(h / dt);
+    if (raw > static_cast<float64_t>(kMaxTrajectorySteps)) {
+        plan.n_steps = static_cast<int32_t>(kMaxTrajectorySteps);
+        plan.step_dt = h / static_cast<float64_t>(kMaxTrajectorySteps);
+    } else {
+        plan.n_steps = std::max(1, static_cast<int32_t>(raw));
+        plan.step_dt = h / static_cast<float64_t>(plan.n_steps);
+    }
+    return plan;
 }
 
 Vector6d KinematicPredictor::predictCvStep(

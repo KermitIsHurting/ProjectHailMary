@@ -31,6 +31,19 @@ public:
 
     KinematicPredictor() = default;
 
+    // Steps and step length for a per-track horizon (RC-28): the horizon
+    // advertised on the Track (3-10 s by threat level) used to be ignored
+    // and every forecast ran the node's fixed 5 s. Beyond the trajectory
+    // buffer the step is coarsened so the last waypoint still lands on the
+    // horizon. A non-positive or non-finite horizon falls back to
+    // `fallback_horizon_s`.
+    struct StepPlan {
+        int32_t   n_steps = 1;
+        float64_t step_dt = 0.1;
+    };
+    static StepPlan planSteps(float64_t horizon_s, float64_t step_dt,
+                              float64_t fallback_horizon_s);
+
     TrajectoryResult propagateForward(
         const Eigen::VectorXd& state,
         const Eigen::MatrixXd& covariance,

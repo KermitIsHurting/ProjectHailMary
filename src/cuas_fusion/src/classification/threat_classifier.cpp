@@ -1,5 +1,6 @@
 // @file threat_classifier.cpp
 // @brief Threat classification and escalation state machine.
+#include "cuas_fusion/common/bearing.hpp"
 #include "cuas_fusion/classification/threat_classifier.hpp"
 
 #include <algorithm>
@@ -155,8 +156,7 @@ void ThreatClassifier::pruneStale(float64_t current_time_s, float64_t timeout_s)
 
 float32_t ThreatClassifier::bearing_deg(float32_t x_m, float32_t y_m) const
 {
-    const float32_t pi_f = 3.14159265358979F;
-    return std::atan2(x_m, y_m) * 180.0F / pi_f;
+    return bearingDegBoresightZero(x_m, y_m);
 }
 
 float32_t ThreatClassifier::predicted_range(float32_t x_m, float32_t y_m,

@@ -1,5 +1,6 @@
 // @file cuas_visualizer_node.cpp
 // @brief ROS 2 visualization node rendering tracks, trajectories, PPI, and HUD.
+#include "cuas_fusion/common/bearing.hpp"
 #include "cuas_fusion/common/constants.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
@@ -821,7 +822,8 @@ void CuasVisualizerNode::publishMarkers()
             const float64_t px = track.position_x_m;
             const float64_t py = track.position_y_m;
             const float64_t pz = track.position_z_m;
-            bearing   = std::atan2(py, px) * 180.0 / M_PI;
+            bearing   = static_cast<float64_t>(bearingDegBoresightZero(
+                static_cast<float32_t>(px), static_cast<float32_t>(py)));
             elevation = std::atan2(pz, std::sqrt(px * px + py * py)) * 180.0 / M_PI;
         }
 

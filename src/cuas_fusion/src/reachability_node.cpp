@@ -121,6 +121,18 @@ private:
     void tracks_callback(const cuas_msgs::msg::TrackArray::ConstSharedPtr& msg)
     {
         latest_tracks_ = msg;
+        // Priorities follow the tracker's id set (RC-4): the 32-slot map
+        // filled with dead ids and every later track fell below
+        // min_threat_level for the life of the process.
+        threat_priorities_.erase_if(
+            [&msg](const uint32_t& id, const int32_t&) -> bool {
+                for (std::size_t k = 0U; k < msg->tracks.size(); ++k) {
+                    if (msg->tracks[k].track_id == id) {
+                        return false;
+                    }
+                }
+                return true;
+            });
     }
 
     void threats_callback(

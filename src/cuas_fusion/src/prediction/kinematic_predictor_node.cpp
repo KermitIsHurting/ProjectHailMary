@@ -37,8 +37,10 @@ public:
         float64_t rate = get_parameter("publish_rate_hz").as_double();
         rate = clamp_rate_hz(get_logger(), "publish_rate_hz", rate, 20.0);
 
-        n_steps_ = clamp_prediction_steps(get_logger(), horizon_, step_dt_,
-                                          kMaxTrajectorySteps);
+        // Validates horizon_/step_dt_ in place; the step count itself is
+        // planned per track from the horizon on the Track (RC-28).
+        (void)clamp_prediction_steps(get_logger(), horizon_, step_dt_,
+                                     kMaxTrajectorySteps);
 
         sub_ = create_subscription<cuas_msgs::msg::TrackArray>(
             "/tracks", 10,
@@ -124,13 +126,18 @@ private:
             }
             Eigen::MatrixXd P = cache->P;
 
+            // The horizon advertised on the Track (3-10 s by threat level)
+            // decides the forecast length; every forecast used to run the
+            // node's fixed 5 s regardless (RC-28).
+            const KinematicPredictor::StepPlan plan = KinematicPredictor::planSteps(
+                static_cast<float64_t>(t.prediction_horizon_s), step_dt_, horizon_);
             const Eigen::MatrixXd F =
-                KinematicPredictor::build_transition_matrix_6d(step_dt_);
+                KinematicPredictor::build_transition_matrix_6d(plan.step_dt);
             const Eigen::MatrixXd Q =
-                KinematicPredictor::build_process_noise_6d(step_dt_, kSigmaASq);
+                KinematicPredictor::build_process_noise_6d(plan.step_dt, kSigmaASq);
 
             auto traj = predictor_.propagateForward(state, P, F, Q,
-                                                    step_dt_, n_steps_);
+                                                    plan.step_dt, plan.n_steps);
 
             // WHY: cache->P is reset per measurement in track_callback; no
             // inter-tick propagation here — each forecast starts from the
@@ -196,7 +203,6 @@ private:
     KinematicPredictor predictor_;
     float64_t horizon_ = 0.0;
     float64_t step_dt_ = 0.0;
-    int32_t   n_steps_ = 0;
 
     // ConstSharedPtr, not a deep copy: TrackArray copies allocate per tick
     // (A3.6; intent_classifier_node is the reference pattern).

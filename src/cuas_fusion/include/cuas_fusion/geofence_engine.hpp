@@ -10,6 +10,8 @@ namespace cuas {
 static constexpr uint32_t GEOFENCE_ZONE_ID_LEN       = 32U;
 static constexpr uint32_t GEOFENCE_MAX_POLYGON_VERTS = 32U;
 static constexpr uint32_t GEOFENCE_MAX_ZONES         = 16U;
+// GeofenceEngine::membershipMask packs one bit per zone into a uint16_t.
+static_assert(GEOFENCE_MAX_ZONES <= 16U, "membership mask is 16 bits");
 
 enum class ZoneShape : uint8_t {
     CIRCLE  = 0U,
@@ -66,10 +68,21 @@ public:
 
     void load_zones(const FixedVector<ZoneConfig, GEOFENCE_MAX_ZONES>& configs);
 
+    // First containing zone in config order (kept for callers that want
+    // one answer); evaluateAll reports EVERY containing zone (RC-16): a
+    // no-fly polygon inside a perimeter circle was masked by the circle
+    // because only the first hit was ever returned.
     bool evaluate(float32_t x_m,
                   float32_t y_m,
                   uint32_t track_id,
                   GeofenceResult& result) const;
+
+    uint32_t evaluateAll(float32_t x_m,
+                         float32_t y_m,
+                         FixedVector<GeofenceResult, GEOFENCE_MAX_ZONES>& results) const;
+
+    // Bit i set = inside zone i (config order); GEOFENCE_MAX_ZONES <= 16.
+    uint16_t membershipMask(float32_t x_m, float32_t y_m) const;
 
     uint32_t zone_count() const;
 

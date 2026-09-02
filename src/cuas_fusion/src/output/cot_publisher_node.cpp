@@ -3,6 +3,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <cuas_msgs/msg/threat_report_array.hpp>
 
+#include "cuas_fusion/common/bearing.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 
 #include <arpa/inet.h>
@@ -108,9 +109,8 @@ private:
         std::string stale_ts = isoTimestamp(kCotStaleSeconds);
 
         // CoT course is 0..360 clockwise from north; atan2 returns -180..180.
-        float64_t course_deg = std::atan2(
-            static_cast<float64_t>(report.position_x_m),
-            static_cast<float64_t>(report.position_y_m)) * 180.0 / M_PI;
+        float64_t course_deg = static_cast<float64_t>(
+            bearingDegBoresightZero(report.position_x_m, report.position_y_m));
         if (course_deg < 0.0) {
             course_deg += 360.0;
         }
