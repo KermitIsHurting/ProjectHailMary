@@ -83,9 +83,11 @@ FixedVector<SimRadarPoint, kSimRadarMaxPoints> SimRadar::getPoints() const
                 obs_range = kMinRange;
             }
 
-            // WHY: negative doppler means approaching (radar convention)
+            // Radial velocity in the TI convention: positive = receding,
+            // negative = closing (verified against the April hardware bags,
+            // audit D-7). The old leading minus inverted the sign (RC-36).
             const float32_t doppler =
-                -(t.vx_mps * x_obs + t.vy_mps * y_obs + t.vz_mps * z_obs) / obs_range;
+                (t.vx_mps * x_obs + t.vy_mps * y_obs + t.vz_mps * z_obs) / obs_range;
 
             SimRadarPoint pt;
             pt.x_m         = x_obs;

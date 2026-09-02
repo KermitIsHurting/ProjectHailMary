@@ -386,7 +386,7 @@ Gates per batch: `colcon build --packages-select cuas_fusion` 0 warnings under -
 | D-4 | RC-27 clutter map relearn/decay | exponential decay τ, periodic relearn, hover exclusion | unchanged |
 | D-5 | RC-31 extrinsics translation sign | negate `t` in `extrinsics.yaml` or change the equation; verify with `calibrate_extrinsics.py` on a reflector | unchanged (nominal) |
 | D-6 | RC-26 camera decimation in `camera_node` (camera-file protocol, NEEDS-HARDWARE) | publish every k-th frame to hold 30 Hz | subscriber-side mitigations only |
-| D-7 | Doppler sign convention on the real IWR6843 stream (parser comment says + = approaching; sim, track.hpp and classifier say − = closing) | verify on hardware with a walking target | code uses − = closing (matches TI demo and the sim); comment corrected |
+| D-7 | Doppler sign convention on the real IWR6843 stream | **Resolved from the April hardware bags (2026-09-02 02:2xZ):** following one return frame-to-frame in demo_take1/2/3, 12 of 13 segments have range increasing when velocity > 0 → positive = receding, negative = closing (TI convention). Classifier, track.hpp and measurement models already assume this; sim_radar.cpp had the sign inverted (fixed in B1); parser comment corrected | Fixed (bag-verified) |
 | D-8 | CHANGELOG/README wording for the MISRA/JSF claim | "guided by" (KICKOFF default) vs "audited against" | "guided by; manual audit, 60 findings, no tool count" |
 | D-9 | B2 gate constants: velocity gate = max(3 m/s²·dt, 3σ_v); association gate = 0.8 m + 3σ_pos (+|v|·dt) | numbers are engineering defaults, adjustable via constants.hpp | applied (tests pin behaviour, not the numbers) |
 | D-10 | B5 label-join gates: fused age ≤ 250 ms, position ≤ 1 m | | applied |

@@ -10,6 +10,7 @@
 #include <builtin_interfaces/msg/time.hpp>
 
 #include <fcntl.h>
+#include <poll.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -23,6 +24,7 @@
 #include <fstream>
 #include <string>
 #include <thread>
+#include <chrono>
 #include <utility>
 #include <cstdio>
 
@@ -38,6 +40,10 @@ static constexpr std::array<uint8_t, 8> MAGIC_WORD = {
 };
 
 static constexpr std::size_t ERRNO_BUF_LEN             = 64U;
+// Bounded serial wait (mirrors the camera DQBUF poll, R12f) and the
+// reopen cadence when the port is absent or dead (RC-11).
+static constexpr int32_t     kSerialPollMs             = 500;
+static constexpr int32_t     kReopenBackoffMs          = 1000;
 
 // strerror() formats into a shared internal buffer — not thread-safe with the
 // parse thread and ROS executor both logging (MISRA 25.5.3 family). The GNU
@@ -84,30 +90,32 @@ struct DetectedPoint {
     float32_t x;
     float32_t y;
     float32_t z;
-    float32_t doppler;  // positive = approaching
+    // Radial velocity, m/s: positive = receding, negative = closing (TI
+    // convention; verified against the April hardware bags, audit D-7).
+    float32_t doppler;
 };
 static_assert(sizeof(DetectedPoint) == 16U, "DetectedPoint must be exactly 16 bytes");
 
 #pragma pack(pop)
 
-static FixedVector<DetectedPoint, TRACK_MAX_TRACKS> filterPoints(
-    const FixedVector<DetectedPoint, TRACK_MAX_TRACKS>& raw)
+// Per-return acceptance, applied while parsing so the raw-point cap
+// (RADAR_MAX_POINTS_PER_FRAME) is spent on returns that matter (RC-10).
+// Non-finite values from a corrupt TLV are rejected here; the old
+// positive comparisons let NaN through (RC-9).
+static bool pointPasses(const DetectedPoint& p)
 {
-    FixedVector<DetectedPoint, TRACK_MAX_TRACKS> out;
-    for (uint32_t i = 0U; i < raw.size(); ++i) {
-        const DetectedPoint& p = raw[i];
-        const float32_t range = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
-        if (range > MAX_RANGE_M) {
-            continue;
-        }
-        if (std::abs(p.doppler) < CLUTTER_VEL_THRESH) {
-            continue;
-        }
-        if (!out.push_back(p)) {
-            break;
-        }
+    if (!(std::isfinite(p.x) && std::isfinite(p.y) && std::isfinite(p.z) &&
+          std::isfinite(p.doppler))) {
+        return false;
     }
-    return out;
+    const float32_t range = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+    if (!(range <= MAX_RANGE_M)) {
+        return false;
+    }
+    if (!(std::abs(p.doppler) >= CLUTTER_VEL_THRESH)) {
+        return false;
+    }
+    return true;
 }
 
 static float32_t pointDist(const DetectedPoint& a, const DetectedPoint& b)
@@ -119,14 +127,14 @@ static float32_t pointDist(const DetectedPoint& a, const DetectedPoint& b)
 }
 
 static FixedVector<DetectedPoint, TRACK_MAX_TRACKS> dbscanCluster(
-    const FixedVector<DetectedPoint, TRACK_MAX_TRACKS>& pts)
+    const FixedVector<DetectedPoint, RADAR_MAX_POINTS_PER_FRAME>& pts)
 {
     const int32_t n = static_cast<int32_t>(pts.size());
     if (n == 0) {
         return {};
     }
 
-    FixedVector<int32_t, TRACK_MAX_TRACKS> label;
+    FixedVector<int32_t, RADAR_MAX_POINTS_PER_FRAME> label;
     for (int32_t i = 0; i < n; ++i) {
         (void)label.push_back(-1);
     }
@@ -137,7 +145,7 @@ static FixedVector<DetectedPoint, TRACK_MAX_TRACKS> dbscanCluster(
             continue;
         }
 
-        FixedVector<int32_t, TRACK_MAX_TRACKS> neighbors;
+        FixedVector<int32_t, RADAR_MAX_POINTS_PER_FRAME> neighbors;
         for (int32_t j = 0; j < n; ++j) {
             if (pointDist(pts[static_cast<uint32_t>(i)],
                           pts[static_cast<uint32_t>(j)]) <= DBSCAN_EPS) {
@@ -214,10 +222,13 @@ static FixedVector<DetectedPoint, TRACK_MAX_TRACKS> dbscanCluster(
         }
     }
 
-    if (centroids.empty()) {
-        for (int32_t i = 0; i < n; ++i) {
-            if (label[static_cast<uint32_t>(i)] == 0) {
-                (void)centroids.push_back(pts[static_cast<uint32_t>(i)]);
+    // Unclustered returns always pass through as single-point detections
+    // (RC-35 / D-12): a distant target with one return per frame used to
+    // exist only when no other cluster was present in the same frame.
+    for (int32_t i = 0; i < n; ++i) {
+        if (label[static_cast<uint32_t>(i)] == 0) {
+            if (!centroids.push_back(pts[static_cast<uint32_t>(i)])) {
+                break;
             }
         }
     }
@@ -254,13 +265,9 @@ public:
         port_ = data_port_;
         pub_  = create_publisher<sensor_msgs::msg::PointCloud2>("/radar/detections", 10);
 
-        if (!open_port()) {
-            RCLCPP_FATAL(get_logger(),
-                "Failed to open radar serial port %s — shutting down",
-                port_.c_str());
-            return;
-        }
-
+        // The parse thread owns open/reopen with backoff (RC-11b): a port
+        // that is absent or silent at start-up no longer leaves a node that
+        // looks alive to ROS while publishing nothing.
         running_ = true;
         parse_thread_ = std::thread(&RadarParserNode::parse_loop, this);
 
@@ -283,33 +290,45 @@ public:
 private:
     std::pair<std::string, std::string> detectRadarPorts()
     {
-        FixedVector<std::string, 10U> radar_ports;
+        // The CP2105 exposes two interfaces: 00 = CLI/config, 01 = data,
+        // which is what scripts/99-iwr6843.rules encodes and this box shows
+        // (/dev/radar_data -> ttyUSB1). The old rule "lower index = data" was
+        // inverted, and its sysfs path (device/../idVendor) does not exist on
+        // this kernel: idVendor is two levels up, bInterfaceNumber one (RC-24).
+        std::string data;
+        std::string config;
         for (int32_t i = 0; i <= 9; ++i) {
             const std::string port = "/dev/ttyUSB" + std::to_string(i);
             if (access(port.c_str(), F_OK) != 0) {
                 continue;
             }
-            const std::string base = "/sys/class/tty/ttyUSB"
-                               + std::to_string(i) + "/device/../";
-            std::ifstream vid_file(base + "idVendor");
-            std::ifstream pid_file(base + "idProduct");
+            const std::string dev = "/sys/class/tty/ttyUSB" + std::to_string(i) + "/device/";
+            std::ifstream vid_file(dev + "../../idVendor");
+            std::ifstream pid_file(dev + "../../idProduct");
+            std::ifstream if_file(dev + "../bInterfaceNumber");
             std::string vid;
             std::string pid;
-            // CP210x on the IWR6843ISK reports VID=10c4 PID=ea70
-            if ((vid_file >> vid) && (pid_file >> pid)
-                && vid == "10c4" && pid == "ea70") {
-                (void)radar_ports.push_back(port);
+            std::string iface;
+            if (!((vid_file >> vid) && (pid_file >> pid) &&
+                  vid == "10c4" && pid == "ea70" && (if_file >> iface))) {
+                continue;
+            }
+            if (iface == "01") {
+                data = port;
+            } else if (iface == "00") {
+                config = port;
+            } else {
+                // intentionally empty: not a radar interface
             }
         }
-        if (radar_ports.size() < 2U) {
+        if (data.empty() || config.empty()) {
             RCLCPP_ERROR(get_logger(),
-                "Radar auto-detect failed: found %u CP210x ports, need 2",
-                radar_ports.size());
+                "Radar auto-detect failed: need CP210x interfaces 00 (config) "
+                "and 01 (data); found data='%s' config='%s'",
+                data.c_str(), config.c_str());
             return {"", ""};
         }
-        std::sort(radar_ports.begin(), radar_ports.end());
-        // Lower ttyUSB index is the data port, higher is the config port
-        return {radar_ports[0], radar_ports[1]};
+        return {data, config};
     }
 
     bool open_port()
@@ -365,6 +384,26 @@ private:
         std::size_t total = 0U;
         while (total < n) {
             if (!running_) {
+                return false;
+            }
+            // Bounded wait: with VMIN=1 a silent radar parked this thread
+            // inside read() where running_ was never checked, so shutdown
+            // hung (RC-11a; same class as the camera DQBUF fix, R12f).
+            struct pollfd pfd{};
+            pfd.fd     = fd_;
+            pfd.events = POLLIN;
+            const int pr = ::poll(&pfd, 1, kSerialPollMs);
+            if (pr == 0) {
+                continue;
+            }
+            if (pr < 0) {
+                if (errno == EINTR) {
+                    continue;
+                }
+                const int perr = errno;
+                char perr_buf[ERRNO_BUF_LEN];
+                RCLCPP_ERROR(get_logger(), "Serial poll error: %s",
+                    errnoText(perr, perr_buf, sizeof(perr_buf)));
                 return false;
             }
             const ssize_t r = ::read(fd_, buf + total, n - total);
@@ -426,103 +465,150 @@ private:
         return t;
     }
 
+    void close_port()
+    {
+        if (fd_ >= 0) {
+            (void)close(fd_);
+            fd_ = -1;
+        }
+    }
+
+    // Sleep in slices so shutdown is never delayed by the full backoff.
+    void backoff_sleep()
+    {
+        constexpr int32_t kSliceMs = 50;
+        for (int32_t waited = 0; running_ && waited < kReopenBackoffMs;
+             waited += kSliceMs) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(kSliceMs));
+        }
+    }
+
     void parse_loop()
     {
         RCLCPP_INFO(get_logger(), "Parse thread running");
 
         while (running_) {
-            if (!sync_to_magic()) {
-                break;
-            }
-
-            uint8_t hdr_buf[HEADER_SIZE];
-            std::memcpy(hdr_buf, MAGIC_WORD.data(), MAGIC_WORD.size());
-
-            if (!read_exact(hdr_buf + MAGIC_WORD.size(),
-                            HEADER_SIZE - MAGIC_WORD.size())) {
-                break;
-            }
-
-            // memcpy instead of reinterpret_cast: no FrameHeader object lives in
-            // hdr_buf, so a type-punned reference is strict-aliasing UB
-            // (MISRA 8.2.5). Compiles to the same loads at -O2.
-            FrameHeader hdr;
-            std::memcpy(&hdr, hdr_buf, sizeof(hdr));
-
-            if (hdr.totalPacketLen < HEADER_SIZE ||
-                hdr.totalPacketLen > MAX_PACKET_BYTES)
-            {
-                RCLCPP_WARN(get_logger(),
-                    "Frame %u: implausible totalPacketLen=%u — resyncing",
-                    hdr.frameNumber, hdr.totalPacketLen);
-                continue;
-            }
-
-            const uint32_t payload_len = hdr.totalPacketLen - HEADER_SIZE;
-
-            // WHY: payload buffer size is unknown at compile time and bounded by
-            // MAX_PACKET_BYTES; stack array avoids heap (DEV-005). Deliberately
-            // not zero-initialized: read_exact overwrites [0, payload_len) and
-            // nothing reads beyond it, so a 64 KiB memset per frame is waste.
-            std::array<uint8_t, MAX_PACKET_BYTES> payload;
-            if (payload_len > MAX_PACKET_BYTES) {
-                break;
-            }
-            if (!read_exact(payload.data(), payload_len)) {
-                break;
-            }
-
-            const auto stamp = monotonic_stamp();
-
-            FixedVector<DetectedPoint, TRACK_MAX_TRACKS> points;
-            std::size_t offset = 0U;
-
-            for (uint32_t tlv_idx = 0U;
-                 tlv_idx < hdr.numTLVs && offset + sizeof(TlvHeader) <= payload_len;
-                 ++tlv_idx)
-            {
-                TlvHeader tlv;
-                std::memcpy(&tlv, payload.data() + offset, sizeof(tlv));
-                offset += sizeof(TlvHeader);
-
-                if (tlv.length > payload_len - offset) {
-                    RCLCPP_WARN(get_logger(),
-                        "Frame %u: TLV type=%u length=%u exceeds remaining "
-                        "payload %zu — dropping rest of frame",
-                        hdr.frameNumber, tlv.type, tlv.length,
-                        payload_len - offset);
-                    break;
+            if (fd_ < 0) {
+                if (!open_port()) {
+                    close_port();
+                    RCLCPP_ERROR_THROTTLE(get_logger(), *get_clock(), 5000,
+                        "Radar port %s unavailable — retrying every %d ms",
+                        port_.c_str(), kReopenBackoffMs);
+                    backoff_sleep();
+                    continue;
                 }
-
-                if (tlv.type == TLV_TYPE_DETECTED_POINTS) {
-                    const std::size_t num_pts = tlv.length / sizeof(DetectedPoint);
-                    std::size_t pt_off = offset;
-                    for (std::size_t i = 0U; i < num_pts; ++i) {
-                        DetectedPoint pt;
-                        std::memcpy(&pt, payload.data() + pt_off, sizeof(pt));
-                        (void)points.push_back(pt);
-                        pt_off += sizeof(DetectedPoint);
-                    }
-                }
-                // Advance by exactly tlv.length for every type: a length that
-                // is not a multiple of sizeof(DetectedPoint) must not desync
-                // the next TlvHeader read.
-                offset += tlv.length;
+                RCLCPP_INFO(get_logger(), "Radar port %s opened", port_.c_str());
             }
-
-            const auto filtered = filterPoints(points);
-            const auto clusters = dbscanCluster(filtered);
-
-            RCLCPP_DEBUG(get_logger(),
-                "[Frame %5u] raw=%u filtered=%u clusters=%u",
-                hdr.frameNumber, points.size(), filtered.size(), clusters.size());
-
-            if (!clusters.empty()) {
-                publish_cloud(clusters, stamp);
+            if (!parse_one_frame()) {
+                // Any serial failure (EOF, error) reopens with backoff instead
+                // of exiting the thread to a zombie node (RC-11b).
+                close_port();
+                backoff_sleep();
             }
         }
 
+        close_port();
         RCLCPP_INFO(get_logger(), "Parse thread exited");
+    }
+
+    // One frame. Returns false only on a serial failure that needs a reopen;
+    // a corrupt frame returns true and the next call resyncs.
+    bool parse_one_frame()
+    {
+        if (!sync_to_magic()) {
+            return false;
+        }
+
+        uint8_t hdr_buf[HEADER_SIZE];
+        std::memcpy(hdr_buf, MAGIC_WORD.data(), MAGIC_WORD.size());
+
+        if (!read_exact(hdr_buf + MAGIC_WORD.size(),
+                        HEADER_SIZE - MAGIC_WORD.size())) {
+            return false;
+        }
+
+        // memcpy instead of reinterpret_cast: no FrameHeader object lives in
+        // hdr_buf, so a type-punned reference is strict-aliasing UB
+        // (MISRA 8.2.5). Compiles to the same loads at -O2.
+        FrameHeader hdr;
+        std::memcpy(&hdr, hdr_buf, sizeof(hdr));
+
+        if (hdr.totalPacketLen < HEADER_SIZE ||
+            hdr.totalPacketLen > MAX_PACKET_BYTES)
+        {
+            RCLCPP_WARN(get_logger(),
+                "Frame %u: implausible totalPacketLen=%u — resyncing",
+                hdr.frameNumber, hdr.totalPacketLen);
+            return true;
+        }
+
+        const uint32_t payload_len = hdr.totalPacketLen - HEADER_SIZE;
+
+        // WHY: payload buffer size is unknown at compile time and bounded by
+        // MAX_PACKET_BYTES; stack array avoids heap (DEV-005). Deliberately
+        // not zero-initialized: read_exact overwrites [0, payload_len) and
+        // nothing reads beyond it, so a 64 KiB memset per frame is waste.
+        std::array<uint8_t, MAX_PACKET_BYTES> payload;
+        if (payload_len > MAX_PACKET_BYTES) {
+            return true;
+        }
+        if (!read_exact(payload.data(), payload_len)) {
+            return false;
+        }
+
+        const auto stamp = monotonic_stamp();
+
+        FixedVector<DetectedPoint, RADAR_MAX_POINTS_PER_FRAME> points;
+        std::size_t offset = 0U;
+
+        for (uint32_t tlv_idx = 0U;
+             tlv_idx < hdr.numTLVs && offset + sizeof(TlvHeader) <= payload_len;
+             ++tlv_idx)
+        {
+            TlvHeader tlv;
+            std::memcpy(&tlv, payload.data() + offset, sizeof(tlv));
+            offset += sizeof(TlvHeader);
+
+            if (tlv.length > payload_len - offset) {
+                RCLCPP_WARN(get_logger(),
+                    "Frame %u: TLV type=%u length=%u exceeds remaining "
+                    "payload %zu — dropping rest of frame",
+                    hdr.frameNumber, tlv.type, tlv.length,
+                    payload_len - offset);
+                break;
+            }
+
+            if (tlv.type == TLV_TYPE_DETECTED_POINTS) {
+                const std::size_t num_pts = tlv.length / sizeof(DetectedPoint);
+                std::size_t pt_off = offset;
+                for (std::size_t i = 0U; i < num_pts; ++i) {
+                    DetectedPoint pt;
+                    std::memcpy(&pt, payload.data() + pt_off, sizeof(pt));
+                    pt_off += sizeof(DetectedPoint);
+                    // Filter before the cap (RC-10): a dense scene used
+                    // to fill 32 slots with the first returns in TLV
+                    // order and drop the distant target.
+                    if (pointPasses(pt)) {
+                        (void)points.push_back(pt);
+                    }
+                }
+            }
+            // Advance by exactly tlv.length for every type: a length that
+            // is not a multiple of sizeof(DetectedPoint) must not desync
+            // the next TlvHeader read.
+            offset += tlv.length;
+        }
+
+        const auto clusters = dbscanCluster(points);
+
+        RCLCPP_DEBUG(get_logger(),
+            "[Frame %5u] kept=%u detections=%u",
+            hdr.frameNumber, points.size(), clusters.size());
+
+        // Always publish, even width=0 (RC-12): an empty scene must stay
+        // distinguishable from a dead sensor on the bus.
+        publish_cloud(clusters, stamp);
+        return true;
     }
 
     void publish_cloud(const FixedVector<DetectedPoint, TRACK_MAX_TRACKS> & points,

@@ -50,6 +50,11 @@ static constexpr int32_t   CAMERA_IMAGE_W             = CAMERA_WIDTH;
 static constexpr int32_t   CAMERA_IMAGE_H             = CAMERA_HEIGHT;
 
 static constexpr uint32_t  TRACK_MAX_TRACKS            = 32U;
+// Raw radar returns kept per frame BEFORE clustering. Was borrowed from
+// TRACK_MAX_TRACKS, which capped a dense scene at its first 32 returns in
+// TLV order and dropped the distant target first (RC-10). Detections out
+// of the clusterer stay capped at TRACK_MAX_TRACKS.
+static constexpr uint32_t  RADAR_MAX_POINTS_PER_FRAME  = 256U;
 static constexpr float32_t TRACK_ASSOCIATION_DIST_M    = 3.0F;
 static constexpr int32_t   TRACK_CONFIRM_HITS          = 3;
 static constexpr int32_t   TRACK_MAX_MISSES            = 5;

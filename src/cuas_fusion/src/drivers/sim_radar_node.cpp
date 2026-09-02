@@ -60,6 +60,9 @@ public:
             "/radar/detections", 10);
 
         const int32_t period_ms = static_cast<int32_t>(1000.0 / rate);
+        // Integrate with the timer's actual period, not 1/rate: the ms
+        // truncation made simulated speed 1-4 % high at 30/60 Hz (RC-37).
+        dt_s_ = static_cast<float32_t>(period_ms) / 1000.0F;
         timer_ = create_wall_timer(
             std::chrono::milliseconds(period_ms),
             std::bind(&SimRadarNode::tick, this));
@@ -146,7 +149,7 @@ private:
 
     void tick()
     {
-        const float32_t dt = 1.0F / publish_rate_hz_;
+        const float32_t dt = dt_s_;
 
         if (is_circle_) {
             ScenarioTarget& t = sim_radar_.getTarget(0U);
@@ -162,12 +165,9 @@ private:
 
         sim_radar_.step(dt);
 
-        const auto pts = sim_radar_.getPoints();
-        if (pts.empty()) {
-            return;
-        }
-
-        publish_cloud(pts);
+        // Publish every frame, even empty (RC-12): an empty scene must stay
+        // distinguishable from a dead radar on the bus.
+        publish_cloud(sim_radar_.getPoints());
     }
 
     void publish_cloud(const FixedVector<SimRadarPoint, kSimRadarMaxPoints>& pts)
@@ -207,6 +207,7 @@ private:
     SimRadar    sim_radar_;
     bool        is_circle_;
     float32_t   publish_rate_hz_;
+    float32_t   dt_s_ = 0.05F;
 
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_;
     rclcpp::TimerBase::SharedPtr                                timer_;
