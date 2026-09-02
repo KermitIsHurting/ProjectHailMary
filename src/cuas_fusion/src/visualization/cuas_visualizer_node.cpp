@@ -113,7 +113,7 @@ CuasVisualizerNode::CuasVisualizerNode()
         std::bind(&CuasVisualizerNode::fusedDetectionCallback, this, std::placeholders::_1));
 
     image_sub_ = create_subscription<sensor_msgs::msg::Image>(
-        "camera/image_raw", 1,
+        "/camera/image_raw", 1,
         std::bind(&CuasVisualizerNode::imageCallback, this, std::placeholders::_1));
 
     annotated_pub_ = create_publisher<sensor_msgs::msg::Image>(
@@ -133,6 +133,20 @@ void CuasVisualizerNode::trackCallback(
 {
     std::lock_guard<std::mutex> lock(mutex_);
     latest_tracks_ = msg;
+    // Per-track caches follow the tracker's id set (RC-4): 32 lifetime ids
+    // used to fill them, after which no new track got an arc or a label.
+    const auto gone = [&msg](const uint32_t& id) -> bool {
+        for (std::size_t k = 0U; k < msg->tracks.size(); ++k) {
+            if (msg->tracks[k].track_id == id) {
+                return false;
+            }
+        }
+        return true;
+    };
+    latest_predictions_.erase_if(
+        [&gone](const uint32_t& id, const cuas_msgs::msg::PredictedTrack&) { return gone(id); });
+    latest_trajectories_.erase_if(
+        [&gone](const uint32_t& id, const cuas_msgs::msg::TrajectoryWaypoints&) { return gone(id); });
 }
 
 void CuasVisualizerNode::predictedTrackCallback(
@@ -172,6 +186,17 @@ void CuasVisualizerNode::imageCallback(
     const sensor_msgs::msg::Image::ConstSharedPtr& msg)
 {
     std::lock_guard<std::mutex> lock(mutex_);
+
+    // Annotate at most kVizMaxAnnotateHz frames by stamp (RC-26): at the
+    // camera's 50 Hz this node, the overlay and the capture node each
+    // cloned a 6 MB frame and lagged 4-5 periods behind.
+    const int64_t stamp_ns =
+        (static_cast<int64_t>(msg->header.stamp.sec) * 1'000'000'000LL) +
+        static_cast<int64_t>(msg->header.stamp.nanosec);
+    if ((stamp_ns - last_annotated_stamp_ns_) < kVizMinAnnotatePeriodNs) {
+        return;
+    }
+    last_annotated_stamp_ns_ = stamp_ns;
 
     cv::Mat base_frame;
     if (!rosImageToBgr(*msg, base_frame)) {

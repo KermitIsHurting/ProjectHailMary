@@ -38,7 +38,9 @@ void HealthMonitor::update(const uint32_t topic_id, const int64_t now_ns)
         t.status = TopicStatus::kOk;
     }
 
-    if (dt_ns > 0LL) {
+    // Same-tick bursts (a PredictedTrack per track, microseconds apart)
+    // used to push the EMA to thousands of Hz; only inter-frame gaps count.
+    if (dt_ns >= kMinRateSampleNs) {
         // Subtract-then-narrow: the difference is small, so the float
         // conversion is exact where it matters.
         const float32_t dt_s = static_cast<float32_t>(dt_ns) * 1.0e-9F;
@@ -48,6 +50,16 @@ void HealthMonitor::update(const uint32_t topic_id, const int64_t now_ns)
     }
 
     t.last_recv_ns = now_ns;
+}
+
+void HealthMonitor::mark_idle(const uint32_t topic_id, const int64_t now_ns)
+{
+    if (topic_id >= kTopicCount) {
+        return;
+    }
+    TopicHealth & t = topics_[topic_id];
+    t.last_recv_ns = now_ns;
+    t.status       = TopicStatus::kOk;
 }
 
 void HealthMonitor::refresh_status(const uint32_t topic_id, const int64_t now_ns)
@@ -63,6 +75,9 @@ void HealthMonitor::refresh_status(const uint32_t topic_id, const int64_t now_ns
     const int64_t dt_ns = now_ns - t.last_recv_ns;
     if (dt_ns > kDeadThresholdNs) {
         t.status = TopicStatus::kDead;
+        // A dead topic reports 0 Hz, not the last EMA value (RC-12): the
+        // FAILED message used to carry a stale (or burst-inflated) rate.
+        t.measured_hz = 0.0F;
     } else if (dt_ns > kStaleThresholdNs) {
         t.status = TopicStatus::kStale;
     } else {

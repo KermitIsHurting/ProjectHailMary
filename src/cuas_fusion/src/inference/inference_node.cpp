@@ -37,6 +37,7 @@ public:
             rclcpp::shutdown();
             return;
         }
+        initialized_ = true;
 
         pub_ = create_publisher<vision_msgs::msg::Detection2DArray>(
             "/inference/detections", 5);
@@ -47,6 +48,8 @@ public:
 
         RCLCPP_INFO(get_logger(), "Inference node ready — engine: %s", engine_path.c_str());
     }
+
+    bool initialized() const { return initialized_; }
 
 private:
     void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& msg)
@@ -90,6 +93,7 @@ private:
     }
 
     TrtDetector detector_;
+    bool        initialized_ = false;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_;
     rclcpp::Publisher<vision_msgs::msg::Detection2DArray>::SharedPtr pub_;
 };
@@ -107,6 +111,13 @@ int main(int argc, char** argv)
     try {
         rclcpp::init(argc, argv);
         auto node = std::make_shared<cuas::InferenceNode>();
+        if (!node->initialized()) {
+            // A missing engine used to exit 0 ("finished cleanly"), and the
+            // launch treated the silent node as healthy (RC-22).
+            std::fprintf(stderr, "FATAL: InferenceNode has no detector — exiting 1\n");
+            rclcpp::shutdown();
+            return 1;
+        }
         rclcpp::spin(node);
         rclcpp::shutdown();
     } catch (const std::exception& e) {

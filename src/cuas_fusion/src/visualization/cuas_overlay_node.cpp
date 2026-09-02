@@ -11,6 +11,8 @@
 #include <cuas_msgs/msg/track_array.hpp>
 #include <cuas_msgs/msg/threat_report_array.hpp>
 #include <cuas_msgs/msg/trajectory_waypoints.hpp>
+#include <cuas_msgs/msg/system_health.hpp>
+#include <cuas_msgs/msg/geofence_event_array.hpp>
 
 #include <opencv2/core.hpp>
 
@@ -48,8 +50,26 @@ public:
             "/threat/reports", 10,
             std::bind(&CuasOverlayNode::threatCallback, this, std::placeholders::_1));
 
+        health_sub_ = create_subscription<cuas_msgs::msg::SystemHealth>(
+            "/health/status", 5,
+            [this](cuas_msgs::msg::SystemHealth::ConstSharedPtr msg) {
+                std::lock_guard<std::mutex> lock(mutex_);
+                latest_health_ = std::move(msg);
+            });
+        geofence_sub_ = create_subscription<cuas_msgs::msg::GeofenceEventArray>(
+            "/geofence/violations", 5,
+            [this](cuas_msgs::msg::GeofenceEventArray::ConstSharedPtr msg) {
+                std::lock_guard<std::mutex> lock(mutex_);
+                for (std::size_t i = 0U; i < msg->events.size(); ++i) {
+                    last_geofence_event_ = msg->events[i];
+                    has_geofence_event_  = true;
+                }
+                geofence_events_seen_ += static_cast<uint32_t>(msg->events.size());
+            });
+
+        // Depth 1: the newest frame is the only one worth annotating (RC-26).
         image_sub_ = create_subscription<sensor_msgs::msg::Image>(
-            "/camera/annotated", 5,
+            "/camera/annotated", 1,
             std::bind(&CuasOverlayNode::imageCallback, this, std::placeholders::_1));
 
         enhanced_pub_ = create_publisher<sensor_msgs::msg::Image>(
@@ -130,6 +150,8 @@ private:
         {
             std::lock_guard<std::mutex> lock(mutex_);
             overlay_engine_.render(annotated, waypoints_, tracks_, threats_);
+            overlay_engine_.draw_status_strip(annotated, health_line(), geofence_line(),
+                                              health_alarm());
         }
 
         if (!annotated.isContinuous()) {
@@ -185,7 +207,59 @@ private:
 
     static constexpr uint32_t FPS_WINDOW = 30U;
 
+    static const char* status_word(uint8_t s)
+    {
+        switch (s) {
+            case 0U:  { return "ok"; }
+            case 1U:  { return "stale"; }
+            default:  { return "DEAD"; }
+        }
+    }
+
+    // Caller holds mutex_.
+    std::string health_line() const
+    {
+        if (!latest_health_) {
+            return "HEALTH: no /health/status yet";
+        }
+        const auto& h = *latest_health_;
+        const char* overall = (h.status == 0U) ? "NOMINAL" : ((h.status == 1U) ? "DEGRADED" : "FAILED");
+        char buf[160];
+        (void)std::snprintf(buf, sizeof(buf),
+            "HEALTH %s  radar:%s %.0fHz  cam:%s  trk:%s %.0fHz  cls:%s  pred:%s",
+            overall, status_word(h.radar_status), static_cast<float64_t>(h.radar_hz),
+            status_word(h.camera_status), status_word(h.tracker_status),
+            static_cast<float64_t>(h.tracker_hz), status_word(h.classifier_status),
+            status_word(h.predictor_status));
+        return std::string(buf);
+    }
+
+    std::string geofence_line() const
+    {
+        if (!has_geofence_event_) {
+            return "GEOFENCE: no events";
+        }
+        const char* type = (last_geofence_event_.event_type == 0U) ? "ENTERED"
+                         : ((last_geofence_event_.event_type == 1U) ? "EXITED" : "INSIDE_THREAT");
+        char buf[160];
+        (void)std::snprintf(buf, sizeof(buf), "GEOFENCE: %u events  last: T%u %s %s",
+            geofence_events_seen_, last_geofence_event_.track_id, type,
+            last_geofence_event_.zone_id.c_str());
+        return std::string(buf);
+    }
+
+    bool health_alarm() const
+    {
+        return latest_health_ && (latest_health_->status != 0U);
+    }
+
     OverlayEngine overlay_engine_;
+    cuas_msgs::msg::SystemHealth::ConstSharedPtr latest_health_;
+    cuas_msgs::msg::GeofenceEvent last_geofence_event_{};
+    bool     has_geofence_event_   = false;
+    uint32_t geofence_events_seen_ = 0U;
+    rclcpp::Subscription<cuas_msgs::msg::SystemHealth>::SharedPtr       health_sub_;
+    rclcpp::Subscription<cuas_msgs::msg::GeofenceEventArray>::SharedPtr geofence_sub_;
     FixedVector<cuas_msgs::msg::TrajectoryWaypoints, TRACK_MAX_TRACKS> waypoints_{};
     FixedVector<cuas_msgs::msg::Track,               TRACK_MAX_TRACKS> tracks_{};
     FixedVector<cuas_msgs::msg::ThreatReport,        TRACK_MAX_TRACKS> threats_{};

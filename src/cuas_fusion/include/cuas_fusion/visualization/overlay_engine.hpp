@@ -30,6 +30,13 @@ public:
         const FixedVector<cuas_msgs::msg::Track, TRACK_MAX_TRACKS>& tracks,
         const FixedVector<cuas_msgs::msg::ThreatReport, TRACK_MAX_TRACKS>& threat_reports);
 
+    // Two-line translucent bar at the top: pipeline health and the latest
+    // geofence event, so the operator sees them without RViz (RC-25).
+    void draw_status_strip(cv::Mat& image,
+                           const std::string& line1,
+                           const std::string& line2,
+                           bool alarm);
+
 private:
     void draw_trajectory_arc(
         cv::Mat& image,

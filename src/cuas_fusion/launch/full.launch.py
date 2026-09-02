@@ -1,5 +1,5 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, RegisterEventHandler
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, LogInfo, RegisterEventHandler
 from launch.conditions import IfCondition, UnlessCondition
 from launch.event_handlers import OnProcessExit
 from launch.substitutions import LaunchConfiguration
@@ -41,6 +41,15 @@ def generate_launch_description():
         parameters=[system_params, {'use_sim_time': False}],
     )
 
+    def start_parser_if_config_ok(event, context):
+        # The parser only starts when the radar accepted its config; a
+        # failed config script used to be followed by a parser reading a
+        # sensor that never began streaming (RC-24).
+        if event.returncode == 0:
+            return [radar_parser_node]
+        return [LogInfo(msg=f'send_radar_config exited {event.returncode}: '
+                            'radar_parser_node NOT started')]
+
     return LaunchDescription([
         DeclareLaunchArgument(
             'engine_path',
@@ -55,7 +64,9 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'auto_exposure',
-            default_value='true',
+            # Off by default: it writes V4L2 exposure/gain to the camera every
+            # tick and has not had its NEEDS-HARDWARE check (RC-32).
+            default_value='false',
             description='Run auto_exposure_node: closed-loop V4L2 exposure/gain '
                         'servo from /camera/image_raw brightness.',
         ),
@@ -75,7 +86,7 @@ def generate_launch_description():
         RegisterEventHandler(
             OnProcessExit(
                 target_action=send_radar_config,
-                on_exit=[radar_parser_node],
+                on_exit=start_parser_if_config_ok,
             )
         ),
         Node(

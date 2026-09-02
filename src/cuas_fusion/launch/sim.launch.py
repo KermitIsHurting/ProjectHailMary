@@ -31,6 +31,17 @@ def generate_launch_description():
             description='Radar-to-camera SE(3) extrinsics parameter file '
                         '(see config/extrinsics.yaml).',
         ),
+        DeclareLaunchArgument(
+            'scenario',
+            default_value='approach',
+            description='sim_radar_node scene: approach | lateral | circle | '
+                        'two_targets | crossing | clutter | max_range | hover',
+        ),
+        DeclareLaunchArgument(
+            'noise_seed',
+            default_value='42',
+            description='sim_radar_node noise seed',
+        ),
         Node(
             package='tf2_ros',
             executable='static_transform_publisher',
@@ -43,9 +54,9 @@ def generate_launch_description():
             name='sim_radar_node',
             parameters=[{
                 'use_sim_time': False,
-                'scenario': 'approach',
+                'scenario': LaunchConfiguration('scenario'),
                 'publish_rate_hz': 20.0,
-                'noise_seed': 42,
+                'noise_seed': LaunchConfiguration('noise_seed'),
             }],
         ),
         Node(

@@ -42,10 +42,15 @@ public:
     static constexpr int64_t   kStaleThresholdNs = 500'000'000LL;
     static constexpr int64_t   kDeadThresholdNs  = 2'000'000'000LL;
     static constexpr float32_t kEmaAlpha         = 0.1F;
+    static constexpr int64_t   kMinRateSampleNs  = 5'000'000LL;
 
     HealthMonitor();
 
     void update(const uint32_t topic_id, const int64_t now_ns);
+    // Expected silence: the producer has nothing to publish (e.g. the
+    // predictor with zero confirmed tracks). Keeps the topic alive without
+    // feeding the rate estimate (RC-12).
+    void mark_idle(const uint32_t topic_id, const int64_t now_ns);
     TopicHealth query(const uint32_t topic_id) const;
     SystemStatus overall_status() const;
     void set_expected_hz(const uint32_t topic_id, const float32_t hz);

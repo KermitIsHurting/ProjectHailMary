@@ -73,14 +73,28 @@ public:
     }
 
 private:
+    static ScenarioTarget make_target(uint32_t id, float32_t x, float32_t y, float32_t z,
+                                      float32_t vx, float32_t vy, float32_t vz)
+    {
+        ScenarioTarget t;
+        t.x_m = x;      t.y_m = y;      t.z_m = z;
+        t.vx_mps = vx;  t.vy_mps = vy;  t.vz_mps = vz;
+        t.rcs_dbsm  = 10.0F;
+        t.target_id = id;
+        return t;
+    }
+
+    // Scenes are in radar_frame per the ICD: X = azimuth (right), Y = range
+    // (forward), Z = up. The original approach/two_targets scenes moved
+    // along X, i.e. across the beam at 90 deg, which the camera never sees
+    // and fusion never projects (RC-38). Names map to the A6 shape list.
     void load_scenario(const std::string& name)
     {
-        // Normalize first, dispatch once: the unknown-name branch used to
-        // call load_scenario recursively — the only recursion in the
-        // codebase (MISRA 8.2.10, JPL P1 acyclic call graph).
         std::string scenario = name;
         if ((scenario != "approach") && (scenario != "lateral") &&
-            (scenario != "circle") && (scenario != "two_targets"))
+            (scenario != "circle") && (scenario != "two_targets") &&
+            (scenario != "crossing") && (scenario != "clutter") &&
+            (scenario != "max_range") && (scenario != "hover"))
         {
             RCLCPP_WARN(get_logger(),
                         "Unknown scenario '%s', defaulting to approach",
@@ -89,61 +103,39 @@ private:
         }
 
         if (scenario == "approach") {
-            ScenarioTarget t;
-            t.x_m      = 8.0F;
-            t.y_m      = 0.0F;
-            t.z_m      = 1.5F;
-            t.vx_mps   = -1.0F;
-            t.vy_mps   = 0.0F;
-            t.vz_mps   = 0.0F;
-            t.rcs_dbsm = 10.0F;
-            t.target_id = 1U;
-            sim_radar_.addTarget(t);
+            // S-1: closes along boresight at 0.5 m/s from 14 m: passes the
+            // r=5 fence at 18 s, the 4 m threat range at 20 s, the sensor
+            // at 28 s, and leaves the 15 m clip at 58 s.
+            sim_radar_.addTarget(make_target(1U, 0.0F, 14.0F, 1.5F, 0.0F, -0.5F, 0.0F));
         } else if (scenario == "lateral") {
-            ScenarioTarget t;
-            t.x_m      = -5.0F;
-            t.y_m      = 4.0F;
-            t.z_m      = 1.5F;
-            t.vx_mps   = 1.0F;
-            t.vy_mps   = 0.0F;
-            t.vz_mps   = 0.0F;
-            t.rcs_dbsm = 10.0F;
-            t.target_id = 1U;
-            sim_radar_.addTarget(t);
+            // S-5: crosses the field at 4 m range, through the no-fly polygon.
+            sim_radar_.addTarget(make_target(1U, -5.0F, 4.0F, 1.5F, 1.0F, 0.0F, 0.0F));
         } else if (scenario == "circle") {
-            ScenarioTarget t;
-            t.x_m      = 3.0F;
-            t.y_m      = 0.0F;
-            t.z_m      = 1.5F;
-            t.vx_mps   = 0.0F;
-            t.vy_mps   = 1.0F;
-            t.vz_mps   = 0.0F;
-            t.rcs_dbsm = 10.0F;
-            t.target_id = 1U;
-            sim_radar_.addTarget(t);
+            // S-11 soak: orbits the sensor at 6 m, never leaves range.
+            sim_radar_.addTarget(make_target(1U, 0.0F, 6.0F, 1.5F, 1.0F, 0.0F, 0.0F));
             is_circle_ = true;
         } else if (scenario == "two_targets") {
-            ScenarioTarget t1;
-            t1.x_m      = 6.0F;
-            t1.y_m      = 1.0F;
-            t1.z_m      = 1.5F;
-            t1.vx_mps   = -0.8F;
-            t1.vy_mps   = 0.0F;
-            t1.vz_mps   = 0.0F;
-            t1.rcs_dbsm = 10.0F;
-            t1.target_id = 1U;
-            sim_radar_.addTarget(t1);
-
-            ScenarioTarget t2;
-            t2.x_m      = 6.0F;
-            t2.y_m      = -1.0F;
-            t2.z_m      = 1.5F;
-            t2.vx_mps   = -0.8F;
-            t2.vy_mps   = 0.0F;
-            t2.vz_mps   = 0.0F;
-            t2.rcs_dbsm = 10.0F;
-            t2.target_id = 2U;
-            sim_radar_.addTarget(t2);
+            // Parallel approach, 2 m apart.
+            sim_radar_.addTarget(make_target(1U,  1.0F, 6.0F, 1.5F, 0.0F, -0.8F, 0.0F));
+            sim_radar_.addTarget(make_target(2U, -1.0F, 6.0F, 1.5F, 0.0F, -0.8F, 0.0F));
+        } else if (scenario == "crossing") {
+            // S-2: paths cross at (0, 6) after 4 s — does association swap?
+            sim_radar_.addTarget(make_target(1U, -4.0F, 6.0F, 1.5F,  1.0F, 0.0F, 0.0F));
+            sim_radar_.addTarget(make_target(2U,  4.0F, 6.0F, 1.5F, -1.0F, 0.0F, 0.0F));
+        } else if (scenario == "clutter") {
+            // S-3: three static reflectors; the clutter map must learn them
+            // out and no track may survive the learning window.
+            sim_radar_.addTarget(make_target(1U,  2.0F,  5.0F, 0.5F, 0.0F, 0.0F, 0.0F));
+            sim_radar_.addTarget(make_target(2U, -3.0F,  8.0F, 0.5F, 0.0F, 0.0F, 0.0F));
+            sim_radar_.addTarget(make_target(3U,  1.0F, 12.0F, 0.5F, 0.0F, 0.0F, 0.0F));
+        } else if (scenario == "max_range") {
+            // S-6: first return at the 15 m clip, closing slowly enough
+            // (0.2 m/s) that the readout window still sees it beyond 12 m.
+            sim_radar_.addTarget(make_target(1U, 0.0F, 14.9F, 1.5F, 0.0F, -0.2F, 0.0F));
+        } else {
+            // hover: a stationary target at 6 m (RC-27: the one-shot clutter
+            // map learns it as clutter — Needs John's relearn policy).
+            sim_radar_.addTarget(make_target(1U, 0.0F, 6.0F, 1.5F, 0.0F, 0.0F, 0.0F));
         }
     }
 

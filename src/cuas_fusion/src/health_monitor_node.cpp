@@ -4,6 +4,8 @@
 #include "cuas_fusion/common/param_utils.hpp"
 #include "cuas_fusion/health_monitor.hpp"
 
+#include "cuas_fusion/common/track_state_ids.hpp"
+
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
@@ -89,8 +91,21 @@ private:
 
     void tracks_cb(const cuas_msgs::msg::TrackArray::ConstSharedPtr & msg)
     {
-        (void)msg;
-        monitor_.update(kTopicTracker, now_ns());
+        const int64_t t = now_ns();
+        monitor_.update(kTopicTracker, t);
+        // The predictor publishes one PredictedTrack per CONFIRMED track, so
+        // an empty scene is expected silence, not a dead node (RC-12).
+        bool any_predictable = false;
+        for (std::size_t i = 0U; i < msg->tracks.size(); ++i) {
+            const uint8_t s = msg->tracks[i].track_state_id;
+            if ((s == cuas::track_state::kConfirmed) || (s == cuas::track_state::kReacquired)) {
+                any_predictable = true;
+                break;
+            }
+        }
+        if (!any_predictable) {
+            monitor_.mark_idle(kTopicPredictor, t);
+        }
     }
 
     void threats_cb(const cuas_msgs::msg::ThreatReportArray::ConstSharedPtr & msg)

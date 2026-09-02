@@ -31,3 +31,5 @@
 2026-09-02T03:34:44Z B5 gates green: build 0 warnings (364 s), tests 178/178 (+2: retainOnly drops absent ids, 40 ids through a 32-slot map never starve), cppcheck 6 = baseline, sim smoke exit 0 (/home/zork/backups/b5-sim-smoke, error lines 0); /fusion/detections 20.00 Hz this run (the 9.62 Hz seen in B4 did not recur)
 2026-09-02T03:34:44Z B5 checkpoint d311752; A5 continues with B6 (geofence / reachability / prediction)
 2026-09-02T03:40:43Z B6 gates green: build 0 warnings (138 s + 50 s), tests 180/180 (+2: overlapping zones both reported / membership mask, per-track step plan), cppcheck 6 = baseline after moving a static_assert to namespace scope, sim smoke exit 0 (/home/zork/backups/b6-sim-smoke, error lines 0)
+2026-09-02T03:40:43Z B6 checkpoint a26a487; A5 continues with B7 (health / viz / network / tooling)
+2026-09-02T03:46:34Z B7 gates green: build 0 warnings (126 s + 18 s), tests 181/181 (+1: health idle/dead-hz/burst), cppcheck 6 = baseline, sim smoke exit 0 (/home/zork/backups/b7-sim-smoke): health status NOMINAL with predictor OK on an empty scene (was FAILED/DEAD @ ~10 kHz) → RC-12 observed; A5 code batches complete, A6 next
