@@ -3,6 +3,7 @@
 #include "cuas_fusion/intent_classifier.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 #include "cuas_fusion/common/intent_ids.hpp"
+#include "cuas_fusion/common/param_utils.hpp"
 #include "cuas_fusion/common/track_state_ids.hpp"
 
 #include <rclcpp/rclcpp.hpp>
@@ -24,7 +25,10 @@ public:
     : Node("intent_classifier_node")
     {
         declare_parameter("publish_rate_hz", 10.0);
-        const float64_t rate_hz = get_parameter("publish_rate_hz").as_double();
+        // A rate above 1000 Hz truncated the period to 0 ms and spun the
+        // timer; <= 0 was a division by zero (RC-14).
+        const float64_t rate_hz = clamp_rate_hz(get_logger(), "publish_rate_hz",
+            get_parameter("publish_rate_hz").as_double(), 10.0);
 
         sub_ = create_subscription<cuas_msgs::msg::TrackArray>(
             "/tracks", 10,
@@ -34,10 +38,7 @@ public:
         pub_ = create_publisher<cuas_msgs::msg::IntentReportArray>(
             "/intent/reports", 10);
 
-        float64_t period_ms = 100.0;
-        if (rate_hz > 0.0) {
-            period_ms = 1000.0 / rate_hz;
-        }
+        const float64_t period_ms = 1000.0 / rate_hz;
         timer_ = create_wall_timer(
             std::chrono::milliseconds(static_cast<int64_t>(period_ms)),
             std::bind(&IntentClassifierNode::publish_tick, this));

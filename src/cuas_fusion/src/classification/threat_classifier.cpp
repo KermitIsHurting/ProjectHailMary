@@ -130,6 +130,20 @@ ClassificationResult ThreatClassifier::classify(
     return result;
 }
 
+void ThreatClassifier::retainOnly(const FixedVector<uint32_t, TRACK_MAX_TRACKS>& ids)
+{
+    states_.erase_if(
+        [&](uint32_t id, const PerTrackState& s) {
+            (void)s;
+            for (uint32_t i = 0U; i < ids.size(); ++i) {
+                if (ids[i] == id) {
+                    return false;
+                }
+            }
+            return true;
+        });
+}
+
 void ThreatClassifier::pruneStale(float64_t current_time_s, float64_t timeout_s)
 {
     states_.erase_if(

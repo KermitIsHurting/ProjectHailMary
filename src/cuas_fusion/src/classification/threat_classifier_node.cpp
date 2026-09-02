@@ -1,7 +1,11 @@
 // @file threat_classifier_node.cpp
 // @brief ROS 2 node wrapping ThreatClassifier and publishing threat reports.
 #include "cuas_fusion/classification/threat_classifier.hpp"
+#include "cuas_fusion/common/clock.hpp"
+#include "cuas_fusion/common/constants.hpp"
+#include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
+#include "cuas_fusion/common/param_utils.hpp"
 #include "cuas_fusion/common/track_state_ids.hpp"
 #include "cuas_fusion/common/types.hpp"
 #include "cuas_fusion/tracking/track.hpp"
@@ -61,15 +65,23 @@ public:
         declare_parameter("escalation_dwell_s", 1.0);
         declare_parameter("track_timeout_s", 5.0);
 
-        threatening_range_m_ = static_cast<float32_t>(
-            get_parameter("threatening_range_m").as_double());
-        threatening_velocity_mps_ = static_cast<float32_t>(
-            get_parameter("threatening_velocity_mps").as_double());
-        zone_radius_m_ = static_cast<float32_t>(
-            get_parameter("zone_radius_m").as_double());
-        escalation_dwell_s_ = static_cast<float32_t>(
-            get_parameter("escalation_dwell_s").as_double());
-        track_timeout_s_ = get_parameter("track_timeout_s").as_double();
+        // Ranges validated at declaration (RC-14): a negative dwell or a
+        // zero timeout would escalate instantly / prune every scan.
+        threatening_range_m_ = static_cast<float32_t>(clamp_param(get_logger(),
+            "threatening_range_m", get_parameter("threatening_range_m").as_double(),
+            4.0, 0.0, 1000.0));
+        threatening_velocity_mps_ = static_cast<float32_t>(clamp_param(get_logger(),
+            "threatening_velocity_mps", get_parameter("threatening_velocity_mps").as_double(),
+            0.3, 0.0, 100.0));
+        zone_radius_m_ = static_cast<float32_t>(clamp_param(get_logger(),
+            "zone_radius_m", get_parameter("zone_radius_m").as_double(),
+            3.0, 0.0, 1000.0));
+        escalation_dwell_s_ = static_cast<float32_t>(clamp_param(get_logger(),
+            "escalation_dwell_s", get_parameter("escalation_dwell_s").as_double(),
+            1.0, 0.0, 600.0));
+        track_timeout_s_ = clamp_param(get_logger(),
+            "track_timeout_s", get_parameter("track_timeout_s").as_double(),
+            5.0, 0.05, 3600.0);
 
         pub_ = create_publisher<cuas_msgs::msg::ThreatReportArray>("/threat/reports", 5);
 
@@ -96,16 +108,32 @@ private:
 
     void track_callback(const cuas_msgs::msg::TrackArray::ConstSharedPtr& msg)
     {
-        const float64_t now_s = this->now().seconds();
+        // Dwell and prune on the steady clock the rest of the pipeline
+        // stamps with (RC-6); this->now() is wall time and jumps with NTP.
+        const int64_t   t_now_ns = cuas::now_ns();
+        const float64_t now_s    = static_cast<float64_t>(t_now_ns) * 1.0e-9;
 
         cuas_msgs::msg::ThreatReportArray out;
         out.header = msg->header;
 
+        // Only a fresh fused set may label tracks (RC-5b): the node used to
+        // keep the last non-empty set forever and re-apply its labels to
+        // whatever track pointed the same way minutes later.
         cuas_msgs::msg::FusedDetectionArray::ConstSharedPtr fused;
         {
             std::lock_guard<std::mutex> lock(fused_mutex_);
             fused = latest_fused_;
         }
+        if (fused) {
+            const int64_t fused_ns =
+                (static_cast<int64_t>(fused->header.stamp.sec) * 1'000'000'000LL) +
+                static_cast<int64_t>(fused->header.stamp.nanosec);
+            if ((t_now_ns - fused_ns) > kFusedLabelMaxAgeNs) {
+                fused.reset();
+            }
+        }
+
+        FixedVector<uint32_t, TRACK_MAX_TRACKS> live_ids;
 
         const uint32_t n_tracks = static_cast<uint32_t>(msg->tracks.size());
         for (uint32_t ti = 0U; ti < n_tracks; ++ti) {
@@ -128,17 +156,25 @@ private:
                     "as TENTATIVE", tm.track_state.c_str(), tm.track_id);
             }
             t.timestamp_ns_  = tm.timestamp_ns;
+            (void)live_ids.push_back(tm.track_id);
 
+            // Label join (D-10): nearest fused detection by position, and
+            // it must be within kLabelJoinMaxDistM AND on the same bearing.
+            // Bearing alone let a label jump to any track in a 15 deg wedge.
             const cuas_msgs::msg::FusedDetection* matched_fd = nullptr;
             if (fused && !fused->detections.empty()) {
                 const float32_t track_az = classifier_.bearing_deg(
                     tm.position_x_m, tm.position_y_m);
-                float32_t best_diff = 999.0F;
+                float32_t best_dist = kLabelJoinMaxDistM;
 
                 const uint32_t n_det = static_cast<uint32_t>(
                     fused->detections.size());
                 for (uint32_t di = 0U; di < n_det; ++di) {
                     const cuas_msgs::msg::FusedDetection & fd = fused->detections[di];
+                    const float32_t dx = fd.position_x_m - tm.position_x_m;
+                    const float32_t dy = fd.position_y_m - tm.position_y_m;
+                    const float32_t dz = fd.position_z_m - tm.position_z_m;
+                    const float32_t dist = std::sqrt((dx * dx) + (dy * dy) + (dz * dz));
                     // Wrap the bearing difference at +/-180 deg: +179 vs -179
                     // is 2 deg apart, not 358 — without this, camera-label
                     // fusion failed exactly when a target crossed the seam.
@@ -147,13 +183,13 @@ private:
                     if (diff > 180.0F) {
                         diff = 360.0F - diff;
                     }
-                    if (diff < best_diff) {
-                        best_diff = diff;
+                    if ((dist <= best_dist) && (diff < kLabelJoinMaxBearingDeg)) {
+                        best_dist  = dist;
                         matched_fd = &fd;
                     }
                 }
 
-                if ((matched_fd != nullptr) && (best_diff < 15.0F)) {
+                if (matched_fd != nullptr) {
                     t.class_id_    = parseClassId(matched_fd->class_label);
                     t.confidence_  = matched_fd->confidence;
                 }
@@ -222,6 +258,9 @@ private:
 
         pub_->publish(out);
 
+        // States follow the tracker's id set (RC-4); the timeout stays as a
+        // backstop for a tracker that stops publishing.
+        classifier_.retainOnly(live_ids);
         classifier_.pruneStale(now_s, track_timeout_s_);
     }
 

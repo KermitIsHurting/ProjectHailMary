@@ -107,6 +107,12 @@ static constexpr float64_t kTrackHitGapResetS          = 0.25;
 static constexpr float64_t kTrackReapAfterS            = 5.0;
 // Below this range the line-of-sight direction is undefined.
 static constexpr float64_t kRadialSpeedMinRangeM       = 1.0e-3;
+// Camera-label join in the threat classifier (D-10): a fused detection
+// set older than this is not applied, and a label joins a track only when
+// the fused position is within this distance AND the bearing agrees.
+static constexpr int64_t   kFusedLabelMaxAgeNs         = 250'000'000LL;
+static constexpr float32_t kLabelJoinMaxDistM          = 1.0F;
+static constexpr float32_t kLabelJoinMaxBearingDeg     = 15.0F;
 
 // Tight gate for new tracks keeps clutter from initiating confirmed IDs;
 // wider gate for confirmed tracks absorbs extended body returns.

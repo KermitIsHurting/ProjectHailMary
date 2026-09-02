@@ -85,6 +85,43 @@ TEST_F(ThreatClassifierTest, QualityScoreRadarOnly)
     EXPECT_NEAR(r.quality_score, 0.3f, 0.01f);
 }
 
+// 8. retainOnly drops states for ids the tracker no longer publishes (RC-4):
+//    a reused/absent id restarts its dwell, a retained id keeps it.
+TEST_F(ThreatClassifierTest, RetainOnlyDropsStatesOfAbsentTracks)
+{
+    auto t1 = make_track(0.9f, "0", 0.5f, 0.1f, cuas::TrackState::CONFIRMED);
+    auto t2 = t1;
+    t2.track_id_ = 2;
+    classifier_.classify(t1, 0.0);
+    classifier_.classify(t2, 0.0);
+
+    cuas::FixedVector<uint32_t, cuas::TRACK_MAX_TRACKS> ids;
+    ASSERT_TRUE(ids.push_back(1U));
+    classifier_.retainOnly(ids);
+
+    const auto r1 = classifier_.classify(t1, 4.0);
+    const auto r2 = classifier_.classify(t2, 4.0);
+    EXPECT_NEAR(r1.dwell_time_s, 4.0f, 0.01f) << "retained id keeps its dwell";
+    EXPECT_NEAR(r2.dwell_time_s, 0.0f, 0.01f) << "dropped id starts over";
+}
+
+// 9. 40 distinct ids through a 32-slot map: with retainOnly after each
+//    frame, the newest id always gets a state (the old failure was silent
+//    starvation once 32 dead ids filled the map).
+TEST_F(ThreatClassifierTest, RetainOnlyPreventsSlotStarvation)
+{
+    for (uint32_t id = 1U; id <= 40U; ++id) {
+        auto t = make_track(0.9f, "0", 0.5f, 0.1f, cuas::TrackState::CONFIRMED);
+        t.track_id_ = id;
+        classifier_.classify(t, static_cast<double>(id));
+        const auto r = classifier_.classify(t, static_cast<double>(id) + 2.0);
+        EXPECT_EQ(r.escalation_state, cuas::EscalationState::TRACKED) << "id " << id;
+        cuas::FixedVector<uint32_t, cuas::TRACK_MAX_TRACKS> ids;
+        ASSERT_TRUE(ids.push_back(id));
+        classifier_.retainOnly(ids);
+    }
+}
+
 // 7. Quality score: camera confirmed + CONFIRMED state + dwell > 3s
 TEST_F(ThreatClassifierTest, QualityScoreFull)
 {

@@ -51,6 +51,13 @@ public:
 
     void pruneStale(float64_t current_time_s, float64_t timeout_s = 5.0);
 
+    // Drop every per-track state whose id is not in `ids` (the ids of the
+    // TrackArray just processed). The tracker reaps a track 5 s after its
+    // last return; keeping its state here until a timeout meant the 32-slot
+    // map filled with dead ids and new tracks got no escalation state at
+    // all (RC-4). O(states x n_ids), both bounded by TRACK_MAX_TRACKS.
+    void retainOnly(const FixedVector<uint32_t, TRACK_MAX_TRACKS>& ids);
+
     struct ImpactPoint {
         float32_t x_m;
         float32_t y_m;

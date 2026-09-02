@@ -29,6 +29,26 @@ inline float64_t clamp_rate_hz(const rclcpp::Logger& logger,
     return rate;
 }
 
+// Scalar range clamp for thresholds and timeouts: a value outside
+// [min, max] (or NaN, via the negated comparisons) takes the fallback with
+// one WARN, so a bad YAML cannot start a node with a 0 s timeout or a
+// negative dwell (RC-14).
+inline float64_t clamp_param(const rclcpp::Logger& logger,
+                             const char* param_name,
+                             float64_t value,
+                             float64_t fallback,
+                             float64_t min_value,
+                             float64_t max_value)
+{
+    if (!(value >= min_value) || !(value <= max_value)) {
+        RCLCPP_WARN(logger,
+                    "%s=%.3f outside [%.3f, %.3f]; using fallback %.3f",
+                    param_name, value, min_value, max_value, fallback);
+        return fallback;
+    }
+    return value;
+}
+
 // Validate a horizon/step pair and derive the forward-propagation step
 // count. step_dt <= 0 makes horizon/step_dt non-finite and the int cast
 // undefined behavior ([conv.fpint]); steps beyond max_steps would be
