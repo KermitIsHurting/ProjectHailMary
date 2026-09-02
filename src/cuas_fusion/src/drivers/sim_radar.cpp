@@ -58,15 +58,12 @@ FixedVector<SimRadarPoint, kSimRadarMaxPoints> SimRadar::getPoints() const
             continue;
         }
 
-        int32_t n_points = static_cast<int32_t>(t.rcs_dbsm / 5.0F);
-        if (n_points < 2) {
-            n_points = 2;
-        }
-        if (n_points > 8) {
-            n_points = 8;
-        }
-
-        for (int32_t p = 0; p < n_points; ++p) {
+        // One centroid per target: /radar/detections carries cluster
+        // centroids (ICD §3), and the parser's DBSCAN would have merged the
+        // raw returns of one body. Publishing 2-8 raw returns per target
+        // made the tracker spawn twin tracks (A6 approach run).
+        (void)t.rcs_dbsm;
+        for (int32_t p = 0; p < 1; ++p) {
             const float32_t nx = gaussian_sample() * kSimRadarNoiseSigmaM;
             const float32_t ny = gaussian_sample() * kSimRadarNoiseSigmaM;
             const float32_t nz = gaussian_sample() * kSimRadarNoiseSigmaM;

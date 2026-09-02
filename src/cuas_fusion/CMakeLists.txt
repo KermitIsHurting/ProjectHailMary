@@ -583,6 +583,7 @@ if(BUILD_TESTING)
     src/common/types.cpp
   )
   target_include_directories(test_threat_classifier PRIVATE include)
+  ament_target_dependencies(test_threat_classifier cuas_msgs)
 
   ament_add_gtest(test_track_manager
     ../../test/unit/test_track_manager.cpp

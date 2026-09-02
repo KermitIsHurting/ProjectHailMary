@@ -119,9 +119,24 @@ private:
         // parser), not arrival time: update() velocity gating and fusion's
         // camera alignment both need the instant the return was observed,
         // free of transport jitter (P2.1).
-        const float64_t now =
-            static_cast<float64_t>(msg->header.stamp.sec) +
-            (static_cast<float64_t>(msg->header.stamp.nanosec) * 1.0e-9);
+        const int64_t stamp_ns =
+            (static_cast<int64_t>(msg->header.stamp.sec) * 1'000'000'000LL) +
+            static_cast<int64_t>(msg->header.stamp.nanosec);
+        const float64_t now = static_cast<float64_t>(stamp_ns) * 1.0e-9;
+        // A cloud more than 1 s older than the newest one seen is a time
+        // jump (bag replayed again, --loop): re-anchor and drop the table,
+        // else every new track would be reaped on the next tick (R6b-2).
+        if ((latest_meas_ns_ > 0) && ((stamp_ns + kMeasTimeJumpNs) < latest_meas_ns_)) {
+            RCLCPP_WARN(get_logger(),
+                "Measurement time jumped back %.1f s — resetting the track table",
+                static_cast<float64_t>(latest_meas_ns_ - stamp_ns) * 1.0e-9);
+            active_tracks_.clear();
+            latest_meas_ns_ = 0;
+        }
+        if (stamp_ns > latest_meas_ns_) {
+            latest_meas_ns_         = stamp_ns;
+            wall_at_latest_meas_ns_ = cuas::now_ns();
+        }
 
         sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x");
         sensor_msgs::PointCloud2ConstIterator<float> iter_y(*msg, "y");
@@ -132,6 +147,7 @@ private:
         // updated the same track and two close targets merged (RC-3).
         std::array<bool, TRACK_MAX_TRACKS> used{};
         uint32_t dropped_non_finite = 0U;
+        uint32_t duplicate_returns  = 0U;
 
         for (; iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
             const float64_t px = static_cast<float64_t>(*iter_x);
@@ -162,7 +178,28 @@ private:
             if (best_slot < TRACK_MAX_TRACKS) {
                 active_tracks_.slots()[best_slot].value.update(px, py, pz, now);
                 used[best_slot] = true;
-            } else {
+                continue;
+            }
+
+            // A second return of a target already updated this frame (two
+            // clusters within the base gate of one track) is a duplicate,
+            // not a new target: the A6 approach run spawned a twin track
+            // from the sim's second raw return of the same body.
+            bool duplicate = false;
+            for (uint32_t i = 0U; i < active_tracks_.slot_count(); ++i) {
+                const auto& slot = active_tracks_.slots()[i];
+                if (slot.occupied && used[i] &&
+                    (slot.value.distanceAt(px, py, pz, now) <= kAssocBaseGateM)) {
+                    duplicate = true;
+                    break;
+                }
+            }
+            if (duplicate) {
+                ++duplicate_returns;
+                continue;
+            }
+
+            {
                 const uint32_t new_id = next_track_id_;
                 ++next_track_id_;
                 IMMTracker fresh(new_id, px, py, pz, now);
@@ -178,17 +215,31 @@ private:
             RCLCPP_WARN_THROTTLE(get_logger(), *clock_, 5000,
                 "Dropped %u non-finite radar returns", dropped_non_finite);
         }
+        if (duplicate_returns > 0U) {
+            RCLCPP_DEBUG_THROTTLE(get_logger(), *clock_, 5000,
+                "%u duplicate returns folded into updated tracks", duplicate_returns);
+        }
     }
 
     void publish_tracks()
     {
-        const int64_t   t_now_ns = cuas::now_ns();
-        const float64_t now      = static_cast<float64_t>(t_now_ns) * 1.0e-9;
-        float64_t dt = now - last_predict_time_;
-        last_predict_time_ = now;
+        // Predict on wall time; reap and stamp in the MEASUREMENT domain:
+        // the newest cloud stamp advanced by the wall time since it arrived.
+        // Live, that equals the wall clock (same CLOCK_MONOTONIC); in bag
+        // replay it follows the bag clock, so tracks are neither reaped on
+        // the first tick nor kept forever and /tracks stays comparable to
+        // the bag's camera stamps (R6 F2).
+        const int64_t wall_ns = cuas::now_ns();
+        const float64_t wall_s = static_cast<float64_t>(wall_ns) * 1.0e-9;
+        float64_t dt = wall_s - last_predict_time_;
+        last_predict_time_ = wall_s;
         if (dt <= 0.0) {
             dt = 0.05;
         }
+        const int64_t t_now_ns = (latest_meas_ns_ > 0)
+            ? (latest_meas_ns_ + (wall_ns - wall_at_latest_meas_ns_))
+            : wall_ns;
+        const float64_t now = static_cast<float64_t>(t_now_ns) * 1.0e-9;
 
         active_tracks_.erase_if(
             [&](uint32_t id, const IMMTracker& tracker) {
@@ -265,6 +316,9 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
     std::shared_ptr<rclcpp::Clock> clock_;
     float64_t last_predict_time_ = 0.0;
+    int64_t   latest_meas_ns_ = 0;
+    int64_t   wall_at_latest_meas_ns_ = 0;
+    static constexpr int64_t kMeasTimeJumpNs = 1'000'000'000LL;
 };
 
 } // namespace cuas

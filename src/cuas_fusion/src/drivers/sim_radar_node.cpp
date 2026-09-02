@@ -108,30 +108,37 @@ private:
             // at 28 s, and leaves the 15 m clip at 58 s.
             sim_radar_.addTarget(make_target(1U, 0.0F, 14.0F, 1.5F, 0.0F, -0.5F, 0.0F));
         } else if (scenario == "lateral") {
-            // S-5: crosses the field at 4 m range, through the no-fly polygon.
-            sim_radar_.addTarget(make_target(1U, -5.0F, 4.0F, 1.5F, 1.0F, 0.0F, 0.0F));
+            // S-5: crosses the field at 4 m range at 0.5 m/s: enters the
+            // no-fly polygon (x in [-4, -1]) at 16 s, leaves it at 22 s,
+            // leaves the 15 m clip at 53 s.
+            sim_radar_.addTarget(make_target(1U, -12.0F, 4.0F, 1.5F, 0.5F, 0.0F, 0.0F));
         } else if (scenario == "circle") {
             // S-11 soak: orbits the sensor at 6 m, never leaves range.
             sim_radar_.addTarget(make_target(1U, 0.0F, 6.0F, 1.5F, 1.0F, 0.0F, 0.0F));
             is_circle_ = true;
         } else if (scenario == "two_targets") {
-            // Parallel approach, 2 m apart.
-            sim_radar_.addTarget(make_target(1U,  1.0F, 6.0F, 1.5F, 0.0F, -0.8F, 0.0F));
-            sim_radar_.addTarget(make_target(2U, -1.0F, 6.0F, 1.5F, 0.0F, -0.8F, 0.0F));
+            // Parallel approach, 2 m apart, from 14 m at 0.4 m/s (35 s to
+            // the sensor).
+            sim_radar_.addTarget(make_target(1U,  1.0F, 14.0F, 1.5F, 0.0F, -0.4F, 0.0F));
+            sim_radar_.addTarget(make_target(2U, -1.0F, 14.0F, 1.5F, 0.0F, -0.4F, 0.0F));
         } else if (scenario == "crossing") {
-            // S-2: paths cross at (0, 6) after 4 s — does association swap?
-            sim_radar_.addTarget(make_target(1U, -4.0F, 6.0F, 1.5F,  1.0F, 0.0F, 0.0F));
-            sim_radar_.addTarget(make_target(2U,  4.0F, 6.0F, 1.5F, -1.0F, 0.0F, 0.0F));
+            // S-2: paths cross at (0, 6) after 24 s at 0.5 m/s each — does
+            // association swap? Both start inside the 15 m clip (13.4 m).
+            sim_radar_.addTarget(make_target(1U, -12.0F, 6.0F, 1.5F,  0.5F, 0.0F, 0.0F));
+            sim_radar_.addTarget(make_target(2U,  12.0F, 6.0F, 1.5F, -0.5F, 0.0F, 0.0F));
         } else if (scenario == "clutter") {
-            // S-3: three static reflectors; the clutter map must learn them
-            // out and no track may survive the learning window.
-            sim_radar_.addTarget(make_target(1U,  2.0F,  5.0F, 0.5F, 0.0F, 0.0F, 0.0F));
-            sim_radar_.addTarget(make_target(2U, -3.0F,  8.0F, 0.5F, 0.0F, 0.0F, 0.0F));
-            sim_radar_.addTarget(make_target(3U,  1.0F, 12.0F, 0.5F, 0.0F, 0.0F, 0.0F));
+            // S-3: three static reflectors INSIDE the clutter map (x, y in
+            // [-5, 5), 0.25 m cells), at cell centres. With 0.1 m return
+            // noise a centred reflector hits its cell in ~62 % of frames,
+            // just above the 60 % learning threshold: the run measures how
+            // many returns leak past the learned map (audit D-4 / RC-27).
+            sim_radar_.addTarget(make_target(1U,  2.125F, 3.125F, 0.5F, 0.0F, 0.0F, 0.0F));
+            sim_radar_.addTarget(make_target(2U, -2.875F, 4.125F, 0.5F, 0.0F, 0.0F, 0.0F));
+            sim_radar_.addTarget(make_target(3U,  0.125F, 2.375F, 0.5F, 0.0F, 0.0F, 0.0F));
         } else if (scenario == "max_range") {
-            // S-6: first return at the 15 m clip, closing slowly enough
-            // (0.2 m/s) that the readout window still sees it beyond 12 m.
-            sim_radar_.addTarget(make_target(1U, 0.0F, 14.9F, 1.5F, 0.0F, -0.2F, 0.0F));
+            // S-6: first return at the 15 m clip, closing at 0.05 m/s so the
+            // readout window still sees it beyond 14 m.
+            sim_radar_.addTarget(make_target(1U, 0.0F, 14.9F, 1.5F, 0.0F, -0.05F, 0.0F));
         } else {
             // hover: a stationary target at 6 m (RC-27: the one-shot clutter
             // map learns it as clutter — Needs John's relearn policy).

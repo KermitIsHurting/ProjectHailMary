@@ -3,6 +3,7 @@
 #include "cuas_fusion/clutter_map.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
+#include "cuas_fusion/common/ros_pointcloud_adapter.hpp"
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
@@ -86,6 +87,18 @@ private:
 
         FixedVector<float32_t, kClutterMapMaxPoints> xs;
         FixedVector<float32_t, kClutterMapMaxPoints> ys;
+
+        // The parser now publishes width=0 clouds on an empty scene (RC-12);
+        // the iterator constructor dereferences data.front() on them, so an
+        // empty frame is forwarded as-is and still counts as a learning
+        // frame (R6 F3).
+        if (cloudIsEmpty(*msg)) {
+            if (!map_.is_learned()) {
+                map_.add_frame(xs, ys);
+            }
+            pub_->publish(*msg);
+            return;
+        }
 
         sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x");
         sensor_msgs::PointCloud2ConstIterator<float> iter_y(*msg, "y");

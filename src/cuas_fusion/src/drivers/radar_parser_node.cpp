@@ -335,13 +335,18 @@ private:
     {
         fd_ = ::open(port_.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
         if (fd_ < 0) {
-            const int err = errno;
-            char err_buf[ERRNO_BUF_LEN];
-            RCLCPP_ERROR(get_logger(),
-                "Cannot open serial port %s: %s",
-                port_.c_str(), errnoText(err, err_buf, sizeof(err_buf)));
+            // Once per outage, not once per 1 s retry (R6 F4).
+            if (!open_failure_logged_) {
+                const int err = errno;
+                char err_buf[ERRNO_BUF_LEN];
+                RCLCPP_ERROR(get_logger(),
+                    "Cannot open serial port %s: %s",
+                    port_.c_str(), errnoText(err, err_buf, sizeof(err_buf)));
+                open_failure_logged_ = true;
+            }
             return false;
         }
+        open_failure_logged_ = false;
 
         struct termios tty{};
         if (tcgetattr(fd_, &tty) != 0) {
@@ -650,6 +655,7 @@ private:
     std::string  config_port_;
     std::string  port_;
     int32_t      fd_;
+    bool         open_failure_logged_ = false;
     std::atomic<bool> running_;
     std::thread  parse_thread_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_;

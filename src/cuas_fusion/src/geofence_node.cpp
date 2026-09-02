@@ -356,6 +356,8 @@ private:
             const uint8_t pri = (pri_ptr != nullptr) ? *pri_ptr : static_cast<uint8_t>(0U);
 
             const uint32_t n_zones = engine_.zone_count();
+            bool dropped = false;
+            uint16_t processed = 0U;
             for (uint32_t zi = 0U; zi < n_zones; ++zi) {
                 const uint16_t bit = static_cast<uint16_t>(1U << zi);
                 const bool was = (prev_mask & bit) != 0U;
@@ -364,8 +366,10 @@ private:
                     RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
                         "Geofence events exceed the %zu-per-tick bound; dropping the rest",
                         kMaxEventsPerTick);
+                    dropped = true;
                     break;
                 }
+                processed = static_cast<uint16_t>(processed | bit);
                 if (was && !now) {
                     append_event(out, track.track_id, static_cast<uint8_t>(zi),
                                  GeofenceEventType::EXITED, 0.0F);
@@ -382,7 +386,13 @@ private:
                 }
             }
 
-            (void)zone_membership_.insert_or_assign(track.track_id, now_mask);
+            // Zones handled this tick take their new membership; zones cut
+            // off by the cap keep the old bit so their transition is
+            // reported next tick, once (R6 F6, R6b-3).
+            const uint16_t stored = dropped
+                ? static_cast<uint16_t>((now_mask & processed) | (prev_mask & static_cast<uint16_t>(~processed)))
+                : now_mask;
+            (void)zone_membership_.insert_or_assign(track.track_id, stored);
         }
 
         pub_events_->publish(out);
