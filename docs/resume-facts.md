@@ -13,8 +13,8 @@ REAL AR0234 camera, YOLOv8s INT8 engine), 2026-09-02, branch `polish`.
 |---|---|---|
 | Counter-UAS radar + camera fusion stack, ROS 2 Humble, C++17, 22 nodes | `src/cuas_fusion/CMakeLists.txt` (22 `add_executable`), `docs/ICD.md` §2; 19 nodes launched by `full.launch.py` | measured (build) |
 | Sensors: TI IWR6843ISK 60 GHz mmWave radar over CP2105 USB serial, AR0234 global-shutter camera over V4L2 | `src/cuas_fusion/src/drivers/radar_parser_node.cpp` (TI TLV parser), `camera_driver.cpp`, `scripts/99-iwr6843.rules` | implemented; hardware attached on the dev box |
-| ~12.9 k lines of owned C++ (src + include) + 3.0 k lines of tests at `3b62029` (11.8 k / 2.3 k at the audit baseline `7ef0bde`) | `git ls-files src/cuas_fusion/src src/cuas_fusion/include | xargs cat | wc -l` = 12,852; tests 2,992 | measured |
-| 160 GoogleTest cases in 22 binaries, 0 failures (`colcon test-result` reports 182 = 160 cases + one ctest row per binary) | `grep -cE '^\s*TEST(_F)?\(' test/unit/*.cpp src/cuas_fusion/test/*.cpp` = 160 on `3b62029`; `colcon test-result` 182/0 failures | measured |
+| ~12.9 k lines of owned C++ (src + include) + 3.0 k lines of tests at `12c19fb` (11.8 k / 2.3 k at the audit baseline `ca48665`) | `git ls-files src/cuas_fusion/src src/cuas_fusion/include | xargs cat | wc -l` = 12,852; tests 2,992 | measured |
+| 160 GoogleTest cases in 22 binaries, 0 failures (`colcon test-result` reports 182 = 160 cases + one ctest row per binary) | `grep -cE '^\s*TEST(_F)?\(' test/unit/*.cpp src/cuas_fusion/test/*.cpp` = 160 on `12c19fb`; `colcon test-result` 182/0 failures | measured |
 | Builds with `-Werror` at 0 warnings | every audit-log gate line; `CUAS_WERROR` in CMake | measured |
 
 ## The pipeline, in order (say it this way)
@@ -53,7 +53,7 @@ threat + intent classifiers → geofence / reachability → RViz2 + camera overl
 | Geofence events on the approach: perimeter ENTERED 1 / EXITED 1; lateral: no_fly_left + perimeter | same | same |
 | Max range seen in the max_range window | 14.2 m (scene starts at 14.9 m under the 15 m clip; the first-detection instant itself is not captured) | same |
 | Clutter map: 3 learned static reflectors (occupancy 0.002) still sustain 3 CONFIRMED tracks; the ~38 % leak rate is a derived estimate (cell-hit probability 0.62 for 0.1 m noise in 0.25 m cells), not measured | D-4 for the owner | `…/clutter/readout.txt` |
-| Sim smoke on the fix tree (ae5a2e4 + the uncommitted A6/R6 fixes, committed unchanged as `3b62029` nine minutes later) | exit 0, 0 error lines, health NOMINAL, 1 track | `~/backups/fix-sim-smoke-20260902T0419Z` |
+| Sim smoke on the fix tree (67906aa + the uncommitted A6/R6 fixes, committed unchanged as `12c19fb` nine minutes later) | exit 0, 0 error lines, health NOMINAL, 1 track | `~/backups/fix-sim-smoke-20260902T0419Z` |
 
 ## Pinned by unit test (implemented, not measured live)
 
@@ -86,4 +86,4 @@ threat + intent classifiers → geofence / reachability → RViz2 + camera overl
 | D-4 | Clutter-map relearn/decay (RC-27): a hovering target in the first 10 s is learned as clutter | unchanged (see the `hover` scene) |
 | D-5 | Extrinsics translation sign (RC-31) | nominal |
 | D-13 | Geofence hysteresis (A6-4): a target on a zone edge chatters ENTERED/EXITED at 10 Hz | none |
-| D-0 | Keep `62ae459` / `7ef0bde` | kept |
+| D-0 | Keep `78d613d` / `ca48665` | kept |

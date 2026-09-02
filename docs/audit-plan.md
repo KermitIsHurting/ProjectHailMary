@@ -7,7 +7,7 @@ Executor: the AI executor session. Owner: John. Branch: `polish` off
 
 ### 0.1 Tree state at kick-off
 
-`git status --short -uall` on `misra-audit-fixes` @ `7ef0bde` (2026-09-01 23:45Z):
+`git status --short -uall` on `misra-audit-fixes` @ `ca48665` (2026-09-01 23:45Z):
 
 ```
 ?? KICKOFF.md
@@ -26,33 +26,33 @@ kick-off and were made by this session without an explicit go-ahead:
 
 | Commit | What | Gates |
 |---|---|---|
-| `62ae459` | predictors use track vx/vy/vz instead of a fabricated radially-outward velocity (A1.3 class); new `test_kinematic_predictor`, 7 cases | 0 warnings under -Werror; 136/136 gtest cases |
-| `7ef0bde` | radar expected rate 20 Hz in health monitor and sim default (profile frameCfg period is 50 ms) | same |
+| `78d613d` | predictors use track vx/vy/vz instead of a fabricated radially-outward velocity (A1.3 class); new `test_kinematic_predictor`, 7 cases | 0 warnings under -Werror; 136/136 gtest cases |
+| `ca48665` | radar expected rate 20 Hz in health monitor and sim default (profile frameCfg period is 50 ms) | same |
 
 Options: (a) keep — gates pass, reviewable with `git show`; (b) revert with
-`git revert 7ef0bde 62ae459` on `polish`; (c) reset `polish` to
-`pre-fix-backup-2026-09-01` (= `d8a5fa7`) and re-stage the docs. Under the
+`git revert ca48665 78d613d` on `polish`; (c) reset `polish` to
+`pre-fix-backup-2026-09-01` (= `050cf1a`) and re-stage the docs. Under the
 playbook both are tier B (prediction path / health contract) and would go
 through the lifecycle; they are recorded, not assumed accepted.
 
 ### 0.2 Tag and branch
 
-- `pre-polish-2026-09-01` → `7ef0bde` (annotated). **Not pushed**: repo hard
+- `pre-polish-2026-09-01` → `ca48665` (annotated). **Not pushed**: repo hard
   rule (the repo rules file) is never push. For John: `git push origin pre-polish-2026-09-01`.
-- `pre-fix-backup-2026-09-01` → `d8a5fa7`, the state before the two commits
+- `pre-fix-backup-2026-09-01` → `050cf1a`, the state before the two commits
   above and the commit the tree archive holds.
-- Branch `polish` created from `misra-audit-fixes` @ `7ef0bde`. `main` (local
-  and `origin/main`) stays at `7857bd4`, 80 commits behind.
+- Branch `polish` created from `misra-audit-fixes` @ `ca48665`. `main` (local
+  and `origin/main`) stays at `920a56a`, 80 commits behind.
 
 KICKOFF.md was written from the public repo at `main` (24 commits,
 0.8.0-alpha). The real state is `misra-audit-fixes` (0.9.0-alpha, pushed to
-`origin/misra-audit-fixes` @ `d8a5fa7`), so `polish` branches from there.
+`origin/misra-audit-fixes` @ `050cf1a`), so `polish` branches from there.
 
 ### 0.3 Archives (all under `/home/zork/backups/`, same disk as the repo)
 
 | File | Size | sha256 | Contents |
 |---|---|---|---|
-| `ProjectHailMarry-full-2026-09-01.tar.gz` | 604 MB | `4b8852d46539973c76a02bc13b31686615fdd828b6f74ffa2ecdb052b2d43e46` | whole tree at `d8a5fa7` INCLUDING gitignored state: `.git`, `build/`, `install/`, `log/` (colcon logs), `models/` (INT8 + FP16 engines, ONNX), `calibration_frames/` (15 PNG), `logs/` (3 jitter CSVs), `camera_backups/`, `scripts/99-iwr6843.rules`, `src/cuas_fusion/config/*` (radar_profile.cfg, extrinsics.yaml, camera_calibration*.yaml), `.editor-scratch/`, `.idea/`; 5,737 entries |
+| `ProjectHailMarry-full-2026-09-01.tar.gz` | 604 MB | `4b8852d46539973c76a02bc13b31686615fdd828b6f74ffa2ecdb052b2d43e46` | whole tree at `050cf1a` INCLUDING gitignored state: `.git`, `build/`, `install/`, `log/` (colcon logs), `models/` (INT8 + FP16 engines, ONNX), `calibration_frames/` (15 PNG), `logs/` (3 jitter CSVs), `camera_backups/`, `scripts/99-iwr6843.rules`, `src/cuas_fusion/config/*` (radar_profile.cfg, extrinsics.yaml, camera_calibration*.yaml), `.editor-scratch/`, `.idea/`; 5,737 entries |
 | `ProjectHailMarry-git-2026-09-01.bundle` | 132 MB | `8f52999eb0b540a9d5c2f83b56e2d7fb652e9fd8fc6d2a09bf48cc048eb2d388` | all refs; `git bundle verify`: "records a complete history" |
 | `rosbags-demo_take1-3-2026-09-01.tgz` | 4.47 GB | `964d73e5f643fc536ebbd6f07802ea6419ac1eb62d00c137d92c05b8c67ddf82` | `~/demo_take1`, `~/demo_take2`, `~/demo_take3` — the bags `replay.launch.py` and `scripts/play_and_echo.sh` reference. They live OUTSIDE the repo and were not in the tree archive (KICKOFF §0.4) |
 | `SHA256SUMS-2026-09-01.txt` | — | — | `cd ~/backups && sha256sum -c SHA256SUMS-2026-09-01.txt` |
@@ -67,7 +67,7 @@ camera_calibration_result.yaml PRESENT · .git/HEAD PRESENT · camera_backups/
 PRESENT. `.env` matches: 3, all `build/*/colcon_command_prefix_*.sh.env`
 (colcon-generated, no secrets). Rosbags in tree: 0 (separate bag archive).
 
-The two commits after `d8a5fa7` are in git only (the bundle predates them).
+The two commits after `050cf1a` are in git only (the bundle predates them).
 If they are kept: `git bundle create ~/backups/ProjectHailMarry-git-2026-09-01b.bundle --all`.
 
 ### 0.4 Restore rehearsal — PASSED
@@ -78,7 +78,7 @@ Log `/home/zork/backups/rehearsal-2026-09-01.log`. Scratch tree
 ```
 == restore rehearsal (attempt 2): Tue Sep  1 11:51:04 PM UTC 2026 ==
 tree: extracted from ProjectHailMarry-full-2026-09-01.tar.gz; build/ install/ log/ removed before build
-HEAD d8a5fa7 docs: OVERHAUL_PLAN camera-file protocol reference points to ROLLBACK.md
+HEAD 050cf1a docs: OVERHAUL_PLAN camera-file protocol reference points to ROLLBACK.md
 == colcon build --packages-select cuas_msgs cuas_fusion ==
 Starting >>> cuas_msgs
 Finished <<< cuas_msgs [28.8s]
@@ -159,12 +159,12 @@ checker was never found in the repo (A1 F-7); no MISRA C++:2023 checker is insta
 | # | Fact | How (command → output) |
 |---|---|---|
 | F-1 | Clean build from the archive: 0 warnings, 369 s (cuas_msgs 28.8 s + cuas_fusion 5 min 38 s) | §0.4 rehearsal, `colcon build --packages-select cuas_msgs cuas_fusion` on the extracted tree, `-Werror` ON |
-| F-2 | Tests at `d8a5fa7`: 129 gtest cases / 18 binaries, 0 failures; at `7ef0bde` (HEAD): **136 / 19**, 0 failures (`colcon test-result`: 155 incl. suite entries) | `colcon test && colcon test-result --verbose`; sum of `tests=` in `build/cuas_fusion/test_results/cuas_fusion/*.gtest.xml` |
-| F-3 | Repo doc counts disagree: 97 (RESUME_PLAN), 108 (the repo rules file, HANDOFF §1, OVERHAUL_PLAN), 136 (HANDOFF §8) — 108 counts `TEST(` only and omits 21 `TEST_F(` | `grep -cE '^TEST(_F)?\(' test/unit/*.cpp src/cuas_fusion/test/*.cpp` = 129 at d8a5fa7 |
+| F-2 | Tests at `050cf1a`: 129 gtest cases / 18 binaries, 0 failures; at `ca48665` (HEAD): **136 / 19**, 0 failures (`colcon test-result`: 155 incl. suite entries) | `colcon test && colcon test-result --verbose`; sum of `tests=` in `build/cuas_fusion/test_results/cuas_fusion/*.gtest.xml` |
+| F-3 | Repo doc counts disagree: 97 (RESUME_PLAN), 108 (the repo rules file, HANDOFF §1, OVERHAUL_PLAN), 136 (HANDOFF §8) — 108 counts `TEST(` only and omits 21 `TEST_F(` | `grep -cE '^TEST(_F)?\(' test/unit/*.cpp src/cuas_fusion/test/*.cpp` = 129 at 050cf1a |
 | F-4 | Owned C++: 11,827 lines src+include (9,297 non-blank non-comment); tests 2,283; 22 `add_executable`, 11 `add_library`, 19 `.msg` (136 fields), 7 launch files, 26 topics (ICD §3) | `git ls-files … \| xargs wc -l`; `grep -c add_executable CMakeLists.txt` |
 | F-5 | cppcheck 2.7 native (no MISRA addon; without ROS include paths): **6 findings** — 1 warning (`constParameter`), 3 style, 2 performance; 5 s | `/home/zork/backups/a1-static-analysis-20260902T0147Z.log`; July baseline was 68 with different flags |
 | F-6 | clang-tidy 14 (checks: clang-analyzer-*, bugprone-*, cert-*, cppcoreguidelines-* minus magic-numbers/constant-array-index, readability-function-size, readability-magic-numbers): **710 warnings, 0 errors**, all in owned code; 168 in `cuas_visualizer_node.cpp` alone; top checks: readability-magic-numbers 475, cppcoreguidelines-pro-type-vararg 69, cert-err33-c 52, cppcoreguidelines-pro-bounds-pointer-arithmetic 31, bugprone-easily-swappable-parameters 21, bugprone-narrowing-conversions,cppcoreguidelines-narrowing-conversions 13; 611 s | `~/backups/a1-clang-tidy-20260902T0157Z.log`, raw `~/backups/ct-build/tidy.out`; compile DB from a scratch `cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON` configure (4 s). July baseline: 771 with a different check set |
-| F-7 | **No coding-standard checker exists in the repo** that could have produced "144 violations across 20 files" (CHANGELOG 0.7.0, commit `7e57574`); no `.clang-tidy`, `.clang-format`, cppcheck config, or MISRA tool; STANDARDS_CHECKLIST §4 states no free MISRA C++:2023 checker exists | `git ls-files \| grep -iE 'clang-tidy\|clang-format\|cppcheck\|misra'` → none; `git show --stat 8652f22` = 56 .cpp/.hpp touched, not 20 |
+| F-7 | **No coding-standard checker exists in the repo** that could have produced "144 violations across 20 files" (CHANGELOG 0.7.0, commit `8d19064`); no `.clang-tidy`, `.clang-format`, cppcheck config, or MISRA tool; STANDARDS_CHECKLIST §4 states no free MISRA C++:2023 checker exists | `git ls-files \| grep -iE 'clang-tidy\|clang-format\|cppcheck\|misra'` → none; `git show --stat af5f2bc` = 56 .cpp/.hpp touched, not 20 |
 | F-8 | The July audit (`AUDIT_REPORT.md`) is a manual 60-finding register; 47 of its IDs appear in fix commits on this branch | `git log --format=%s main..HEAD \| grep -oE 'A[1-6]\.[0-9]+' \| sort -u \| wc -l` |
 
 ### 1.2 Environment and hardware (2026-09-01 23:50Z)
@@ -196,18 +196,18 @@ V = verified by command (how); U = unverified (no artefact); X = contradicted by
 | C-1 | 21-node pipeline | ICD §2, PROJECT_MAP, architecture | X → 22 executables (`auto_exposure_node` added 2026-07-07); 19 launched in `full.launch.py` |
 | C-2 | ~11,150 LOC | AUDIT_REPORT, PROJECT_MAP | V (stale) → 11,827 owned C++ today |
 | C-3 | 19 custom messages / 26 topics | ICD | V → `ls msgs/cuas_msgs/msg`; ICD §3 headers. Note 3 messages (RadarFrame, RadarDetection, SystemHealthArray) are never published |
-| C-4 | Radar frame rate 16 Hz | latency_budget, ICD, architecture, health monitor, sim default | X → `radar_profile.cfg` `frameCfg … 50 …` = 20 Hz; code constants fixed in `7ef0bde`; docs still say 16 |
+| C-4 | Radar frame rate 16 Hz | latency_budget, ICD, architecture, health monitor, sim default | X → `radar_profile.cfg` `frameCfg … 50 …` = 20 Hz; code constants fixed in `ca48665`; docs still say 16 |
 | C-5 | Camera 1920×1080 @ 30 Hz | constants.hpp | V (config) · smoke readout: 53.56 Hz |
-| C-6 | YOLOv8s INT8 TensorRT at ~35 Hz | CHANGELOG 0.3.0, ICD, latency_budget | U → only commit subject `4a9e78a`; node subscribes depth 1 to a 30 Hz topic; smoke readout: 22.49 Hz in-pipeline |
+| C-6 | YOLOv8s INT8 TensorRT at ~35 Hz | CHANGELOG 0.3.0, ICD, latency_budget | U → only commit subject `6288a5a`; node subscribes depth 1 to a 30 Hz topic; smoke readout: 22.49 Hz in-pipeline |
 | C-7 | `/tracks` at 20 Hz | ICD, latency_budget | V → 50 ms wall timer; smoke readout: 20.02 Hz |
 | C-8 | Overlay FPS 28–30 → 13–17 Hz sustained | latency_budget §4 | U → estimator code exists; no log checked in; observed on an -O0 build (A4.6) |
 | C-9 | "4+2 core layout, two Cortex-A55 at 729 MHz, 2.37× slower" | latency_budget §4.3 | X → six Cortex-A78AE, all 1728 MHz (`/proc/cpuinfo`, cpufreq); 729 MHz is a DVFS step |
 | C-10 | "eight Cortex-A78AE cores" | architecture §8 | X → six |
 | C-11 | GR3D 31–68 %, Tj ≈ 57 °C, camera 83 % / colour 58 % / rviz 67 % CPU | latency_budget §4.2 | U → doc-only; no tegrastats capture. Smoke tegrastats sample: CPU 52–100 % ×6 @1728, GR3D 67–72 %, tj 52–55 °C, RAM 4.6 GB + 1.8 GB swap |
 | C-12 | Throttle threshold 90 °C | latency_budget | X → `/sys/class/thermal` trips: tj 95 °C, cpu 99 °C |
-| C-13 | Timestamp gate 50 → 150 ms "after kernel wake-up jitter aged out camera frames"; 6-frame ring | latency_budget §6 | Partial → constant change is commit `f1abc6e` (2026-04-09); jitter narrative unmeasured (doc admits it); the image ring `TimestampAssociator` is never instantiated by a node; live ring is `DetectionSetBuffer` (6 detection sets) since P2.2 |
+| C-13 | Timestamp gate 50 → 150 ms "after kernel wake-up jitter aged out camera frames"; 6-frame ring | latency_budget §6 | Partial → constant change is commit `6287597` (2026-04-09); jitter narrative unmeasured (doc admits it); the image ring `TimestampAssociator` is never instantiated by a node; live ring is `DetectionSetBuffer` (6 detection sets) since P2.2 |
 | C-14 | "Pinhole projection + IoU association" | latency_budget, RESUME | X → point-in-25 %-padded-box (`fusion_engine.cpp:84-88`); `FUSION_IOU_THRESHOLD` dead |
-| C-15 | IMM CV/CA/CT with Bayesian mode mixing | CHANGELOG 0.4.0 | Partial → mixing is Blom/Bar-Shalom; mode update uses prior μ not c̄ (`imm_filter.cpp:113-115`); IMM was CV-only until `7430a57` |
+| C-15 | IMM CV/CA/CT with Bayesian mode mixing | CHANGELOG 0.4.0 | Partial → mixing is Blom/Bar-Shalom; mode update uses prior μ not c̄ (`imm_filter.cpp:113-115`); IMM was CV-only until `b8a00c2` |
 | C-16 | Hungarian + Mahalanobis (χ² 9/16) tracker | CHANGELOG 0.4.0, RESUME | V (code+tests) but **not launched** — `tracker_node` absent from full/sim launch; live tracker is greedy NN 0.8 m |
 | C-17 | 5-state escalation FSM UNKNOWN→BENIGN→SUSPECT→THREAT→THREATENING→ENGAGED | ICD, architecture | X (names) → code: UNKNOWN→TRACKED→IDENTIFIED→THREATENING→ENGAGED (`threat_classifier.hpp:13-19`); 4-value ThreatLevel is separate |
 | C-18 | 5-class intent classifier | CHANGELOG 0.8.0 | V → 5 + unknown; stateless single-sample rules |
@@ -226,7 +226,7 @@ V = verified by command (how); U = unverified (no artefact); X = contradicted by
 | C-31 | Doppler-weighted centroid | CHANGELOG 0.4.0 | V (position) → velocity is the max-Doppler member, not weighted |
 | C-32 | Zero live hardware runs on the branch | HANDOFF §8 | V → no run artefacts after 2026-04-21 until this smoke (sim + live camera, 2026-09-02) |
 
-### 1.5 Simulation-path smoke (A1 measurement) — 2026-09-02 01:49–01:51Z, HEAD `7ef0bde`
+### 1.5 Simulation-path smoke (A1 measurement) — 2026-09-02 01:49–01:51Z, HEAD `ca48665`
 
 Conditions: `ros2 launch cuas_fusion sim.launch.py` (sim radar 20 Hz "approach" scenario, REAL
 camera on `/dev/video0`, TensorRT INT8 engine, RViz2 on `DISPLAY=:1`, no radar hardware used);
@@ -312,7 +312,7 @@ are mixed. Needs hardware check only for the absolute numbers on the radar path.
 | 12 cold reader | all docs vs commands | 200k | 156k | 10.6 min | 51 rows (22 contradicted) | corrected-lines list |
 | 9 altitude | — | — | — | — | SKIPPED (owner call) | Needs John's decision |
 
-Raw finding tables are kept verbatim in the audit scratch (`findings/role*.md`) and folded into §4 by root cause. Tree frozen at `3986d6f` throughout A3.
+Raw finding tables are kept verbatim in the audit scratch (`findings/role*.md`) and folded into §4 by root cause. Tree frozen at `cee924f` throughout A3.
 
 ## 4. A4 triage — root causes (deduped across roles 3, 4, 5, 6a, 6b, 10, 12), acceptance, tier, batch
 
@@ -327,7 +327,7 @@ Acceptance: A = ≥2 independent finders or orchestrator-reproduced; P = needs p
 | RC-5 | Stale/wrong camera labels: fusion never publishes empty arrays, classifier keeps `latest_fused_` forever, bearing-only 15° join without range/identity | R5-1, R4-2, R3-8, R6b-3 | A | 1 | A | B4, B5 |
 | RC-6 | Two clock families: drivers CLOCK_MONOTONIC vs tracker RCL_STEADY_TIME (MONOTONIC_RAW); 150 ms fusion gate dies at ~75 min uptime; reaper mixes clocks; classifier dwell on wall clock | F-9 (probe), R5-6/7, R4-4, R3-9/13, R10-2 | A (measured) | 1 | B | B2, B5 |
 | RC-7 | IMM mode-probability update uses posterior μ not mixed prior c̄ → μ_CT underflows to 1e-323 in straight flight | R3-4 (scratch-proven), A1 agent note | A | 1 | B | B3 |
-| RC-34 | IMM `setMixedState` keeps stale cross-covariance to CA/CT private states → blended P indefinite within 3.5–5 s (60/60 runs), a mode weight hits exactly 0, spurious `is_maneuvering`, non-finite state in 13/60; introduced by the A1.2 fix (7430a57) | R6a-2 (scratch-proven) | A (reproduced by finder) | 1 | A | B3 |
+| RC-34 | IMM `setMixedState` keeps stale cross-covariance to CA/CT private states → blended P indefinite within 3.5–5 s (60/60 runs), a mode weight hits exactly 0, spurious `is_maneuvering`, non-finite state in 13/60; introduced by the A1.2 fix (b8a00c2) | R6a-2 (scratch-proven) | A (reproduced by finder) | 1 | A | B3 |
 | RC-35 | Parser passes unclustered singletons only when a frame has NO cluster → a distant single-return target exists only when nothing else does | R6a-5 | A (code read) | 3 | B | B1 (policy: always pass singletons; D-12) |
 | RC-36 | Sim radar Doppler sign inverted (`−(v·p)/|p|` → +1 for an approaching target) vs the parser/TI/measurement-model convention (positive = receding); parser comment :87 wrong | R6a-8 | A | 3 (latent) | C | B1 |
 | RC-37 | Confirm counter is cumulative not consecutive; sim timer dt truncation; empty-cloud iterator construction out of contract | R6a-9, R6a-11, R6a-12 | A | 4/6 | C | B1, B2 |
@@ -357,7 +357,7 @@ Acceptance: A = ≥2 independent finders or orchestrator-reproduced; P = needs p
 | RC-31 | Extrinsics `t` sign appears inverted vs the mount description (~59 px at 5 m) | R4-5 | H | 3 | B | Needs hardware check (calibrate_extrinsics.py with reflector) |
 | RC-32 | AE node on by default in full launch (NEEDS-HARDWARE); overlay prints tracker's "unknown" label; visualizer relative topic name; hard-coded /home/zork paths in scripts | R6b-12, R4-7/8, R10-11 | A | 6 | C | B7 |
 | RC-33 | Occlusion predictor / mux occlusion arm never exercised (tracker never emits OCCLUDED); enum values dead | R6b-13, R4-11 | A | 6 | D (document) | B8 |
-| D-0 | Pre-kickoff commits 62ae459 (predictor vx/vy) and 7ef0bde (20 Hz) | role 6b reviewed 62ae459: correct | — | — | — | Needs John: keep (default) / revert |
+| D-0 | Pre-kickoff commits 78d613d (predictor vx/vy) and ca48665 (20 Hz) | role 6b reviewed 78d613d: correct | — | — | — | Needs John: keep (default) / revert |
 
 ### 4.1 Batches (A5) — dependency order; each = edit → gates → checkpoint commit → log line
 
@@ -379,7 +379,7 @@ Gates per batch: `colcon build --packages-select cuas_fusion` 0 warnings under -
 
 | D | Decision | Options / numbers | Default applied meanwhile |
 |---|---|---|---|
-| D-0 | Keep or revert `62ae459` (predictor vx/vy) and `7ef0bde` (20 Hz) | keep (role 6b: correct, minimal) · revert · reset | kept; both under role-6 pass |
+| D-0 | Keep or revert `78d613d` (predictor vx/vy) and `ca48665` (20 Hz) | keep (role 6b: correct, minimal) · revert · reset | kept; both under role-6 pass |
 | D-1 | RC-15 network exposure: `ROS_LOCALHOST_ONLY=1` + fixed `ROS_DOMAIN_ID` | blocks remote RViz/web UI unless SROS2 | not applied; documented in README run procedure |
 | D-2 | RC-17 threat class policy | allow-list (bird 14, kite 33, airplane 4, …) vs any-non-person | unchanged; documented as demo policy |
 | D-3 | RC-18 de-escalation hysteresis | e.g. THREATENING→IDENTIFIED when range > 6 m or closing < 0 for 3 s; ENGAGED→THREATENING when range > 3 m for 3 s | unchanged; documented as monotonic FSM |
@@ -397,7 +397,7 @@ Gates per batch: `colcon build --packages-select cuas_fusion` 0 warnings under -
 
 ### 4.3 Outcomes (A5, written at A7) — root cause → where it landed
 
-Checkpoints on `polish`: B1 `8b553a1` · B2 `fb6f35c` · B3 `a085f90` · B4 `6ef134a` · B5 `d311752` · B6 `a26a487` · B7 `ae5a2e4` · A6/R6 fixes `3b62029`.
+Checkpoints on `polish`: B1 `94508df` · B2 `0359168` · B3 `20ea851` · B4 `368d770` · B5 `8c6d7a4` · B6 `b742468` · B7 `67906aa` · A6/R6 fixes `12c19fb`.
 
 | RC | Outcome | Commit | Pinned by |
 |---|---|---|---|
@@ -439,9 +439,9 @@ Checkpoints on `polish`: B1 `8b553a1` · B2 `fb6f35c` · B3 `a085f90` · B4 `6ef
 | RC-36 | Fixed: sim Doppler sign; parser comment | B1 | A6 approach: doppler < 0 while closing |
 | RC-37 | Fixed: sim dt; one hit per stamp, gap restarts confirmation | B1, B2 | OneHitPerStamp… |
 | RC-38 | NEW (A5): sim scenes in the ICD frame + crossing/clutter/max_range/hover | B7 | A6 |
-| A6-1 | NEW (A6): one target → twin tracks from two returns in one frame; duplicate-return guard + sim centroid | `3b62029` | A6 pass 2: 1 id per target |
+| A6-1 | NEW (A6): one target → twin tracks from two returns in one frame; duplicate-return guard + sim centroid | `12c19fb` | A6 pass 2: 1 id per target |
 | A6-4 | NEW (A6): geofence edge chatter, no hysteresis | Needs John (D-13) | — |
-| R6 F1–F6 | role-6 findings on the cumulative diff: F1 join epoch, F2 replay clock, F3 empty-cloud iterators, F4 log spam, F6 cap/membership fixed; F5 replug re-config documented (README/HANDOFF) | `3b62029` | LabelJoin test; A6 pass 2; smoke |
+| R6 F1–F6 | role-6 findings on the cumulative diff: F1 join epoch, F2 replay clock, F3 empty-cloud iterators, F4 log spam, F6 cap/membership fixed; F5 replug re-config documented (README/HANDOFF) | `12c19fb` | LabelJoin test; A6 pass 2; smoke |
 
 
 ## 5. Empirical proof plan (A6) — shape → how driven → expected numbers
@@ -476,9 +476,9 @@ hardware smoke; S-8 needs the parser's pure part extracted. The rest run on the 
 Harness: `scripts/_a6_shape.sh <scene> <outdir> [warmup] [window]` (sim.launch.py with `scenario:=`,
 readout `scripts/_readout.py`, tegrastats, hard cleanup). Real camera + TensorRT engine in the loop,
 empty room (0 camera detections in every run). Artefacts: `~/backups/a6-shapes-20260902T0346Z/`
-(pass 1, tree `ae5a2e4`) and `~/backups/a6-shapes-pass2-20260902T0409Z/` (after the A6 fixes; the summary files say HEAD=ae5a2e4 because the fixes were uncommitted until `3b62029`).
+(pass 1, tree `67906aa`) and `~/backups/a6-shapes-pass2-20260902T0409Z/` (after the A6 fixes; the summary files say HEAD=67906aa because the fixes were uncommitted until `12c19fb`).
 
-### Pass 1 (tree `ae5a2e4`, 03:46–03:58Z)
+### Pass 1 (tree `67906aa`, 03:46–03:58Z)
 
 | S | Scene | Observed | Expected | ✓/✗ |
 |---|---|---|---|---|
@@ -501,7 +501,7 @@ A6-3 scene timing: harness reads 12 s + warmup after launch; scenes re-timed to 
 doing the interesting thing inside the window. Escalation never leaves TRACKED without a person
 label (D-2, RC-17): expected for these scenes, recorded.
 
-### Pass 2 (tree `ae5a2e4` + A6/R6 fixes, 04:09–04:18Z, `~/backups/a6-shapes-pass2-20260902T0409Z/`)
+### Pass 2 (tree `67906aa` + A6/R6 fixes, 04:09–04:18Z, `~/backups/a6-shapes-pass2-20260902T0409Z/`)
 
 | S | Scene | Observed | Expected | ✓/✗ |
 |---|---|---|---|---|
@@ -513,7 +513,7 @@ label (D-2, RC-17): expected for these scenes, recorded.
 | S-6 | max_range (14.9 m, 0.05 m/s) | 1 id, range 13.1–14.2 m in the window | first detection ≥ 14 m | ✓ |
 | — | hover (0, 6) | 1 id, doppler ±0.3 (stationary); outside the ±5 m map, so never learned | RC-27 demonstration | observed |
 | S-11 | circle, 60 s | 1 id, no churn; rates flat; NOMINAL; no_fly_left ENTERED 2 / EXITED 2 (orbit clips the polygon) | table ≤ 1 | ✓ (4-min soak in pass 1: RAM +283 MB; not a stability claim) |
-| gate | sim smoke on the fix tree (`ae5a2e4` + uncommitted fixes = `3b62029`) | exit 0, 0 error lines, 1 id, health NOMINAL | — | ✓ |
+| gate | sim smoke on the fix tree (`67906aa` + uncommitted fixes = `12c19fb`) | exit 0, 0 error lines, 1 id, health NOMINAL | — | ✓ |
 
 **New from pass 2:** A6-4 geofence boundary chatter (no hysteresis) — Needs John (a hysteresis
 band, e.g. 0.25 m). D-4 gets a number: with the shipped map a static reflector keeps a CONFIRMED
@@ -524,9 +524,9 @@ track through ~38 % leakage. D-2 stands: nothing escalates past TRACKED without 
 
 | Pass | Status | Result |
 |---|---|---|
-| Role 6, cumulative diff `pre-review-20260902T0144Z..ae5a2e4` (src/, msgs/, test/) | RUN (16.2 min, 260k tok, 34 tool uses) | **FIX-FIRST** — F1 label join not time-corrected (rank 2, B), F2 tracker reaper/stamp on the boot clock breaks replay (3, C), F3 clutter_map_node iterators on width=0 clouds (4, C), F4 parser open-failure log unthrottled (6, D), F5 radar replug needs re-config (5, C/H), F6 geofence membership written after a dropped event (7, D). Verified: positionUpdate dims, block-diagonal mixing keeps CA/CT observable (scratch driver), 2 m parallel targets keep 2 ids, no clutter steal, crossing exchanges ids (NN), sim frame vs ICD, top-K, launch APIs. |
+| Role 6, cumulative diff `pre-review-20260902T0144Z..67906aa` (src/, msgs/, test/) | RUN (16.2 min, 260k tok, 34 tool uses) | **FIX-FIRST** — F1 label join not time-corrected (rank 2, B), F2 tracker reaper/stamp on the boot clock breaks replay (3, C), F3 clutter_map_node iterators on width=0 clouds (4, C), F4 parser open-failure log unthrottled (6, D), F5 radar replug needs re-config (5, C/H), F6 geofence membership written after a dropped event (7, D). Verified: positionUpdate dims, block-diagonal mixing keeps CA/CT observable (scratch driver), 2 m parallel targets keep 2 ids, no clutter steal, crossing exchanges ids (NN), sim frame vs ICD, top-K, launch APIs. |
 | Fixes F1–F4, F6 + A6-1/2/3 | applied; build 0 warnings; 182 tests; cppcheck 6 | see §9 pass 2 |
-| Role 6, fixes only (`git diff ae5a2e4`) | RUN (6.1 min, 92k tok) | FIX-FIRST — R6b-1 join epoch must be the TrackArray header stamp, R6b-2 replay time jump, R6b-3 partial membership on cap, R6b-4 document the 0.8 m merge limit; all applied except R6b-4 (documented in HANDOFF traps) |
+| Role 6, fixes only (`git diff 67906aa`) | RUN (6.1 min, 92k tok) | FIX-FIRST — R6b-1 join epoch must be the TrackArray header stamp, R6b-2 replay time jump, R6b-3 partial membership on cap, R6b-4 document the 0.8 m merge limit; all applied except R6b-4 (documented in HANDOFF traps) |
 | Role 6, third pass on R6b-1..3 | RUN (3.0 min, 61k tok) | **SHIP** — all three killed with scenarios; notes: helper-only test coverage for the epoch, unthrottled jump WARN under misconfiguration, INSIDE_THREAT cap semantics pre-existing |
 | cppcheck 2.7 (`--enable=warning,style,performance,portability`) | RUN after every batch | 6 findings = A1 baseline throughout (two new style findings in B2 and B6 were fixed before the checkpoint) |
 | clang-tidy 14 | SKIPPED for the batches (611 s per run; A1 baseline 710 warnings recorded) | rerun is a B8/owner item |
@@ -596,16 +596,16 @@ track through ~38 % leakage. D-2 stands: nothing escalates past TRACKED without 
 | Step | Start (UTC) | End (UTC) | Notes |
 |---|---|---|---|
 | Crash forensics + resume | 02:34 | 02:45 | reset reason, build log, transcript tail |
-| B1 gates + commit 8b553a1 | 02:45 | 02:57 | build 297 s (-j3), smoke 96 s |
-| B2 gates + commit fb6f35c | 02:57 | 03:11 | build 341 s, 2 cppcheck fixes, stamp probe |
-| B3 gates + commit a085f90 | 03:11 | 03:20 | build 168 s |
-| B4 gates + commit 6ef134a | 03:20 | 03:26 | build 128 s, 1 test-fixture fix |
-| B5 gates + commit d311752 | 03:26 | 03:34 | build 364 s |
-| B6 gates + commit a26a487 | 03:34 | 03:40 | build 138 s + 50 s |
-| B7 gates + commit ae5a2e4 | 03:40 | 03:46 | build 126 s + 18 s |
+| B1 gates + commit 94508df | 02:45 | 02:57 | build 297 s (-j3), smoke 96 s |
+| B2 gates + commit 0359168 | 02:57 | 03:11 | build 341 s, 2 cppcheck fixes, stamp probe |
+| B3 gates + commit 20ea851 | 03:11 | 03:20 | build 168 s |
+| B4 gates + commit 368d770 | 03:20 | 03:26 | build 128 s, 1 test-fixture fix |
+| B5 gates + commit 8c6d7a4 | 03:26 | 03:34 | build 364 s |
+| B6 gates + commit b742468 | 03:34 | 03:40 | build 138 s + 50 s |
+| B7 gates + commit 67906aa | 03:40 | 03:46 | build 126 s + 18 s |
 | A6 pass 1 (8 scenes incl. 4-min soak) | 03:46 | 03:58 | detached runner |
 | Role 6, cumulative diff (agent) | 03:46 | 04:03 | 260k tok, 16.2 min |
 | A6/R6 fixes: build, tests, cppcheck | 04:06 | 04:09 | one compile error (BoundedVector), fixed |
 | A6 pass 2 (8 scenes, 60-s circle) + role 6 on fixes (agent, 92k tok, 6.1 min) | 04:09 | 04:18 | concurrent |
-| R6b fixes: build, tests, cppcheck, smoke, role 6 third pass, commit 3b62029 | 04:18 | 04:30 | |
+| R6b fixes: build, tests, cppcheck, smoke, role 6 third pass, commit 12c19fb | 04:18 | 04:30 | |
 | A7 record | 04:30 | see audit-log | README, CHANGELOG, resume-facts, retro, HANDOFF, this plan |

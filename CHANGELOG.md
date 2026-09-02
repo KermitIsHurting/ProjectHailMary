@@ -55,7 +55,7 @@ bug-finder passes (cumulative diff, fixes, fixes again), shape runs on the final
 
 ## [0.4.0-alpha]
 - Hungarian algorithm track association with Mahalanobis gating in `track_manager` (not in the launched pipeline)
-- IMM CV+CA+CT Kalman filter with mode mixing (mixing was CV-only until 7430a57; corrected mode-probability update in 0.10.0)
+- IMM CV+CA+CT Kalman filter with mode mixing (mixing was CV-only until b8a00c2; corrected mode-probability update in 0.10.0)
 - Cluster centroid in the radar parser (position mean; velocity = the max-|Doppler| member, not Doppler-weighted)
 - Two-tier label visual weight in RViz2 visualizer
 

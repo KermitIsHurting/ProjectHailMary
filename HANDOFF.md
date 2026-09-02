@@ -1,6 +1,6 @@
 # PICK UP HERE — 2026-09-02 polish audit (read this block first; the 2026-07-07 dump follows)
 
-**Branch:** `polish` (from `misra-audit-fixes` at `7ef0bde`), NOT pushed. Tags: `pre-polish-2026-09-01`,
+**Branch:** `polish` (from `misra-audit-fixes` at `ca48665`), NOT pushed. Tags: `pre-polish-2026-09-01`,
 `pre-review-20260902T0144Z` (the audit baseline; `git diff pre-review-20260902T0144Z..HEAD` is the
 whole change). Backups: `~/backups/` (tree tgz + bundle + rosbags, sha256 in `docs/audit-plan.md` §0).
 
@@ -10,12 +10,12 @@ each, gates per batch → role-6 pass on the cumulative diff → A6 shape runs �
 The running record is `docs/audit-log.md` (append-only, UTC). The plan with every table is
 `docs/audit-plan.md`. Facts sheet: `docs/resume-facts.md`. Retro: `docs/polish-retro.md`.
 
-**State of the tree (`3b62029` + the A7 docs commit):** build 0 warnings (-Werror), 160 GoogleTest cases green (colcon test-result 182 incl. suite rows),
-cppcheck 6 (baseline), sim smoke exit 0 with health NOMINAL. Checkpoints: B1 `8b553a1` · B2 `fb6f35c` ·
-B3 `a085f90` · B4 `6ef134a` · B5 `d311752` · B6 `a26a487` · B7 `ae5a2e4` · A6/R6 fixes `3b62029`. Session died once mid-audit (Jetson CPU-complex watchdog,
+**State of the tree (`12c19fb` + the A7 docs commit):** build 0 warnings (-Werror), 160 GoogleTest cases green (colcon test-result 182 incl. suite rows),
+cppcheck 6 (baseline), sim smoke exit 0 with health NOMINAL. Checkpoints: B1 `94508df` · B2 `0359168` ·
+B3 `20ea851` · B4 `368d770` · B5 `8c6d7a4` · B6 `b742468` · B7 `67906aa` · A6/R6 fixes `12c19fb`. Session died once mid-audit (Jetson CPU-complex watchdog,
 see audit-log 02:44Z); everything after B1 was rebuilt by the next session from the on-disk diff.
 
-**Owner decisions still open (do not build them silently):** D-0 keep `62ae459`/`7ef0bde`;
+**Owner decisions still open (do not build them silently):** D-0 keep `78d613d`/`ca48665`;
 D-1 `ROS_LOCALHOST_ONLY`; D-2 threat class policy (any non-person COCO class > 0.5 = THREAT;
 IDENTIFIED requires a *person* label, so a drone never escalates — A6 showed every scene stuck at
 TRACKED); D-3 de-escalation; D-4 clutter relearn and the cell-size/threshold number (`clutter` scene: 3 learned reflectors still keep 3 CONFIRMED tracks); D-5 extrinsics translation sign; D-13 geofence hysteresis (edge chatter at 10 Hz).
