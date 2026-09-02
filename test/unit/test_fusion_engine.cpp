@@ -71,6 +71,22 @@ TEST(FusionEngine, SinglePointFusesIntoMatchingBox)
     EXPECT_EQ(fused[0].class_id, 3);
 }
 
+TEST(FusionEngine, RangeIsEuclideanNotForwardCoordinate)
+{
+    // RC-29: a target at (-2, 10, 2) is sqrt(108) = 10.39 m away, not 10 m
+    // (the point must stay inside the camera FOV to fuse at all).
+    FusionEngine engine = makeEngine();
+    FixedVector<RadarDetection, cuas::TRACK_MAX_TRACKS> radar;
+    ASSERT_TRUE(radar.push_back(makePoint(-2.0F, 10.0F, 2.0F, 1.0F, kNs100ms)));
+    FixedVector<BoundingBox, 128U> boxes;
+    ASSERT_TRUE(boxes.push_back(boxAround(-2.0F, 10.0F, 2.0F, 1)));
+    FixedVector<FusedDetection, cuas::TRACK_MAX_TRACKS> fused;
+    ASSERT_TRUE(engine.projectAndAssociate(radar, boxes, fused));
+    ASSERT_EQ(fused.size(), 1U);
+    EXPECT_NEAR(fused[0].range_m, std::sqrt(108.0F), 1.0e-3F);
+    EXPECT_GT(fused[0].range_m, fused[0].position_y_m + 0.3F);
+}
+
 TEST(FusionEngine, TwoSameClassTargetsDoNotConverge)
 {
     FusionEngine engine = makeEngine();

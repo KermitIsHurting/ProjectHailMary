@@ -133,6 +133,14 @@ private:
         // whose association error grew linearly with target speed.
         const int64_t t_track_ns = stampToNs(msg->header.stamp);
 
+        // No tracks: nothing to label, and no reason to look up a camera
+        // set (R10-10). The empty array still goes out so the classifier
+        // learns there are no fused labels now (RC-5a).
+        if (msg->tracks.empty()) {
+            publishFused({}, t_track_ns);
+            return;
+        }
+
         DetectionSetBuffer::BoxSet yolo_boxes;
         int64_t t_cam_ns = 0;
         {
@@ -143,6 +151,7 @@ private:
                     "no camera detections within %d ms of track stamp — "
                     "skipping label fusion",
                     static_cast<int32_t>(MAX_TIMESTAMP_DELTA_NS / 1'000'000LL));
+                publishFused({}, t_track_ns);
                 return;
             }
         }
@@ -154,12 +163,11 @@ private:
         for (std::size_t i = 0U; i < msg->tracks.size(); ++i) {
             const auto& track = msg->tracks[i];
             RadarDetection rd;
-            // Track state extrapolated to the camera instant. Track.msg
-            // carries no vertical rate yet (vz lands with P3.1), so z is
-            // held — acceptable at ≤150 ms for the current target set.
+            // Track state extrapolated to the camera instant, all three
+            // axes: holding z put a 3 m/s climb 169 px off its box (RC-20).
             rd.x = track.position_x_m + (track.vx_mps * dt_s);
             rd.y = track.position_y_m + (track.vy_mps * dt_s);
-            rd.z = track.position_z_m;
+            rd.z = track.position_z_m + (track.vz_mps * dt_s);
             rd.velocity = track.velocity_mps;
             rd.timestamp_ns = t_cam_ns;
             if (!radar_pts.push_back(rd)) {
@@ -172,15 +180,18 @@ private:
             return;
         }
 
-        if (fused.empty()) {
-            return;
-        }
-
-        cuas_msgs::msg::FusedDetectionArray out;
-        out.header = msg->header;
         // Output state is valid at the camera instant it was aligned to.
-        out.header.stamp.sec     = static_cast<int32_t>(t_cam_ns / 1'000'000'000LL);
-        out.header.stamp.nanosec = static_cast<uint32_t>(t_cam_ns % 1'000'000'000LL);
+        // Published even when empty (RC-5a): the classifier held its last
+        // non-empty set forever and re-applied stale labels.
+        publishFused(fused, t_cam_ns);
+    }
+
+    void publishFused(const FixedVector<FusedDetection, TRACK_MAX_TRACKS>& fused,
+                      int64_t stamp_ns)
+    {
+        cuas_msgs::msg::FusedDetectionArray out;
+        out.header.stamp.sec     = static_cast<int32_t>(stamp_ns / 1'000'000'000LL);
+        out.header.stamp.nanosec = static_cast<uint32_t>(stamp_ns % 1'000'000'000LL);
         out.header.frame_id = "radar_frame";
         out.detections.reserve(fused.size());
 

@@ -598,6 +598,21 @@ if(BUILD_TESTING)
   )
   target_include_directories(test_fusion_engine PRIVATE include)
 
+  ament_add_gtest(test_ros_image_adapter
+    ../../test/unit/test_ros_image_adapter.cpp
+  )
+  target_include_directories(test_ros_image_adapter PRIVATE include)
+  target_include_directories(test_ros_image_adapter SYSTEM PRIVATE
+    ${OpenCV_INCLUDE_DIRS}
+  )
+  target_link_libraries(test_ros_image_adapter ${OpenCV_LIBS})
+  ament_target_dependencies(test_ros_image_adapter sensor_msgs)
+
+  ament_add_gtest(test_trt_topk
+    ../../test/unit/test_trt_topk.cpp
+  )
+  target_include_directories(test_trt_topk PRIVATE include)
+
   ament_add_gtest(test_detection_set_buffer
     ../../test/unit/test_detection_set_buffer.cpp
   )

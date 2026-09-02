@@ -164,7 +164,8 @@ bool FusionEngine::projectAndAssociate(
         fd.pixel_u      = yu;
         fd.pixel_v      = yv;
         fd.timestamp_ns = acc.timestamp_ns;
-        fd.range_m      = ry;
+        // Euclidean range, not the forward coordinate (RC-29).
+        fd.range_m      = std::sqrt((rx * rx) + (ry * ry) + (rz * rz));
         fd.azimuth_deg  = std::atan2(rx, ry) * 180.0F / static_cast<float32_t>(M_PI);
         fd.bbox_width_px  = acc.box->w;
         fd.bbox_height_px = acc.box->h;

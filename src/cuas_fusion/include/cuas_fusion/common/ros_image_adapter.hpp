@@ -16,6 +16,14 @@ inline bool rosImageToBgr(const sensor_msgs::msg::Image& msg, cv::Mat& out_bgr)
     if (msg.width == 0U || msg.height == 0U) {
         return false;
     }
+    // Both accepted encodings are 3 bytes/pixel. A step narrower than a row
+    // or a data buffer shorter than step*height would make the cv::Mat read
+    // past the message (RC-8a); reject instead of wrapping garbage.
+    const std::size_t row_bytes = static_cast<std::size_t>(msg.width) * 3U;
+    const std::size_t need      = static_cast<std::size_t>(msg.step) * msg.height;
+    if ((msg.step < row_bytes) || (msg.data.size() < need)) {
+        return false;
+    }
 
     const int32_t rows = static_cast<int32_t>(msg.height);
     const int32_t cols = static_cast<int32_t>(msg.width);

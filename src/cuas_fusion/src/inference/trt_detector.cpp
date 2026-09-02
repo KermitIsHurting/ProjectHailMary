@@ -1,6 +1,7 @@
 // @file trt_detector.cpp
 // @brief TensorRT engine loader and YOLO preprocessing/postprocessing pipeline.
 #include "cuas_fusion/inference/trt_detector.hpp"
+#include "cuas_fusion/inference/topk_boxes.hpp"
 #include "cuas_fusion/common/clock.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 
@@ -212,7 +213,10 @@ bool TrtDetector::postprocess(FixedVector<BoundingBox, 128U>& detections_out,
     const float32_t scale_x = static_cast<float32_t>(orig_w) / static_cast<float32_t>(INFERENCE_INPUT_W);
     const float32_t scale_y = static_cast<float32_t>(orig_h) / static_cast<float32_t>(INFERENCE_INPUT_H);
 
-    FixedVector<BoundingBox, 128U> candidates;
+    // Best 128 by confidence across all 8400 anchors (RC-19): the old
+    // first-128-in-anchor-order cap dropped the nearest target whenever
+    // clutter boxes filled it first.
+    TopKBoxes<128U> topk;
 
     constexpr std::size_t kAnchorStride =
         static_cast<std::size_t>(INFERENCE_NUM_ANCHORS);
@@ -248,11 +252,10 @@ bool TrtDetector::postprocess(FixedVector<BoundingBox, 128U>& detections_out,
         det.class_id     = max_cls;
         det.timestamp_ns = timestamp_ns;
 
-        if (!candidates.push_back(det)) {
-            break;
-        }
+        topk.offer(det);
     }
 
+    FixedVector<BoundingBox, 128U> candidates = topk.boxes();
     nms(candidates, INFERENCE_NMS_THRESH);
 
     if (candidates.size() > static_cast<uint32_t>(INFERENCE_MAX_DET)) {
