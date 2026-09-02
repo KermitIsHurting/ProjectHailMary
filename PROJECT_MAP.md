@@ -1,7 +1,7 @@
 # PROJECT_MAP — cuas_fusion Counter-UAS Ground Station
 
 Jetson Orin Nano · ROS 2 Humble · C++17 · TI IWR6843ISK radar · Arducam AR0234 camera ·
-TensorRT YOLOv8 · ~11,150 LOC C++ across 2 packages, 21 executables.
+TensorRT YOLOv8 · 12,852 lines of owned C++ across 2 packages, 22 executables (19 launched by `full.launch.py`).
 
 ## 1. End-to-end dataflow
 

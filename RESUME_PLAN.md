@@ -1,7 +1,7 @@
 # RESUME_PLAN — remaining audit fixes
 
 ## STATUS 2026-07-07: R1-R10 and R12 COMPLETE (37 fix commits on this
-## branch), build warning-clean under -Werror, 108/108 tests green.
+## branch), build warning-clean under -Werror, 160 GoogleTest cases green.
 ##
 ## Remaining work, in suggested order:
 ## 1. Hardware verification of the NEEDS-HARDWARE camera commits (R12

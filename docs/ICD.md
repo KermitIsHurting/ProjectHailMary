@@ -7,7 +7,7 @@ This Interface Control Document (ICD) specifies every software interface exposed
 
 ## 2. System Interface Overview
 
-ProjectHailMary 0.8.0-alpha runs **twenty-one** ROS 2 nodes (twenty active in the standard hardware deployment plus one simulation substitute) that exchange data over **twenty-six** ROS topics typed against **nineteen** custom messages defined in `msgs/cuas_msgs/msg/` and a small number of stock ROS messages (`sensor_msgs/Image`, `sensor_msgs/PointCloud2`, `vision_msgs/Detection2DArray`, `visualization_msgs/MarkerArray`). The system has exactly one external interface: a UDP multicast Cursor-on-Target stream emitted by `cot_publisher_node` for ATAK-class clients.
+ProjectHailMary 0.10.0-alpha builds **twenty-two** ROS 2 node executables (`src/cuas_fusion/CMakeLists.txt`), of which **nineteen** are launched by `full.launch.py` in the standard hardware deployment. They exchange data over **twenty-six** ROS topics typed against **nineteen** custom messages defined in `msgs/cuas_msgs/msg/` and a small number of stock ROS messages (`sensor_msgs/Image`, `sensor_msgs/PointCloud2`, `vision_msgs/Detection2DArray`, `visualization_msgs/MarkerArray`). The system has exactly one external interface: a UDP multicast Cursor-on-Target stream emitted by `cot_publisher_node` for ATAK-class clients.
 
 The central data type is `cuas_msgs/msg/Track`, carried on the `/tracks` topic. It has exactly **one producer** (`imm_tracker_node`) and **ten consumers** (`fusion_node`, `kinematic_predictor_node`, `occlusion_predictor_node`, `threat_classifier_node`, `intent_classifier_node`, `geofence_node`, `reachability_node`, `cuas_visualizer_node`, `cuas_overlay_node`, `health_monitor_node`). Every downstream feature — fusion, prediction, threat classification, intent, geofencing, reachability, visualization, and health — derives from this single track stream, which makes `/tracks` the architectural narrow waist of the system.
 
@@ -24,7 +24,7 @@ No node sets a custom `rclcpp::QoS` profile. Every publisher and subscriber is c
 | Message Type | sensor_msgs/msg/PointCloud2                         |
 | Producer     | radar_parser_node (hardware) or sim_radar_node (sim)|
 | Consumers    | clutter_map_node, imm_tracker_node (via remap), health_monitor_node |
-| Rate         | 16 Hz                                               |
+| Rate         | 20 Hz                                               |
 | QoS          | ROS 2 default (Reliable, Volatile, Keep Last 10)    |
 | Frame ID     | radar_frame                                         |
 
@@ -39,7 +39,7 @@ No node sets a custom `rclcpp::QoS` profile. Every publisher and subscriber is c
 | Message Type | sensor_msgs/msg/PointCloud2                      |
 | Producer     | clutter_map_node                                 |
 | Consumers    | imm_tracker_node (via launch-file remap)         |
-| Rate         | 16 Hz (driven by `/radar/detections`)            |
+| Rate         | 20 Hz (driven by `/radar/detections`)            |
 | QoS          | ROS 2 default (Reliable, Volatile, Keep Last 10) |
 | Frame ID     | radar_frame                                      |
 
@@ -103,7 +103,7 @@ No node sets a custom `rclcpp::QoS` profile. Every publisher and subscriber is c
 | Message Type | vision_msgs/msg/Detection2DArray                 |
 | Producer     | inference_node                                   |
 | Consumers    | fusion_node                                      |
-| Rate         | ~35 Hz (TensorRT INT8 throughput on Orin Nano)   |
+| Rate         | 22–27 Hz measured in-pipeline (Orin Nano, INT8)  |
 | QoS          | ROS 2 default (Reliable, Volatile, Keep Last 5)  |
 | Frame ID     | camera (forwarded from input image)              |
 
@@ -120,7 +120,7 @@ No node sets a custom `rclcpp::QoS` profile. Every publisher and subscriber is c
 | QoS          | ROS 2 default (Reliable, Volatile, Keep Last 5)                                        |
 | Frame ID     | radar_frame                                                                            |
 
-**Description:** Camera-radar fused detections produced by projecting tracked radar centroids into the camera image plane and IoU-associating with YOLO bounding boxes.
+**Description:** Camera-radar fused detections produced by projecting tracked radar centroids into the camera image plane and associating them with YOLO bounding boxes by point-in-padded-box containment (25% padding per axis), not IoU.
 
 **Message Fields:** see `cuas_msgs/msg/FusedDetectionArray` and `cuas_msgs/msg/FusedDetection` in section 5.
 
@@ -291,7 +291,7 @@ No node sets a custom `rclcpp::QoS` profile. Every publisher and subscriber is c
 | QoS          | ROS 2 default (Reliable, Volatile, Keep Last 10) |
 | Frame ID     | N/A (no `Header`; uses `stamp` field instead)    |
 
-**Description:** Per-subsystem and aggregate liveness with EMA-smoothed measured rates against the expected radar=16 Hz, camera=30 Hz, tracker=20 Hz, classifier=20 Hz, predictor=20 Hz contracts.
+**Description:** Per-subsystem and aggregate liveness with EMA-smoothed measured rates against the expected radar=20 Hz, camera=30 Hz, tracker=20 Hz, classifier=20 Hz, predictor=20 Hz contracts.
 
 ### /visualization/track_markers
 

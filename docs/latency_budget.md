@@ -1,5 +1,12 @@
 # ProjectHailMary — Latency Budget
-# Version 0.8.0-alpha
+# Version 0.10.0-alpha
+
+> **Instrumentation status.** **None of the 13 pipeline stages in Section 2 are
+> instrumented.** Every per-stage figure below is a *declared rate or timer period
+> read from source*, not a measured latency. The only measured timing signals in
+> this document are the overlay node's ring-buffer FPS estimator, `tegrastats` CPU
+> and GPU percentages, and the `/tracks` stamp-age probe in Section 4. Per-stage
+> p50/p95/p99 instrumentation is the next milestone (Section 7).
 
 ## 1. Document Purpose
 
@@ -13,14 +20,14 @@ Where a stage has not been instrumented with explicit start/stop timestamps in s
 
 | Stage | Node | Input Rate | Output Rate | Stage Latency | Notes |
 |-------|------|------------|-------------|---------------|-------|
-| 1. Radar acquisition | `radar_parser_node` (or `sim_radar_node`) | 16 Hz hardware frame rate from `config/radar_profile.cfg` (and `kSimRadarMaxRangeM = 15`, default `publish_rate_hz = 16.0` in `sim.launch.py`) | 16 Hz `/radar/detections` | not instrumented — see Section 4 | TLV decode + DBSCAN clustering with Doppler-weighted centroid; `frame_id = "radar_frame"` |
-| 2. Clutter filtering | `clutter_map_node` | 16 Hz `/radar/detections` | 16 Hz `/radar/filtered`; `/clutter/status` at 1 Hz (1000 ms wall timer in `clutter_map_node.cpp`) | not instrumented — see Section 4 | Static occupancy-grid filter; passthrough during learning window |
+| 1. Radar acquisition | `radar_parser_node` (or `sim_radar_node`) | 20 Hz hardware frame rate from `config/radar_profile.cfg` (`frameCfg ... 50` → 50 ms period; and `publish_rate_hz = 20.0` in `sim.launch.py`) | 20 Hz `/radar/detections` | not instrumented — see Section 4 | TLV decode + DBSCAN clustering with Doppler-weighted centroid; `frame_id = "radar_frame"` |
+| 2. Clutter filtering | `clutter_map_node` | 20 Hz `/radar/detections` | 20 Hz `/radar/filtered`; `/clutter/status` at 1 Hz (1000 ms wall timer in `clutter_map_node.cpp`) | not instrumented — see Section 4 | Static occupancy-grid filter; passthrough during learning window |
 | 3. Camera acquisition | `camera_node` | AR0234 V4L2 at `CAMERA_FPS = 30` (`include/cuas_fusion/common/constants.hpp`) | 30 Hz `/camera/image_raw` | not instrumented — see Section 4 | 1920×1080 `bgr8`; capture runs on a dedicated thread; `frame_id = "camera"` |
 | 4. Color correction | `cuas_color_correct_node` | 30 Hz `/camera/image_raw` | ~30 Hz `/camera/image_corrected` | not instrumented — see Section 4 | Per-pixel white-balance gains B=2.987 / G=1.000 / R=0.861 from `constants.hpp`; optional, gated by `color_correct:=true` launch arg |
-| 5. YOLO inference | `inference_node` | 30 Hz `/camera/image_raw` (or `/camera/image_corrected`) | ~35 Hz `/inference/detections` (TensorRT INT8 throughput on Orin Nano iGPU; `models/yolov8s_int8.engine`) | not instrumented — see Section 4 | YOLOv8s INT8; `INFERENCE_INPUT_W = INFERENCE_INPUT_H = 640`, `INFERENCE_NUM_ANCHORS = 8400` |
+| 5. YOLO inference | `inference_node` | 30 Hz `/camera/image_raw` (or `/camera/image_corrected`) | **22–27 Hz** `/inference/detections` (measured in-pipeline across 27 readouts, ≈ 24 typical; `models/yolov8s_int8.engine`) | not instrumented — see Section 4 | YOLOv8s INT8; `INFERENCE_INPUT_W = INFERENCE_INPUT_H = 640`, `INFERENCE_NUM_ANCHORS = 8400` |
 | 6. Timestamp association | `TimestampAssociator` (in-process, `fusion_node`) | 30 Hz camera frames into a ring buffer of size `TIMESTAMP_BUFFER_SIZE = 6` | nearest-neighbour camera frame per radar timestamp, gated by `MAX_TIMESTAMP_DELTA_NS = 150 ms` | <= 150 ms by construction (out-of-window matches are rejected) | Buffer holds ≈ 200 ms at 30 Hz, comfortably wider than the 150 ms gate |
-| 7. Sensor fusion | `fusion_node` | 20 Hz `/tracks` (gating callback) + cached YOLO boxes from 35 Hz `/inference/detections` | ~20 Hz `/fusion/detections` (publish is gated by the `/tracks` callback) | not instrumented — see Section 4 | Pinhole projection with `CAMERA_FX/FY/CX/CY` from `constants.hpp`; IoU association against YOLO boxes |
-| 8. IMM tracking | `imm_tracker_node` | 16 Hz `/radar/filtered` (per-detection update); 20 Hz internal predict tick (50 ms wall timer in `imm_tracker_node.cpp`); 20 Hz `/threat/reports` (horizon feedback) | 20 Hz `/tracks` | not instrumented — see Section 4 | `frame_id = "base_link"`; tracks aged out after 5.0 s; `prediction_horizon_s` injected from latest `ThreatReportArray` |
+| 7. Sensor fusion | `fusion_node` | 20 Hz `/tracks` (gating callback) + cached YOLO boxes from 22–27 Hz `/inference/detections` | ~20 Hz `/fusion/detections` (publish is gated by the `/tracks` callback) | not instrumented — see Section 4 | Pinhole projection with `CAMERA_FX/FY/CX/CY` from `constants.hpp`; **point-in-padded-box** association: the projected radar pixel must fall inside the YOLO box grown 25% on each axis (`fusion_engine.cpp:85-89`) — this is containment, not IoU |
+| 8. IMM tracking | `imm_tracker_node` | 20 Hz `/radar/filtered` (per-detection update); 20 Hz internal predict tick (50 ms wall timer in `imm_tracker_node.cpp`); 20 Hz `/threat/reports` (horizon feedback) | 20 Hz `/tracks` | not instrumented — see Section 4 | `frame_id = "base_link"`; tracks aged out after 5.0 s; `prediction_horizon_s` injected from latest `ThreatReportArray` |
 | 9. Threat classification | `threat_classifier_node` | 20 Hz `/tracks` + ~20 Hz `/fusion/detections` | ~20 Hz `/threat/reports` (gated by `/tracks` callback) | not instrumented — see Section 4 | Five-state escalation FSM; thresholds in `config/system_params.yaml` (`threatening_range_m=4.0`, `threatening_velocity_mps=0.3`, `zone_radius_m=3.0`, `escalation_dwell_s=1.0`, `track_timeout_s=5.0`) |
 | 10. Intent classification | `intent_classifier_node` | 20 Hz `/tracks` | 10 Hz `/intent/reports` (`publish_rate_hz = 10.0` parameter; 100 ms wall timer in `intent_classifier_node.cpp`) | not instrumented — see Section 4 | APPROACHING / LOITERING / ORBITING / DEPARTING / TRANSITING |
 | 11. CoT publish | `cot_publisher_node` | 20 Hz `/threat/reports` | 1 Hz UDP multicast for `escalation_state ∈ {THREATENING, ENGAGED}`; full-sweep emit every 5 s | not instrumented — see Section 4 | `239.2.3.1:6969`, TTL 32, schema CoT 2.0 |
@@ -31,9 +38,9 @@ Where a stage has not been instrumented with explicit start/stop timestamps in s
 
 | Metric | Value |
 |--------|-------|
-| Radar detection rate | 16 Hz hardware (driven by `config/radar_profile.cfg`); 20 Hz IMM publish tick (50 ms timer in `imm_tracker_node.cpp`) |
+| Radar detection rate | 20 Hz hardware (50 ms `frameCfg` period in `config/radar_profile.cfg`); 20 Hz IMM publish tick (50 ms timer in `imm_tracker_node.cpp`) |
 | Camera frame rate | 30 Hz (`CAMERA_FPS` in `constants.hpp`; 33 ms period) |
-| YOLO inference rate | ~35 Hz (TensorRT INT8 throughput on Orin Nano; 28.6 ms period) |
+| YOLO inference rate | **22–27 Hz measured in-pipeline** (≈ 24 typical, ≈ 42 ms period). GPU load (GR3D) spans 10–90% within a run, so "GPU-bound" is inferred, not isolated. |
 | Fusion output rate | ~20 Hz (`/fusion/detections` publish is gated by the 20 Hz `/tracks` callback in `fusion_node.cpp`) |
 | Track publish rate | 20 Hz (50 ms wall timer in `imm_tracker_node.cpp`) |
 | Threat report rate | ~20 Hz (gated by `/tracks` callback in `threat_classifier_node.cpp`) |
@@ -42,7 +49,7 @@ Where a stage has not been instrumented with explicit start/stop timestamps in s
 | Overlay FPS — startup | 28–30 Hz (first ~30 s, before CPU contention establishes) |
 | Overlay FPS — sustained | 13–17 Hz (thermal- and scheduler-bounded steady state) |
 | Timestamp association window | 150 ms (`MAX_TIMESTAMP_DELTA_NS = 150'000'000LL` in `constants.hpp`); ring buffer `TIMESTAMP_BUFFER_SIZE = 6` |
-| Estimated radar → CoT latency | sum of stage latencies above; not directly instrumented in this release. The lower bound from rates alone is one radar period (≈ 62.5 ms) plus one IMM tick (50 ms) plus one classifier tick (≈ 50 ms) plus the CoT 1 Hz cadence floor for THREATENING events. |
+| Estimated radar → CoT latency | sum of stage latencies above; not directly instrumented in this release. The lower bound from rates alone is one radar period (50 ms) plus one IMM tick (50 ms) plus one classifier tick (≈ 50 ms) plus the CoT 1 Hz cadence floor for THREATENING events. |
 
 ### 3.1 Lower-Bound Latency Walk-Through
 
@@ -50,13 +57,13 @@ The **lower bound** on the time from a real-world radar return to its appearance
 
 | Step | Floor contribution | Source |
 |------|--------------------|--------|
-| Radar frame to `/radar/detections` | 1 / 16 Hz = **62.5 ms** | `radar_parser_node` is gated by the IWR6843ISK frame rate |
+| Radar frame to `/radar/detections` | 1 / 20 Hz = **50 ms** | `radar_parser_node` is gated by the IWR6843ISK frame rate |
 | `/radar/detections` to `/tracks` | 1 / 20 Hz = **50 ms** | 50 ms wall timer in `imm_tracker_node` |
 | `/tracks` to `/threat/reports` | ≈ **0 ms** added | `threat_classifier_node` publishes inside the `/tracks` callback |
 | `/threat/reports` to UDP CoT (THREATENING) | up to **1000 ms** | 1 Hz cadence floor in `cot_publisher_node::threatCallback` |
 | `/threat/reports` to UDP CoT (full sweep) | up to **5000 ms** | 5 s cadence floor in `cot_publisher_node::threatCallback` |
 
-For an active THREATENING-state track the floor is therefore approximately **62.5 + 50 + ≤ 1000 = up to 1112.5 ms** in the worst case where the threat-state transition lands just after a CoT 1 Hz tick. For a benign track the floor extends to up to **5112.5 ms** because it is only emitted on the 5 s sweep. None of these numbers include the (un-instrumented) per-stage compute latencies in radar TLV decode, IoU association, IMM update, or escalation FSM — they are *floors*, not estimates. The walk-through is provided to give a defensible lower bound against which the eventual instrumented numbers can be sanity-checked.
+For an active THREATENING-state track the floor is therefore approximately **50 + 50 + ≤ 1000 = up to 1100 ms** in the worst case where the threat-state transition lands just after a CoT 1 Hz tick. For a benign track the floor extends to up to **5100 ms** because it is only emitted on the 5 s sweep. None of these numbers include the (un-instrumented) per-stage compute latencies in radar TLV decode, point-in-box association, IMM update, or escalation FSM — they are *floors*, not estimates. The walk-through is provided to give a defensible lower bound against which the eventual instrumented numbers can be sanity-checked.
 
 ### 3.2 Operator-Visible Latency
 
@@ -80,24 +87,28 @@ Profiling under `tegrastats` while the full pipeline is running with RViz2 attac
 - **`cuas_color_correct_node` at approximately 58% CPU.** This load is the per-pixel white-balance and tone-scale operation applied to every camera frame. The colour correction is a single arithmetic pass per pixel (multiply, clip, store) but it runs over the same six-megabyte frame at 30 Hz with no SIMD acceleration in this build.
 - **`rviz2` at approximately 67% CPU.** This load is dominated by 3D marker rendering of track spheres, line-strip trajectories, alpha-faded uncertainty spheres, and `TEXT_VIEW_FACING` labels. All four `MarkerArray` topics are republished at 20 Hz, and RViz2's GL drawing path runs largely on the CPU side because the on-board iGPU is already committed to the TensorRT inference engine.
 
-These three processes coexist on the same six-core ARM SoC and contend on the four performance cores. GPU utilisation reported by `GR3D` was measured in the **31–68% range** during the same windows, so the iGPU running the YOLOv8s INT8 engine is not the bottleneck — there is headroom on the GPU that the CPU-bound stages cannot exploit. Junction temperature reported by `tegrastats` peaked at approximately **57 °C**, well below the documented Orin Nano throttle threshold (which begins curtailing CPU clocks above 90 °C), so thermal throttling is ruled out as the cause of the sustained-mode FPS drop.
+These three processes coexist on the same six-core ARM SoC and contend for the same six identical cores. GPU utilisation reported by `GR3D` was measured in the **31–68% range** during the same windows, so the iGPU running the YOLOv8s INT8 engine is not the bottleneck — there is headroom on the GPU that the CPU-bound stages cannot exploit. Junction temperature reported by `tegrastats` peaked at approximately **57 °C**, far below the module's thermal throttle point (junction temperature in the mid-90s °C; read the exact figure from the Orin Nano module datasheet before citing it), so thermal throttling is ruled out as the cause of the sustained-mode FPS drop.
 
-The remaining mechanism is core saturation followed by scheduler spill, which is addressed in 4.3.
+The remaining mechanism is CPU oversubscription — more runnable work than available core-seconds — which is addressed in 4.3.
 
 ### 4.3 Hardware Constraint
 
-The Jetson Orin Nano Super uses a heterogeneous **4 + 2 core** layout:
+The Jetson Orin Nano Super uses a **homogeneous six-core** CPU complex:
 
-- four Cortex-A78AE performance cores at **1728 MHz** maximum;
-- two Cortex-A55 efficiency cores at **729 MHz** maximum;
-- one shared cache hierarchy across both clusters.
+- six Cortex-A78AE cores, all sharing the same maximum clock (**1.7 GHz** in Super mode);
+- one shared cache hierarchy;
+- **no efficiency-core cluster.** Lower per-core frequencies occasionally reported by `tegrastats` (for example 729 MHz) are idle DVFS operating points on parked cores, not a separate slower cluster.
 
-The clock-rate ratio is therefore **2.37×** in favour of the performance cores. When the four performance cores saturate, the Linux scheduler does not stall the next-runnable thread; it spills it onto an A55 efficiency core, where the same instruction stream completes in roughly 2.37× the wall time. The three CPU-heavy processes identified in 4.2 — camera capture (≈ 83%), color correction (≈ 58%), and RViz2 (≈ 67%) — collectively present approximately **208% of one core's worth** of additional load on top of the rest of the pipeline (radar parser, IMM tracker, predictors, classifiers, visualizer marker tick, overlay engine, ROS 2 DDS dispatch). That is more runnable work than the four performance cores can absorb without spill, so a fraction of every frame's work is migrated to the A55 cores and amortises across the slower clock — and that amortisation is exactly the 30 Hz → 13–17 Hz step observed in 4.1.
+> **Correction (2026-09).** Earlier revisions of this document described a 4 + 2 layout with two Cortex-A55 cores at 729 MHz and attributed the FPS drop to scheduler spill across a 2.37x clock ratio. **That mechanism does not exist on this hardware** — the Orin Nano has six identical A78AE cores. The measured symptom in 4.1 is unchanged; the explanation below replaces it. Verify against `lscpu` and `/sys/devices/system/cpu/cpu*/cpufreq/cpuinfo_max_freq` on the target.
 
-This is a hardware platform constraint, not a software defect:
+The three CPU-heavy processes identified in 4.2 — camera capture (≈ 83%), colour correction (≈ 58%), and RViz2 (≈ 67%) — collectively present approximately **208% of one core's worth** of load on top of the rest of the pipeline (radar parser, IMM tracker, predictors, classifiers, visualizer marker tick, overlay engine, ROS 2 DDS dispatch). When total runnable work across all threads exceeds the available core-seconds, the scheduler does not stall — it queues. Each thread then accrues run-queue latency on top of its own execution time, and in a frame-driven pipeline that delay compounds across the capture → correct → render chain. That accumulated scheduling delay is the 30 Hz → 13–17 Hz step observed in 4.1.
 
-- The same binary set on a six-A78 SoC would not exhibit the same drop because there would be no scheduler spill onto slower cores.
-- The same binary set with RViz2 hosted on a separate workstation over a ROS 2 DDS link would also not exhibit the same drop because the heaviest-weight CPU consumer would be removed from the SoC.
+**Confidence: inferred, not isolated.** The 208% figure is derived from per-process CPU percentages in `tegrastats`, not from run-queue instrumentation. Isolating the mechanism would require `perf sched` or `/proc/schedstat` sampling under load, which has not been done. GPU and thermal have been ruled out by measurement; contention is the remaining explanation, not a proven one.
+
+This is a platform budget constraint rather than a software defect:
+
+- The same binary set on a higher-clock or higher-core-count SoC would have more headroom, because the total runnable work would fit inside the available core-seconds.
+- The same binary set with RViz2 hosted on a separate workstation over a ROS 2 DDS link would also not exhibit the same drop, because the heaviest CPU consumer would leave the SoC entirely.
 
 There is no software change inside this codebase that resolves the contention without removing one of the three competing processes from the on-SoC graph. Lock-free queues, alternative DDS implementations, frame skipping inside the visualizer, or moving color correction into the camera driver thread would each shift load around within the same fixed CPU budget, not eliminate it.
 
@@ -118,7 +129,7 @@ A production deployment would partition the workload across dedicated hardware �
 To restate the result of the analysis succinctly:
 
 - **Symptom**: overlay FPS drops from 28–30 Hz at startup to 13–17 Hz sustained.
-- **Cause**: three concurrent CPU-heavy processes (camera ≈ 83%, color correction ≈ 58%, RViz2 ≈ 67%) saturate the four Cortex-A78AE performance cores; scheduler spills the overflow onto two Cortex-A55 efficiency cores at 729 MHz, which are 2.37× slower.
+- **Cause (inferred)**: three concurrent CPU-heavy processes (camera ≈ 83%, colour correction ≈ 58%, RViz2 ≈ 67%) present ≈ 208% of a core in addition to the rest of the graph, oversubscribing the six Cortex-A78AE cores; the excess runnable work accrues run-queue latency that compounds across the frame chain. Not isolated with `perf sched`. See 4.3.
 - **Not the cause**: GPU saturation (GR3D measured 31–68%, headroom available); thermal throttling (junction temperature peaks at ≈ 57 °C, well below the documented threshold).
 - **Not affected**: `/tracks` (20 Hz), `/threat/reports` (≈ 20 Hz), `/predicted_tracks` (20 Hz), CoT external interface (1 Hz threatening / 5 s full sweep). The wire-level fusion contract holds at the declared rates throughout.
 - **Affected**: operator video feed refresh rate, exclusively.
@@ -135,7 +146,7 @@ yolo_cx, yolo_cy, yolo_w, yolo_h, du_yolo, dv_yolo,
 range_m, vel_mps, confidence
 ```
 
-These are **pixel-position jitter** logs, not wall-clock-period jitter logs. They quantify how much the fused-detection pixel coordinate moves frame-to-frame after the timestamp associator, the pinhole projection, and the IoU-association step have run. The summary statistics over the three runs are:
+These are **pixel-position jitter** logs, not wall-clock-period jitter logs. They quantify how much the fused-detection pixel coordinate moves frame-to-frame after the timestamp associator, the pinhole projection, and the point-in-padded-box association step have run. The summary statistics over the three runs are:
 
 | Log file                              | Rows | Time span (s) | Effective rate (Hz) | `du_fused` (px) min/max/mean (abs) | `dv_fused` (px) min/max/mean (abs) |
 |---------------------------------------|------|---------------|---------------------|------------------------------------|------------------------------------|
@@ -160,13 +171,13 @@ static constexpr std::size_t TIMESTAMP_BUFFER_SIZE   = 6U;
 static constexpr int64_t     MAX_TIMESTAMP_DELTA_NS  = 150'000'000LL; // 150 ms
 ```
 
-The window was originally **50 ms**, chosen on the assumption that the radar (16 Hz, ≈ 62.5 ms period) and the camera (30 Hz, ≈ 33.3 ms period) would always have a same-tick frame within half a camera period of any radar timestamp. Under load on the Jetson Orin Nano Super, that assumption did not hold:
+The window was originally **50 ms**, chosen on the assumption that the radar (20 Hz, 50 ms period) and the camera (30 Hz, ≈ 33.3 ms period) would always have a frame within one camera period of any radar timestamp — a 50 ms window is exactly one radar period, so in the nominal case every radar frame has a camera frame inside it. Under load on the Jetson Orin Nano Super, that assumption did not hold:
 
 - The camera capture thread (V4L2 dequeue inside `camera_node`) and the radar serial-read thread (TLV byte stream inside `radar_parser_node`) are scheduled by the same Linux kernel under the same scheduling class.
 - The kernel's worst-case wake-up latency on the Orin Nano Super under the contention pattern documented in Section 4 exceeds 50 ms in the upper percentiles, even though the median is comfortably below it.
 - When the radar callback is dispatched after a 60–80 ms wake-up delay, the matching camera frame has already aged past the 50 ms window and the nearest-neighbour search returns `false`.
 
-The downstream effect was that `/fusion/detections` developed periodic gaps that propagated into the IoU association in `fusion_node` and intermittently broke the camera-radar correspondence on otherwise-good targets. The targets did not disappear from `/tracks` — the IMM tracker continues on radar-only data — but the YOLO class label and pixel projection were lost on those gap frames, which downstream cost the threat classifier its class evidence and the visualizer its labelled bounding box.
+The downstream effect was that `/fusion/detections` developed periodic gaps that propagated into the point-in-padded-box association in `fusion_node` and intermittently broke the camera-radar correspondence on otherwise-good targets. The targets did not disappear from `/tracks` — the IMM tracker continues on radar-only data — but the YOLO class label and pixel projection were lost on those gap frames, which downstream cost the threat classifier its class evidence and the visualizer its labelled bounding box.
 
 **150 ms** was selected as the minimum window that eliminates the missed-association class entirely under the observed scheduling jitter. The choice is bounded above and below:
 
@@ -190,12 +201,12 @@ The change is recorded as a resolved bug in `CHANGELOG.md`. The 6-slot buffer at
 
 That is the next planned milestone in the latency-characterisation track and is bounded by the version-tagged `/latency_report` schema landing in `cuas_msgs`.
 
-**Hardware platform.** The CPU-contention argument in Section 4 is a *property of the Jetson Orin Nano Super 4+2 SoC running the full demo graph including RViz2*, not of the codebase. Re-measuring the same binary set on:
+**Hardware platform.** The CPU-contention argument in Section 4 is a *property of the Jetson Orin Nano Super six-core SoC running the full demo graph including RViz2*, not of the codebase. Re-measuring the same binary set on:
 
-- a six-A78 SoC,
+- a higher-clock or higher-core-count SoC,
 - the same SoC with RViz2 hosted off-board over DDS,
 - or the same SoC with the operator console replaced by a lightweight Foxglove client,
 
-is expected to show overlay FPS at the camera input rate (30 Hz) without scheduler spill, and that re-measurement is on the planned characterisation backlog.
+is expected to show overlay FPS at the camera input rate (30 Hz) without CPU oversubscription, and that re-measurement is on the planned characterisation backlog.
 
 The 13–17 Hz number is therefore platform-conditional, not codebase-conditional, and a separate `latency_budget_<platform>.md` companion document is anticipated once a second target platform is benchmarked.

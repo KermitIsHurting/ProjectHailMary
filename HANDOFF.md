@@ -57,7 +57,7 @@ repeated.
 - `misra-audit-fixes`, 63 commits ahead of `main`, **not pushed** (rule).
 - From-scratch build of both packages (`cuas_msgs`, `cuas_fusion`) is clean:
   **0 compiler warnings with `-Werror` ON** (`CUAS_WERROR` option), and
-  **108/108 tests green**. The only stderr in a clean build is colcon's
+  **160 GoogleTest cases green** (`colcon test-result` prints 182: 160 cases + one row per binary). The only stderr in a clean build is colcon's
   benign `CATKIN_INSTALL_INTO_PREFIX_ROOT` CMake notice — not ours.
 - `build.log` at repo root is stale; trust `log/latest_build/`.
 - Run `colcon test` only after `source install/setup.bash`.

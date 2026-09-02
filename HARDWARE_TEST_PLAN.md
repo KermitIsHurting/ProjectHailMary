@@ -14,7 +14,7 @@ rm -rf build/cuas_fusion install/cuas_fusion
 colcon build --packages-select cuas_msgs cuas_fusion 2>&1 | grep -cE 'warning:|error:'
 # PASS: prints 0
 colcon test --packages-select cuas_fusion && colcon test-result
-# PASS: "97 tests, 0 errors, 0 failures"
+# PASS: 0 failures. colcon test-result prints 182 (160 GoogleTest cases + one ctest row per binary).
 ```
 
 ## 1. Sim smoke test — no sensors needed (10 min)

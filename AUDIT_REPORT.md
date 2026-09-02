@@ -1,7 +1,7 @@
 # AUDIT_REPORT — MISRA C++:2023 / JPL Power of 10 / DO-178C-inspired Compliance Audit
 
 **Scope**: all C++ sources, headers, CMake, launch, config, and message definitions of `cuas_fusion` +
-`cuas_msgs` (~11,150 LOC). Basis: `STANDARDS_CHECKLIST.md` (rule IDs M1–M30 = MISRA C++:2023,
+`cuas_msgs` (12,852 lines of owned C++ src+include at `03bbe26`; ~11,150 at the audit baseline). Basis: `STANDARDS_CHECKLIST.md` (rule IDs M1–M30 = MISRA C++:2023,
 P1–P10 = JPL Power of 10, D1–D10 = DO-178C/DO-332-inspired). Method: manual file-by-file audit by
 six parallel reviewers against the verified rule set, cross-checked with g++ 11.4 (`-Wall -Wextra
 -Wpedantic` + project flags), cppcheck 2.7 (native checks), and clang-tidy 14

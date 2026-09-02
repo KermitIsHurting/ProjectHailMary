@@ -4,7 +4,7 @@
 
 ProjectHailMary is a counter-unmanned-aerial-system (C-UAS) sensor fusion ground station that fuses millimetre-wave radar with electro-optical imagery to detect, track, classify, and forecast small uncooperative aerial targets in a short-range engagement envelope (nominally inside fifteen metres). The system ingests raw radar TLV frames and Bayer camera frames, projects them into a common base-link frame, and produces stable confirmed tracks with adaptive trajectory predictions, behavioural intent, geofence violations, time-to-intercept estimates, and a Cursor-on-Target multicast feed compatible with ATAK clients. It also produces an annotated camera image and an RViz2 marker stream for an operator console.
 
-The reference deployment runs entirely on an NVIDIA Jetson Orin Nano Super, with a Texas Instruments IWR6843ISK 60 GHz mmWave radar evaluation board on `/dev/radar_data` and `/dev/radar_config` and an Arducam AR0234 global-shutter camera on `/dev/video0`. Inference uses a YOLOv8s INT8 TensorRT engine that runs at approximately 35 Hz on the Jetson's iGPU; everything else is CPU-bound. There is no off-board compute and no network dependency at runtime, so the same binary set boots into a working pipeline whenever the Jetson powers up. A simulation launch substitutes a software radar source for the IWR6843ISK so the entire pipeline can be exercised on a development workstation without hardware.
+The reference deployment runs entirely on an NVIDIA Jetson Orin Nano Super, with a Texas Instruments IWR6843ISK 60 GHz mmWave radar evaluation board on `/dev/radar_data` and `/dev/radar_config` and an Arducam AR0234 global-shutter camera on `/dev/video0`. Inference uses a YOLOv8s INT8 TensorRT engine measured at 22–27 Hz in-pipeline on the Jetson's iGPU; everything else is CPU-bound. There is no off-board compute and no network dependency at runtime, so the same binary set boots into a working pipeline whenever the Jetson powers up. A simulation launch substitutes a software radar source for the IWR6843ISK so the entire pipeline can be exercised on a development workstation without hardware.
 
 The codebase is organised around a strict separation between pure C++ math classes and ROS 2 node wrappers. All filtering, fusion, classification, prediction, geofencing, reachability, intent, and health logic is implemented as plain C++ with no ROS dependency, sized against fixed-bound containers (`FixedVector`, `FixedMap`) drawn from `include/cuas_fusion/common/fixed_containers.hpp`. The ROS layer is a thin adapter: nodes subscribe, marshal messages into the math-class signature, call a pure function, and republish. This decomposition is enforced by the JSF AV C++ (Joint Strike Fighter Air Vehicle) coding standard with MISRA C++:2023 cross-rules; documented deviations live in `docs/CODING_STANDARD.md` (DEV-001 through DEV-005). Capacity bounds (`TRACK_MAX_TRACKS = 32`, `PREDICTION_MAX_STEPS = 128`, `FUSION_MAX_DETECTIONS = 128`, etc.) are compile-time constants in `include/cuas_fusion/common/constants.hpp` so the reachable state space is statically auditable.
 
@@ -99,7 +99,7 @@ The arrows represent ROS 2 topic connections. Every transformation crosses exact
 - **Description**: Reads the IWR6843ISK TLV stream from `/dev/radar_data`, decodes detected-object and side-info TLV blocks, applies DBSCAN clustering with doppler-weighted centroids, and republishes the cluster centroids as a `sensor_msgs/PointCloud2`. This node is the only component that touches the radar serial port.
 - **Subscribes to**: none (reads the serial device directly).
 - **Publishes**:
-  - `/radar/detections` (`sensor_msgs/PointCloud2`) at approximately 16 Hz (driven by the radar profile uploaded by `send_radar_config`).
+  - `/radar/detections` (`sensor_msgs/PointCloud2`) at approximately 20 Hz (driven by the radar profile uploaded by `send_radar_config`).
 - **Dependencies**: the `send_radar_config` `ExecuteProcess` action must complete first so the radar is in streaming mode; udev symlinks `/dev/radar_data` and `/dev/radar_config` must exist.
 
 ### 3.2 clutter_map_node
@@ -109,7 +109,7 @@ The arrows represent ROS 2 topic connections. Every transformation crosses exact
 - **Subscribes to**:
   - `/radar/detections` (`sensor_msgs/PointCloud2`).
 - **Publishes**:
-  - `/radar/filtered` (`sensor_msgs/PointCloud2`) at the radar input rate (~16 Hz).
+  - `/radar/filtered` (`sensor_msgs/PointCloud2`) at the radar input rate (~20 Hz).
   - `/clutter/status` (`cuas_msgs/ClutterStatus`) at 1 Hz (1000 ms timer).
 - **Dependencies**: `radar_parser_node`.
 
@@ -139,13 +139,13 @@ The arrows represent ROS 2 topic connections. Every transformation crosses exact
 - **Subscribes to**:
   - `/camera/image_raw` (`sensor_msgs/Image`) — when `color_correct` is false. When `color_correct` is true the launch file remaps this to `/camera/image_corrected`.
 - **Publishes**:
-  - `/inference/detections` (`vision_msgs/Detection2DArray`) at approximately 35 Hz on a Jetson Orin Nano Super with INT8 weights.
+  - `/inference/detections` (`vision_msgs/Detection2DArray`) at 22–27 Hz measured in-pipeline on a Jetson Orin Nano Super with INT8 weights.
 - **Dependencies**: `camera_node` (and `cuas_color_correct_node` when color correction is enabled); TensorRT runtime; the engine file at `models/yolov8s_int8.engine`.
 
 ### 3.6 fusion_node
 
 - **Source**: `src/cuas_fusion/src/fusion/fusion_node.cpp`
-- **Description**: Wraps `FusionEngine` to project radar tracks into the camera image plane using the static extrinsic offsets `(x=-0.0075, y=0.017, z=-0.079)` and the AR0234 intrinsics from `constants.hpp` (`CAMERA_FX=1862.7`, `CAMERA_FY=1877.7`, `CAMERA_CX=1032.8`, `CAMERA_CY=426.8`), then associates the projected radar centroids with YOLO bounding boxes by IoU. It also broadcasts the static `radar_frame → camera_frame` transform on tf2 at startup.
+- **Description**: Wraps `FusionEngine` to project radar tracks into the camera image plane using the static extrinsic offsets `(x=-0.0075, y=0.017, z=-0.079)` and the AR0234 intrinsics from `constants.hpp` (`CAMERA_FX=1862.7`, `CAMERA_FY=1877.7`, `CAMERA_CX=1032.8`, `CAMERA_CY=426.8`), then associates the projected radar centroids with YOLO bounding boxes by point-in-padded-box containment (each box grown 25% per axis, `fusion_engine.cpp:85-89`), not IoU. It also broadcasts the static `radar_frame → camera_frame` transform on tf2 at startup.
 - **Subscribes to**:
   - `/tracks` (`cuas_msgs/TrackArray`).
   - `/inference/detections` (`vision_msgs/Detection2DArray`).
@@ -265,7 +265,7 @@ The arrows represent ROS 2 topic connections. Every transformation crosses exact
 ### 3.17 health_monitor_node
 
 - **Source**: `src/cuas_fusion/src/health_monitor_node.cpp`
-- **Description**: Watches the five canonical pipeline streams and computes an EMA-smoothed measured rate against the per-topic expected rate (radar 16 Hz, camera 30 Hz, tracker 20 Hz, classifier 20 Hz, predictor 20 Hz). Each stream maps to a `STATUS_OK / STATUS_DEGRADED / STATUS_FAULT` enum, and the overall status is the worst of the five.
+- **Description**: Watches the five canonical pipeline streams and computes an EMA-smoothed measured rate against the per-topic expected rate (radar 20 Hz, camera 30 Hz, tracker 20 Hz, classifier 20 Hz, predictor 20 Hz). Each stream maps to a `STATUS_OK / STATUS_DEGRADED / STATUS_FAULT` enum, and the overall status is the worst of the five.
 - **Subscribes to**:
   - `/radar/detections` (`sensor_msgs/PointCloud2`).
   - `/camera/image_raw` (`sensor_msgs/Image`).
@@ -314,7 +314,7 @@ The arrows represent ROS 2 topic connections. Every transformation crosses exact
 - **Description**: Software-in-the-loop substitute for `radar_parser_node`. Replays a scripted scenario (default `approach`, configurable through the `scenario` parameter) at the configured rate with deterministic noise (`noise_seed=42`) and emits the same `PointCloud2` topic the hardware parser would. Bounds: `kSimRadarMaxRangeM = 15`, `kSimRadarMaxTargets = 8`, `kSimRadarMaxPoints = 64`, `kSimRadarNoiseSigmaM = 0.10`.
 - **Subscribes to**: none.
 - **Publishes**:
-  - `/radar/detections` (`sensor_msgs/PointCloud2`) at the `publish_rate_hz` parameter (16 Hz in `sim.launch.py`).
+  - `/radar/detections` (`sensor_msgs/PointCloud2`) at the `publish_rate_hz` parameter (20 Hz in `sim.launch.py`).
 - **Dependencies**: none. This node only runs in `sim.launch.py`; in `full.launch.py` the hardware `radar_parser_node` produces the same topic.
 
 ### 3.21 georef_node
@@ -330,12 +330,12 @@ The arrows represent ROS 2 topic connections. Every transformation crosses exact
 
 | Topic | Message Type | Producer | Consumers | Rate |
 |---|---|---|---|---|
-| `/radar/detections` | `sensor_msgs/PointCloud2` | `radar_parser_node` (or `sim_radar_node` in sim) | `clutter_map_node`, `health_monitor_node` | ~16 Hz |
-| `/radar/filtered` | `sensor_msgs/PointCloud2` | `clutter_map_node` | `imm_tracker_node` (via launch remap) | ~16 Hz |
+| `/radar/detections` | `sensor_msgs/PointCloud2` | `radar_parser_node` (or `sim_radar_node` in sim) | `clutter_map_node`, `health_monitor_node` | ~20 Hz |
+| `/radar/filtered` | `sensor_msgs/PointCloud2` | `clutter_map_node` | `imm_tracker_node` (via launch remap) | ~20 Hz |
 | `/clutter/status` | `cuas_msgs/ClutterStatus` | `clutter_map_node` | reserved (visualizer/health hookup planned) | 1 Hz |
 | `/camera/image_raw` | `sensor_msgs/Image` | `camera_node` | `cuas_color_correct_node`, `inference_node` (if not corrected), `cuas_visualizer_node`, `health_monitor_node` | 30 Hz |
 | `/camera/image_corrected` | `sensor_msgs/Image` | `cuas_color_correct_node` | `inference_node`, `cuas_visualizer_node`, `cuas_overlay_node` (when `color_correct:=true`) | ~30 Hz |
-| `/inference/detections` | `vision_msgs/Detection2DArray` | `inference_node` | `fusion_node` | ~35 Hz |
+| `/inference/detections` | `vision_msgs/Detection2DArray` | `inference_node` | `fusion_node` | 22–27 Hz |
 | `/tracks` | `cuas_msgs/TrackArray` | `imm_tracker_node` | `fusion_node`, `kinematic_predictor_node`, `occlusion_predictor_node`, `threat_classifier_node`, `intent_classifier_node`, `geofence_node`, `reachability_node`, `cuas_visualizer_node`, `cuas_overlay_node`, `health_monitor_node` | 20 Hz |
 | `/tracks/confirmed` | `cuas_msgs/TrackArray` | `track_manager_node` (debug, not in `full.launch.py`) | none in standard deployment | ~20 Hz |
 | `/fusion/detections` | `cuas_msgs/FusedDetectionArray` | `fusion_node` | `threat_classifier_node`, `cuas_visualizer_node`, `track_manager_node` (when launched) | ~20 Hz |
@@ -403,7 +403,7 @@ The camera intrinsics used for projection live in `include/cuas_fusion/common/co
 
 ## 8. Hardware Configuration
 
-**NVIDIA Jetson Orin Nano Super.** The compute platform. Runs Ubuntu 22.04 with JetPack and ROS 2 Humble. The TensorRT INT8 engine is built once for the on-board iGPU and cached at `/home/zork/ProjectHailMarry/models/yolov8s_int8.engine`. CUDA 12.6 headers and `libnvinfer` are linked from `/usr/local/cuda` and `/usr/lib/aarch64-linux-gnu`. All other application logic is CPU-bound and fits comfortably in the platform's eight Cortex-A78AE cores.
+**NVIDIA Jetson Orin Nano Super.** The compute platform. Runs Ubuntu 22.04 with JetPack and ROS 2 Humble. The TensorRT INT8 engine is built once for the on-board iGPU and cached at `/home/zork/ProjectHailMarry/models/yolov8s_int8.engine`. CUDA 12.6 headers and `libnvinfer` are linked from `/usr/local/cuda` and `/usr/lib/aarch64-linux-gnu`. All other application logic is CPU-bound and runs on the platform's six Cortex-A78AE cores, which are oversubscribed under the full graph (see `latency_budget.md` §4).
 
 **Texas Instruments IWR6843ISK.** A 60 GHz mmWave radar evaluation module. Two USB serial endpoints are exposed: a configuration port that accepts the radar profile (chirp configuration, frame rate, range/doppler bins) and a data port that streams TLV-formatted detected-object frames at the profile's frame rate. The standard profile in `config/radar_profile.cfg` produces approximately sixteen frames per second. Stable device naming is achieved through the udev rules:
 
