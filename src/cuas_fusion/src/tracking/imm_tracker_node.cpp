@@ -1,10 +1,12 @@
 // @file imm_tracker_node.cpp
 // @brief ROS 2 node wrapping IMMTracker for radar point-cloud input.
 #include "cuas_fusion/tracking/imm_tracker.hpp"
+#include "cuas_fusion/common/clock.hpp"
 #include "cuas_fusion/common/eigen_types.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 #include "cuas_fusion/common/constants.hpp"
+#include "cuas_fusion/common/ros_pointcloud_adapter.hpp"
 #include "cuas_fusion/common/types.hpp"
 #include "cuas_fusion/common/track_state_ids.hpp"
 
@@ -15,6 +17,8 @@
 #include <cuas_msgs/msg/track_array.hpp>
 #include <cuas_msgs/msg/threat_report_array.hpp>
 
+#include <array>
+#include <cmath>
 #include <limits>
 #include <string>
 #include <utility>
@@ -50,6 +54,14 @@ static uint8_t track_state_to_id(const std::string & s)
     return cuas::track_state::kUnknown;
 }
 
+static builtin_interfaces::msg::Time stamp_from_ns(int64_t ns)
+{
+    builtin_interfaces::msg::Time t;
+    t.sec     = static_cast<int32_t>(ns / 1'000'000'000LL);
+    t.nanosec = static_cast<uint32_t>(ns % 1'000'000'000LL);
+    return t;
+}
+
 class IMMTrackerNode : public rclcpp::Node
 {
 public:
@@ -71,15 +83,18 @@ public:
             std::chrono::milliseconds(50),
             std::bind(&IMMTrackerNode::publish_tracks, this));
 
+        // Log throttling only. Predict/evict/stamp time comes from
+        // cuas::now_ns() (CLOCK_MONOTONIC), the clock the drivers stamp
+        // with; RCL_STEADY_TIME is CLOCK_MONOTONIC_RAW, which drifted
+        // 415 ms from it under NTP slew and broke fusion's 150 ms gate
+        // after ~75 min of uptime (RC-6, audit F-9).
         clock_ = std::make_shared<rclcpp::Clock>(RCL_STEADY_TIME);
-        last_predict_time_ = clock_->now().seconds();
+        last_predict_time_ = static_cast<float64_t>(cuas::now_ns()) * 1.0e-9;
 
         RCLCPP_INFO(get_logger(), "IMM tracker node ready");
     }
 
 private:
-    static constexpr float64_t kAssociationGate = 0.8;
-
     void threats_callback(const cuas_msgs::msg::ThreatReportArray::ConstSharedPtr& msg)
     {
         latest_threats_ = msg;
@@ -87,11 +102,23 @@ private:
 
     void radar_callback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg)
     {
+        // A cloud with a foreign layout used to throw out of the iterator
+        // constructor into the process exception boundary (RC-8); an empty
+        // frame is a valid "nothing seen" from the parser (RC-12) and has
+        // no data for the iterators to point at.
+        if (!cloudHasFloat32Xyz(*msg)) {
+            RCLCPP_WARN_THROTTLE(get_logger(), *clock_, 5000,
+                "Dropping PointCloud2 without float32 x/y/z fields");
+            return;
+        }
+        if (cloudIsEmpty(*msg)) {
+            return;
+        }
+
         // Measurement time is the SENSOR stamp (CLOCK_MONOTONIC from the
         // parser), not arrival time: update() velocity gating and fusion's
         // camera alignment both need the instant the return was observed,
-        // free of transport jitter (P2.1). Same clock family as clock_
-        // (RCL_STEADY_TIME), so predict/evict math stays in one domain.
+        // free of transport jitter (P2.1).
         const float64_t now =
             static_cast<float64_t>(msg->header.stamp.sec) +
             (static_cast<float64_t>(msg->header.stamp.nanosec) * 1.0e-9);
@@ -100,31 +127,41 @@ private:
         sensor_msgs::PointCloud2ConstIterator<float> iter_y(*msg, "y");
         sensor_msgs::PointCloud2ConstIterator<float> iter_z(*msg, "z");
 
+        // One update per track per frame: the nearest gated return wins,
+        // the rest spawn. Without this, every return of a dense cloud
+        // updated the same track and two close targets merged (RC-3).
+        std::array<bool, TRACK_MAX_TRACKS> used{};
+        uint32_t dropped_non_finite = 0U;
+
         for (; iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
             const float64_t px = static_cast<float64_t>(*iter_x);
             const float64_t py = static_cast<float64_t>(*iter_y);
             const float64_t pz = static_cast<float64_t>(*iter_z);
+            if (!(std::isfinite(px) && std::isfinite(py) && std::isfinite(pz))) {
+                ++dropped_non_finite;   // RC-9: NaN in, NaN track out
+                continue;
+            }
 
-            uint32_t  best_id   = 0U;
-            float64_t best_dist = kAssociationGate;
+            uint32_t  best_slot = TRACK_MAX_TRACKS;
+            float64_t best_dist = std::numeric_limits<float64_t>::infinity();
 
             for (uint32_t i = 0U; i < active_tracks_.slot_count(); ++i) {
-                auto& slot = active_tracks_.slots()[i];
-                if (!slot.occupied) {
+                const auto& slot = active_tracks_.slots()[i];
+                if (!slot.occupied || used[i]) {
                     continue;
                 }
-                const float64_t d = slot.value.distance_to(px, py, pz);
-                if (d < best_dist) {
+                // Gate against the position extrapolated to the return's
+                // stamp, widened by this track's uncertainty (RC-3, D-9).
+                const float64_t d = slot.value.distanceAt(px, py, pz, now);
+                if ((d <= slot.value.associationGateM(now)) && (d < best_dist)) {
                     best_dist = d;
-                    best_id   = slot.key;
+                    best_slot = i;
                 }
             }
 
-            if (best_id != 0U) {
-                IMMTracker* tracker = active_tracks_.find(best_id);
-                if (tracker != nullptr) {
-                    tracker->update(px, py, pz, now);
-                }
+            if (best_slot < TRACK_MAX_TRACKS) {
+                active_tracks_.slots()[best_slot].value.update(px, py, pz, now);
+                used[best_slot] = true;
             } else {
                 const uint32_t new_id = next_track_id_;
                 ++next_track_id_;
@@ -136,11 +173,17 @@ private:
                 }
             }
         }
+
+        if (dropped_non_finite > 0U) {
+            RCLCPP_WARN_THROTTLE(get_logger(), *clock_, 5000,
+                "Dropped %u non-finite radar returns", dropped_non_finite);
+        }
     }
 
     void publish_tracks()
     {
-        const float64_t now = clock_->now().seconds();
+        const int64_t   t_now_ns = cuas::now_ns();
+        const float64_t now      = static_cast<float64_t>(t_now_ns) * 1.0e-9;
         float64_t dt = now - last_predict_time_;
         last_predict_time_ = now;
         if (dt <= 0.0) {
@@ -150,7 +193,7 @@ private:
         active_tracks_.erase_if(
             [&](uint32_t id, const IMMTracker& tracker) {
                 (void)id;
-                return (now - tracker.lastUpdateTime()) > 5.0;
+                return (now - tracker.lastUpdateTime()) > kTrackReapAfterS;
             });
 
         for (uint32_t i = 0U; i < active_tracks_.slot_count(); ++i) {
@@ -162,10 +205,10 @@ private:
         }
 
         cuas_msgs::msg::TrackArray out;
-        // Steady (CLOCK_MONOTONIC) stamp: /tracks is on the measurement
-        // path, and fusion aligns it against camera stamps in the same
-        // domain. this->now() (system time) is NOT comparable (P2.1).
-        out.header.stamp    = clock_->now();
+        // CLOCK_MONOTONIC stamp, the drivers' clock: /tracks is on the
+        // measurement path and fusion aligns it against camera stamps in
+        // the same domain. this->now() (system time) is NOT comparable (P2.1).
+        out.header.stamp    = stamp_from_ns(t_now_ns);
         out.header.frame_id = "base_link";
         out.tracks.reserve(active_tracks_.size());
 
@@ -185,7 +228,9 @@ private:
             t.velocity_mps = static_cast<float32_t>(tracker.speed());
             t.vx_mps       = static_cast<float32_t>(vel(0));
             t.vy_mps       = static_cast<float32_t>(vel(1));
-            t.doppler_mps  = 0.0F;
+            // Line-of-sight speed from the estimate, negative = closing.
+            // Was hard-wired 0, which made THREATENING unreachable (RC-1).
+            t.doppler_mps  = static_cast<float32_t>(tracker.radialSpeed());
             t.class_label  = "unknown";
             t.confidence   = tracker.getConfidence();
             t.track_state  = trackStateToString(tracker.getState());

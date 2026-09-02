@@ -39,11 +39,31 @@ public:
     float64_t distance_to(float64_t px, float64_t py, float64_t pz) const;
     float64_t speed() const;
 
+    // Association (RC-3). The state refers to stateTime(); a return stamped
+    // t is compared against the position extrapolated over (t - stateTime())
+    // with a gate that widens with this track's position and velocity
+    // uncertainty, so a fresh track admits any speed and a converged one
+    // tightens to kAssocBaseGateM.
+    float64_t       stateTime() const;
+    Eigen::Vector3d predictedPositionAt(float64_t t) const;
+    float64_t       associationGateM(float64_t t) const;
+    float64_t       distanceAt(float64_t px, float64_t py, float64_t pz, float64_t t) const;
+    bool            gates(float64_t px, float64_t py, float64_t pz, float64_t t) const;
+
+    // Largest per-axis 1-sigma of the blended estimate.
+    float64_t positionSigma() const;
+    float64_t velocitySigma() const;
+
+    // Line-of-sight speed, m/s: positive = receding, negative = closing
+    // (TI convention, audit D-7). Feeds Track.doppler_mps (RC-1).
+    float64_t radialSpeed() const;
+
 private:
     ImmFilter  imm_{};
     uint32_t   track_id_              = 0U;
     TrackState track_state_           = TrackState::TENTATIVE;
     float64_t  last_update_time_      = 0.0;
+    float64_t  state_time_            = 0.0;
     int32_t    consecutive_hit_count_ = 0;
 
     bool       is_maneuvering_       = false;

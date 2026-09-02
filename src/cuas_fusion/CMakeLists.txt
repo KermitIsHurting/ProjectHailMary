@@ -538,6 +538,17 @@ if(BUILD_TESTING)
   )
   target_include_directories(test_imm_filter PRIVATE include)
 
+  ament_add_gtest(test_imm_tracker
+    ../../test/unit/test_imm_tracker.cpp
+    src/tracking/imm_tracker.cpp
+    src/estimation/imm_filter.cpp
+    src/estimation/kalman_cv.cpp
+    src/estimation/kalman_ca.cpp
+    src/estimation/kalman_ct.cpp
+  )
+  target_include_directories(test_imm_tracker PRIVATE include)
+  ament_target_dependencies(test_imm_tracker sensor_msgs)
+
   ament_add_gtest(test_hungarian_solver
     ../../test/unit/test_hungarian_solver.cpp
     src/tracking/hungarian_solver.cpp

@@ -90,6 +90,23 @@ static constexpr float32_t kDopplerWeightFloor         = 0.1F;
 // Human locomotion acceleration cap, used to reject arm-swing velocity spikes
 // that leak into the IMM blended state between frames.
 static constexpr float64_t kMaxPhysicalAcceleration    = 3.0;
+// Track birth and gating (audit B2, D-9 engineering defaults). A track is
+// born from ONE return: position known to the sensor sigma, velocity
+// unknown. The velocity-jump gate is max(kMaxPhysicalAcceleration*dt,
+// kGateSigmas*sigma_v); the association gate is kAssocBaseGateM +
+// kGateSigmas*(sigma_pos + sigma_v*|dt|), capped at kAssocMaxGateM, where
+// dt is the extrapolation from the state time to the return's stamp.
+static constexpr float64_t kTrackInitVelSigmaMps       = 10.0;
+static constexpr float64_t kGateSigmas                 = 3.0;
+static constexpr float64_t kAssocBaseGateM             = 0.8;
+static constexpr float64_t kAssocMaxGateM              = 5.0;
+static constexpr float64_t kAssocMaxExtrapS            = 0.25;
+// One hit per stamp; a gap longer than this restarts confirmation (RC-37).
+static constexpr float64_t kTrackHitGapResetS          = 0.25;
+// Tracks with no return for this long are dropped by the tracker node.
+static constexpr float64_t kTrackReapAfterS            = 5.0;
+// Below this range the line-of-sight direction is undefined.
+static constexpr float64_t kRadialSpeedMinRangeM       = 1.0e-3;
 
 // Tight gate for new tracks keeps clutter from initiating confirmed IDs;
 // wider gate for confirmed tracks absorbs extended body returns.
