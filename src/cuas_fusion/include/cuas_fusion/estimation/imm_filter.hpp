@@ -33,6 +33,13 @@ public:
     Matrix6d getCtTransitionMatrix(float64_t dt) const;
 
 private:
+    // c_bar_j = sum_i p_ij mu_i: the mixed prior shared by predict() and update().
+    std::array<float64_t, 3> mixedPrior() const;
+
+    // Every mode stays reachable: a weight this small still recovers within
+    // a few scans once its likelihood dominates (RC-7).
+    static constexpr float64_t kMuFloor = 1e-6;
+
     KalmanCV cv_;
     KalmanCA ca_;
     KalmanCT ct_;

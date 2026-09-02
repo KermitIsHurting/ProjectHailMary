@@ -2,16 +2,12 @@
 // @brief Constant-acceleration Kalman filter implementation.
 #include "cuas_fusion/estimation/kalman_ca.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
+#include "cuas_fusion/estimation/position_update.hpp"
 
 #include <algorithm>
 #include <cmath>
 
 namespace cuas {
-
-namespace {
-using Matrix3x9 = Eigen::Matrix<float64_t, 3, 9>;
-using Matrix9x3 = Eigen::Matrix<float64_t, 9, 3>;
-} // namespace
 
 void KalmanCA::init(const Vector6d& x0, const Matrix6d& P0)
 {
@@ -80,18 +76,13 @@ void KalmanCA::predict(float64_t dt)
 
     x_ = F * x_;
     P_ = F * P_ * F.transpose() + Q;
+    estimation::symmetrize<9>(P_);
 }
 
 void KalmanCA::update(const Eigen::Vector3d& z, const Eigen::Matrix3d& R)
 {
-    Matrix3x9 H = Matrix3x9::Zero();
-    H.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
-
-    const Eigen::Vector3d y = z - H * x_;
-    const Eigen::Matrix3d S = H * P_ * H.transpose() + R;
-    const Matrix9x3 K = P_ * H.transpose() * S.inverse();
-    x_ = x_ + K * y;
-    P_ = (Matrix9d::Identity() - K * H) * P_;
+    // Skipped (prediction kept) when S is not positive definite (B3).
+    (void)estimation::positionUpdate<9>(x_, P_, z, R);
 }
 
 Vector6d KalmanCA::getState() const
@@ -106,23 +97,7 @@ Matrix6d KalmanCA::getCovariance() const
 
 float64_t KalmanCA::likelihood(const Eigen::Vector3d& z, const Eigen::Matrix3d& R) const
 {
-    Matrix3x9 H = Matrix3x9::Zero();
-    H.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
-
-    const Eigen::Vector3d y = z - H * x_;
-    const Eigen::Matrix3d S = H * P_ * H.transpose() + R;
-    // Negated comparison so a NaN determinant (numerically broken S) takes
-    // the floor branch instead of flowing into exp(NaN) and poisoning the
-    // IMM weights permanently (Dir 0.3.1).
-    const float64_t det = S.determinant();
-    if (!(det > 1e-12)) {
-        return 1e-12;
-    }
-
-    const float64_t n = 3.0;
-    const float64_t exponent = -0.5 * (y.transpose() * S.inverse() * y)(0, 0);
-    const float64_t norm = std::pow(2.0 * M_PI, n / 2.0) * std::sqrt(det);
-    return std::max(std::exp(exponent) / norm, 1e-12);
+    return estimation::positionLikelihood<9>(x_, P_, z, R);
 }
 
 } // namespace cuas

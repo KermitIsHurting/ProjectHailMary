@@ -6,7 +6,10 @@
 
 #include <gtest/gtest.h>
 #include <Eigen/Dense>
+#include <algorithm>
 #include <cmath>
+#include <limits>
+#include <random>
 
 namespace {
 
@@ -131,6 +134,74 @@ TEST_F(ImmFilterTest, TurningTargetShiftsWeightTowardCT)
     const double t_end = dt * 120.0;
     EXPECT_NEAR(x(0), radius * std::sin(omega * t_end), 0.5);
     EXPECT_NEAR(x(1), radius * (1.0 - std::cos(omega * t_end)), 0.5);
+}
+
+TEST_F(ImmFilterTest, LongStraightRunStaysPsdFiniteAndEveryModeReachable)
+{
+    // B3 / RC-34, RC-7: 100 s of straight flight with R-consistent noise.
+    // Before the block-diagonal mixing fix the blended P went indefinite
+    // within 5 s (60/60 seeded runs) and a mode weight hit exactly 0.
+    std::mt19937 rng(42U);
+    std::normal_distribution<double> noise(0.0, 0.1);   // R_ = 0.01 I
+    cuas::ImmFilter imm;
+    imm.init(make_state(0.0, 0.0, 0.0, 1.0, 0.0, 0.0),
+             Eigen::MatrixXd::Identity(6, 6));
+
+    double min_eig = std::numeric_limits<double>::infinity();
+    double min_mu  = 1.0;
+    for (int k = 1; k <= 2000; ++k) {
+        const double t = 0.05 * static_cast<double>(k);
+        imm.predict(0.05);
+        const Eigen::VectorXd z = (Eigen::VectorXd(3)
+            << t + noise(rng), noise(rng), noise(rng)).finished();
+        imm.update(z, R_);
+
+        const Eigen::MatrixXd P = imm.getCovariance();
+        ASSERT_TRUE(P.allFinite()) << "step " << k;
+        ASSERT_TRUE(imm.getState().allFinite()) << "step " << k;
+        EXPECT_TRUE(P.isApprox(P.transpose(), 1e-9)) << "step " << k;
+        const Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(P, Eigen::EigenvaluesOnly);
+        min_eig = std::min(min_eig, es.eigenvalues().minCoeff());
+        const auto mu = imm.getModelWeights();
+        min_mu = std::min({min_mu, mu[0], mu[1], mu[2]});
+    }
+    EXPECT_GE(min_eig, -1e-9);
+    EXPECT_GE(min_mu, 1e-6);
+    EXPECT_NEAR(imm.getState()(3), 1.0, 0.2);
+}
+
+TEST_F(ImmFilterTest, TurnAfterLongStraightFlightRecoversCtWeight)
+{
+    // RC-7: 50 s straight at 10 m/s, then the same coordinated turn as
+    // TurningTargetShiftsWeightTowardCT. With the posterior-based weight
+    // update mu_CT underflowed during the straight leg and never came back.
+    cuas::ImmFilter imm;
+    imm.init(make_state(0.0, 0.0, 0.0, 10.0, 0.0, 0.0),
+             Eigen::MatrixXd::Identity(6, 6));
+    const double dt = 0.05;
+    for (int k = 1; k <= 1000; ++k) {
+        imm.predict(dt);
+        const Eigen::VectorXd z = (Eigen::VectorXd(3)
+            << 10.0 * dt * static_cast<double>(k), 0.0, 0.0).finished();
+        imm.update(z, R_);
+    }
+    const auto mu_straight = imm.getModelWeights();
+    EXPECT_GE(mu_straight[2], 1e-6);
+
+    const double x0 = 10.0 * dt * 1000.0;
+    const double omega = 0.5;
+    const double radius = 20.0;
+    for (int k = 1; k <= 120; ++k) {
+        const double tau = dt * static_cast<double>(k);
+        imm.predict(dt);
+        const Eigen::VectorXd z = (Eigen::VectorXd(3)
+            << x0 + radius * std::sin(omega * tau),
+               radius * (1.0 - std::cos(omega * tau)),
+               0.0).finished();
+        imm.update(z, R_);
+    }
+    const auto mu = imm.getModelWeights();
+    EXPECT_GT(mu[2], 0.5) << "cv=" << mu[0] << " ca=" << mu[1] << " ct=" << mu[2];
 }
 
 TEST_F(ImmFilterTest, SetVelocityPropagatesToBlend)

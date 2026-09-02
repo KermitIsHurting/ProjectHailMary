@@ -37,13 +37,7 @@ void ImmFilter::predict(float64_t dt)
         return;
     }
 
-    std::array<float64_t, 3> c_bar{};
-    for (int32_t j = 0; j < 3; ++j) {
-        for (int32_t i = 0; i < 3; ++i) {
-            c_bar[j] += tp_[i][j] * mu_[i];
-        }
-        c_bar[j] = std::max(c_bar[j], 1e-12);
-    }
+    const std::array<float64_t, 3> c_bar = mixedPrior();
 
     std::array<std::array<float64_t, 3>, 3> mu_ij{};
     for (int32_t i = 0; i < 3; ++i) {
@@ -105,27 +99,44 @@ void ImmFilter::update(const Eigen::Vector3d& z, const Eigen::Matrix3d& R)
     ca_.update(z, R);
     ct_.update(z, R);
 
-    float64_t c_sum = mu_[0] * L0 + mu_[1] * L1 + mu_[2] * L2;
-    if (c_sum < 1e-30) {
-        c_sum = 1e-30;
-    }
-
-    mu_[0] = mu_[0] * L0 / c_sum;
-    mu_[1] = mu_[1] * L1 / c_sum;
-    mu_[2] = mu_[2] * L2 / c_sum;
+    // mu_j <- c_bar_j * L_j / sum, with c_bar the MIXED prior (RC-7). The
+    // old update multiplied the previous posterior instead, so nothing ever
+    // flowed back into a mode that lost a few rounds: mu_CT reached 1e-323
+    // in straight flight and the IMM was a CV filter from then on.
+    const std::array<float64_t, 3> c_bar = mixedPrior();
+    mu_[0] = c_bar[0] * L0;
+    mu_[1] = c_bar[1] * L1;
+    mu_[2] = c_bar[2] * L2;
 
     const float64_t sum = mu_[0] + mu_[1] + mu_[2];
     // A non-finite or collapsed sum means the weight state is corrupt (e.g.
     // a NaN slipped through a sub-filter). Reset to uniform priors —
     // explicit recovery per JPL P5 — instead of dividing NaN through and
     // poisoning every subsequent blended state.
-    if (!(sum > 1e-30) || !std::isfinite(sum)) {
+    if (!(sum > 1e-300) || !std::isfinite(sum)) {
         mu_ = {0.33, 0.33, 0.34};
         return;
     }
-    mu_[0] /= sum;
-    mu_[1] /= sum;
-    mu_[2] /= sum;
+    float64_t floored_sum = 0.0;
+    for (int32_t j = 0; j < 3; ++j) {
+        mu_[j] = std::max(mu_[j] / sum, kMuFloor);
+        floored_sum += mu_[j];
+    }
+    for (int32_t j = 0; j < 3; ++j) {
+        mu_[j] /= floored_sum;
+    }
+}
+
+std::array<float64_t, 3> ImmFilter::mixedPrior() const
+{
+    std::array<float64_t, 3> c_bar{};
+    for (int32_t j = 0; j < 3; ++j) {
+        for (int32_t i = 0; i < 3; ++i) {
+            c_bar[j] += tp_[i][j] * mu_[i];
+        }
+        c_bar[j] = std::max(c_bar[j], kMuFloor);
+    }
+    return c_bar;
 }
 
 Vector6d ImmFilter::getState() const

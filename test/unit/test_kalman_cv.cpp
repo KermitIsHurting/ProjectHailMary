@@ -89,6 +89,21 @@ TEST_F(KalmanCvTest, ProcessNoiseSymmetricPositiveSemiDefinite)
     EXPECT_GE(es.eigenvalues().minCoeff(), -1e-15);
 }
 
+TEST_F(KalmanCvTest, IndefiniteInnovationCovarianceSkipsUpdateAndFloorsLikelihood)
+{
+    // B3: a P that has lost positive definiteness makes S non-SPD; the
+    // Cholesky guard keeps the prediction instead of applying a gain built
+    // from S.inverse(), and the likelihood takes its floor.
+    cuas::KalmanCV kf;
+    const Eigen::VectorXd x0 = make_state(1.0, 2.0, 3.0, 0.0, 0.0, 0.0);
+    kf.init(x0, -Eigen::MatrixXd::Identity(6, 6));
+    const Eigen::Vector3d z(5.0, 5.0, 5.0);
+    const Eigen::Matrix3d R = Eigen::Matrix3d::Zero();
+    kf.update(z, R);
+    EXPECT_TRUE(kf.getState().isApprox(x0, 1e-12));
+    EXPECT_DOUBLE_EQ(kf.likelihood(z, R), 1e-12);
+}
+
 TEST_F(KalmanCvTest, LikelihoodHigherNearPredictedState)
 {
     const Eigen::MatrixXd R = Eigen::MatrixXd::Identity(3, 3) * 0.1;

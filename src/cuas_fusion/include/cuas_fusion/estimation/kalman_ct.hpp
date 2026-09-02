@@ -14,13 +14,16 @@ public:
     KalmanCT() = default;
 
     void init(const Vector6d& x0, const Matrix6d& P0);
-    // IMM mixing injection: overwrites only the shared (pos, vel) block.
-    // Turn rate x_(6), its variance, and the cross terms are preserved —
-    // re-init()ing here reset omega to 0 every predict cycle, so this model
-    // could never develop a turn rate.
+    // IMM mixing injection, block-diagonal (RC-34): the shared (pos, vel)
+    // block takes the mixed estimate, the turn rate x_(6) keeps its
+    // variance, and the cross terms are zeroed — see KalmanCA. predict()
+    // rebuilds the omega coupling through F each cycle. (re-init()ing here
+    // reset omega to 0, so this model could never develop a turn rate.)
     void setMixedState(const Vector6d& x6, const Matrix6d& P6) {
         x_.head<6>() = x6;
         P_.topLeftCorner<6, 6>() = P6;
+        P_.topRightCorner<6, 1>().setZero();
+        P_.bottomLeftCorner<1, 6>().setZero();
     }
     void predict(float64_t dt);
     void update(const Eigen::Vector3d& z, const Eigen::Matrix3d& R);
