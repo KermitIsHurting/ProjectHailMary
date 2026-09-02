@@ -1,3 +1,49 @@
+# PICK UP HERE — 2026-09-02 polish audit (read this block first; the 2026-07-07 dump follows)
+
+**Branch:** `polish` (from `misra-audit-fixes` at `7ef0bde`), NOT pushed. Tags: `pre-polish-2026-09-01`,
+`pre-review-20260902T0144Z` (the audit baseline; `git diff pre-review-20260902T0144Z..HEAD` is the
+whole change). Backups: `~/backups/` (tree tgz + bundle + rosbags, sha256 in `docs/audit-plan.md` §0).
+
+**What happened:** playbook §15 audit. A0 backup → A1 ground truth → A2 map → A3 seven review
+agents (80 code findings + 51 doc rows → 37 root causes, +RC-38 found in B6) → A4 triage → A5 seven fix batches, one checkpoint commit
+each, gates per batch → role-6 pass on the cumulative diff → A6 shape runs → this record.
+The running record is `docs/audit-log.md` (append-only, UTC). The plan with every table is
+`docs/audit-plan.md`. Facts sheet: `docs/resume-facts.md`. Retro: `docs/polish-retro.md`.
+
+**State of the tree (`3b62029` + the A7 docs commit):** build 0 warnings (-Werror), 160 GoogleTest cases green (colcon test-result 182 incl. suite rows),
+cppcheck 6 (baseline), sim smoke exit 0 with health NOMINAL. Checkpoints: B1 `8b553a1` · B2 `fb6f35c` ·
+B3 `a085f90` · B4 `6ef134a` · B5 `d311752` · B6 `a26a487` · B7 `ae5a2e4` · A6/R6 fixes `3b62029`. Session died once mid-audit (Jetson CPU-complex watchdog,
+see audit-log 02:44Z); everything after B1 was rebuilt by the next session from the on-disk diff.
+
+**Owner decisions still open (do not build them silently):** D-0 keep `62ae459`/`7ef0bde`;
+D-1 `ROS_LOCALHOST_ONLY`; D-2 threat class policy (any non-person COCO class > 0.5 = THREAT;
+IDENTIFIED requires a *person* label, so a drone never escalates — A6 showed every scene stuck at
+TRACKED); D-3 de-escalation; D-4 clutter relearn and the cell-size/threshold number (`clutter` scene: 3 learned reflectors still keep 3 CONFIRMED tracks); D-5 extrinsics translation sign; D-13 geofence hysteresis (edge chatter at 10 Hz).
+
+**Hardware shapes for John (watched, readout open):** S-7 camera-only / radar-only, S-9 unplug the
+radar and the camera, S-12 `full.launch.py` production defaults. `scripts/_smoke_sim.sh <outdir>`
+and `scripts/_a6_shape.sh <scene> <outdir>` are the harnesses (gitignored `_` prefix).
+
+**Traps added this audit:**
+- Build with `--parallel-workers 1 MAKEFLAGS=-j3` after touching a shared header; a 6-way full
+  rebuild is the load that preceded the watchdog reset.
+- Never put a process pattern (`install/cuas_fusion`, `rviz2`, `ros2 launch cuas`) on your own
+  shell's command line while a cleanup `pkill -f` can run — it kills you. Use the script files.
+- After any launch: `bash scripts/_a6_shape.sh`-style cleanup, then `pgrep -af install/cuas_fusion`
+  must be empty; a surviving graph makes the next launch fail (owner-reported).
+- The sim publishes ONE centroid per target (ICD: cluster centroids). Raw multi-return scenes
+  spawn twin tracks in the one-to-one associator unless the duplicate-return guard catches them.
+- `radar_frame` is X = azimuth, Y = range; every bearing goes through `common/bearing.hpp`.
+- Two real targets closer than 0.8 m merge into one track (duplicate-return guard, R6b-4); they
+  split again once apart. Hard limit, by design.
+- Bag replay: the tracker anchors its clock to the newest cloud stamp; a >1 s backward jump
+  (replaying again, `--loop`) resets the track table with one WARN. The April bags replay only
+  `/radar/detections` (their cuas_msgs topics no longer deserialize).
+- Radar replug: the parser reopens the port but the sensor comes back idle — re-run
+  `scripts/send_radar_config.sh` (unverified on hardware, R6 F5).
+
+---
+
 # HANDOFF — session knowledge dump (2026-07-07)
 
 Written at the end of the session that completed RESUME_PLAN items R1–R10 and

@@ -39,6 +39,7 @@ vice versa; the bag corpus and metrics score BOTH on every run.
 
 | Limit | Value today | Consequence for fast drones |
 |---|---|---|
+| Two targets closer than 0.8 m merge into one track (duplicate-return guard, 2026-09 audit R6b-4); they split again once apart | tracker association | by design — `kAssocBaseGateM` |
 | Radar unambiguous Doppler | ≈ ±5 m/s (profileCfg: 3-TX TDM, idle 30 µs + ramp 57.14 µs ⇒ ~261 µs per-TX chirp period at 60 GHz — **recompute precisely before changing**) | a 15 m/s drone's Doppler aliases; velocity gating and clutter rejection actively work against exactly the targets we care about |
 | Radar frame rate | 20 Hz (frameCfg period 50 ms) | 0.75 m of travel between scans at 15 m/s; association gates must grow accordingly |
 | Software range gate | `MAX_RANGE_M` = 15 m, `CLUTTER_VEL_THRESH` = 0.1 m/s (radar_parser hardcoded) | indoor-demo scale; both must become profile-derived parameters |

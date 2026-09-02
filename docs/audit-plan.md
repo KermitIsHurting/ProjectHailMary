@@ -1,4 +1,4 @@
-# ProjectHailMary audit plan (playbook §15 audit mode) — v2 after A4 triage
+# ProjectHailMary audit plan (playbook §15 audit mode) — v3, complete at A7 (2026-09-02)
 
 Executor: the AI executor session. Owner: John. Branch: `polish` off
 `misra-audit-fixes`. §0 written 2026-09-02T00:17Z; §1–§2 at 02:00Z. Owner away for the run; issue list not received.
@@ -385,6 +385,8 @@ Gates per batch: `colcon build --packages-select cuas_fusion` 0 warnings under -
 | D-3 | RC-18 de-escalation hysteresis | e.g. THREATENING→IDENTIFIED when range > 6 m or closing < 0 for 3 s; ENGAGED→THREATENING when range > 3 m for 3 s | unchanged; documented as monotonic FSM |
 | D-4 | RC-27 clutter map relearn/decay | exponential decay τ, periodic relearn, hover exclusion | unchanged |
 | D-5 | RC-31 extrinsics translation sign | negate `t` in `extrinsics.yaml` or change the equation; verify with `calibrate_extrinsics.py` on a reflector | unchanged (nominal) |
+| D-13 | A6-4 geofence hysteresis: a target on a zone edge chatters ENTERED/EXITED at the 10 Hz tick (two_targets 19/17, crossing 16/17) | hysteresis band, e.g. 0.25 m, or a 3-tick debounce | none (chatter visible on the overlay strip) |
+| D-4 (number) | clutter map 0.25 m cells / 60 % threshold vs 0.1 m return noise: a learned static reflector still leaks ~38 % of returns and keeps a CONFIRMED track (A6 clutter scene) | larger cells, neighbour-cell hits, or a lower threshold | unchanged |
 | D-6 | RC-26 camera decimation in `camera_node` (camera-file protocol, NEEDS-HARDWARE) | publish every k-th frame to hold 30 Hz | subscriber-side mitigations only |
 | D-7 | Doppler sign convention on the real IWR6843 stream | **Resolved from the April hardware bags (2026-09-02 02:2xZ):** following one return frame-to-frame in demo_take1/2/3, 12 of 13 segments have range increasing when velocity > 0 → positive = receding, negative = closing (TI convention). Classifier, track.hpp and measurement models already assume this; sim_radar.cpp had the sign inverted (fixed in B1); parser comment corrected | Fixed (bag-verified) |
 | D-8 | CHANGELOG/README wording for the MISRA/JSF claim | "guided by" (KICKOFF default) vs "audited against" | "guided by; manual audit, 60 findings, no tool count" |
@@ -392,6 +394,55 @@ Gates per batch: `colcon build --packages-select cuas_fusion` 0 warnings under -
 | D-10 | B5 label-join gates: fused age ≤ 250 ms, position ≤ 1 m | | applied |
 | D-11 | Bags `demo_take1..3` incompatible with 0.7.0+ messages | keep as radar-only bags; record new sim bags | radar-only in replay launch |
 | D-12 | RC-35 singleton policy: unclustered radar returns always pass to the tracker (as their own detection) vs only when no cluster exists | always-pass raises false-track exposure from CFAR noise; never-pass loses single-return targets | always-pass applied (the previous behaviour made track existence depend on unrelated targets) |
+
+### 4.3 Outcomes (A5, written at A7) — root cause → where it landed
+
+Checkpoints on `polish`: B1 `8b553a1` · B2 `fb6f35c` · B3 `a085f90` · B4 `6ef134a` · B5 `d311752` · B6 `a26a487` · B7 `ae5a2e4` · A6/R6 fixes `3b62029`.
+
+| RC | Outcome | Commit | Pinned by |
+|---|---|---|---|
+| RC-1 | Fixed: `doppler_mps` = line-of-sight speed of the estimate, negative = closing | B2 | `test_imm_tracker` RadialSpeedSign… |
+| RC-2 | Fixed: velocity gate = max(3 m/s²·dt, 3σ_v); birth σ_v = 10 m/s | B2 | StraightTargets… 1/5/10/15 m/s within 10 % |
+| RC-3 | Fixed: association against the extrapolated position, gate 0.8 m + 3(σ_pos + σ_v·dt) ≤ 5 m, one update per track per frame; A6 added the duplicate-return guard | B2, A6-fix | StraightTargets… single track; A6 approach/two_targets |
+| RC-4 | Fixed in classifier (`retainOnly`), geofence, reachability, visualizer, predictor (already) | B5, B6, B7 | `test_threat_classifier` RetainOnly…, slot-starvation |
+| RC-5 | Fixed: fusion publishes every frame incl. empty (5a); classifier applies only a ≤ 250 ms fused set, joins by position ≤ 1 m + bearing (5b) | B4, B5 | A6 readouts: `/fusion/detections` 20 Hz |
+| RC-6 | Fixed: tracker and classifier on `cuas::now_ns()`; stamp age 415.7 → 2.7 ms p50 | B2, B5 | stamp probe `~/backups/b2-stamp-probe-*` |
+| RC-7 | Fixed: mode update from the mixed prior, floor 1e-6 | B3 | TurnAfterLongStraight… μ_CT > 0.5 |
+| RC-8 | Fixed: PointCloud2 layout + empty guards (tracker); Image size guard (adapter) | B2, B4 | PointCloudGuards, `test_ros_image_adapter` |
+| RC-9 | Fixed: isfinite at the TLV and in the tracker | B1, B2 | (parser: node-level) |
+| RC-10 | Fixed: filter-then-cap, 256 raw points | B1 | node-level; A6 |
+| RC-11 | Fixed: poll() before read(), thread-owned reopen with backoff | B1 | node-level; hardware smoke (John) |
+| RC-12 | Fixed: publish every frame incl. empty; health idle-aware, 0 Hz on DEAD | B1, B7 | `test_health_monitor` IdleKeepsOk…; B7 smoke NOMINAL |
+| RC-13 | Fixed: fail-loud geofence YAML | B6 | node-level (FATAL paths) |
+| RC-14 | Fixed: `clamp_param` / `clamp_rate_hz` on classifier + intent parameters | B5 | node-level |
+| RC-15 | Needs John (D-1) | — | — |
+| RC-16 | Fixed: every containing zone, bitmask membership | B6 | `test_geofence_engine` OverlappingZones… |
+| RC-17 | Needs John (D-2) — A6 observed: escalation stays TRACKED without a person label | — | — |
+| RC-18 | Needs John (D-3) | — | — |
+| RC-19 | Fixed: top-K by score before NMS | B4 | `test_trt_topk` |
+| RC-20 | Fixed: z extrapolated with vz | B4 | node-level |
+| RC-21 | Fixed: one bearing helper (`common/bearing.hpp`) | B6 | — |
+| RC-22 | Fixed: inference exits 1 without an engine | B7 | manual: launch without engine (not run) |
+| RC-23 | Fixed: replay plays radar/camera only + overlay | B7 | launch parses; not replayed (April bags) |
+| RC-24 | Fixed: interface 01 = data in parser and script; parser gated on config exit 0 | B1, B7 | hardware smoke (John) |
+| RC-25 | Fixed: overlay health/geofence strip | B7 | operator view (A6) |
+| RC-26 | Partially fixed: visualizer ≤ 15 Hz annotate, overlay depth 1; camera decimation stays D-6 | B7 | — |
+| RC-27 | Needs John (D-4) — `hover` scene shows it | — | — |
+| RC-28 | Fixed: per-track horizon step plan | B6 | `test_kinematic_predictor` StepPlan… |
+| RC-29 | Fixed: Euclidean range | B4 | `test_fusion_engine` RangeIsEuclidean… |
+| RC-30 | Docs corrected at A7 (README, CHANGELOG, resume-facts) | B8 | role 12 |
+| RC-31 | Needs hardware check (D-5) | — | — |
+| RC-32 | Fixed: AE default off, overlay label from the report, leading slash, script paths | B7 | — |
+| RC-33 | Documented (occlusion arm unexercised) | B8 | — |
+| RC-34 | Fixed: block-diagonal mixing injection | B3 | LongStraightRun… P PSD over 2000 steps |
+| RC-35 | Fixed: singletons always pass (D-12) | B1 | node-level |
+| RC-36 | Fixed: sim Doppler sign; parser comment | B1 | A6 approach: doppler < 0 while closing |
+| RC-37 | Fixed: sim dt; one hit per stamp, gap restarts confirmation | B1, B2 | OneHitPerStamp… |
+| RC-38 | NEW (A5): sim scenes in the ICD frame + crossing/clutter/max_range/hover | B7 | A6 |
+| A6-1 | NEW (A6): one target → twin tracks from two returns in one frame; duplicate-return guard + sim centroid | `3b62029` | A6 pass 2: 1 id per target |
+| A6-4 | NEW (A6): geofence edge chatter, no hysteresis | Needs John (D-13) | — |
+| R6 F1–F6 | role-6 findings on the cumulative diff: F1 join epoch, F2 replay clock, F3 empty-cloud iterators, F4 log spam, F6 cap/membership fixed; F5 replug re-config documented (README/HANDOFF) | `3b62029` | LabelJoin test; A6 pass 2; smoke |
+
 
 ## 5. Empirical proof plan (A6) — shape → how driven → expected numbers
 
@@ -418,6 +469,71 @@ approach, lateral, circle, two_targets (`sim_radar_node.cpp`). Bags: `~/demo_tak
 
 Shapes S-2, S-3, S-6 need one more sim scene each (tier C tooling); S-7, S-9, S-12 are John's
 hardware smoke; S-8 needs the parser's pure part extracted. The rest run on the final tree.
+
+
+## 9. Harness results (A6) — shape → observed → expected
+
+Harness: `scripts/_a6_shape.sh <scene> <outdir> [warmup] [window]` (sim.launch.py with `scenario:=`,
+readout `scripts/_readout.py`, tegrastats, hard cleanup). Real camera + TensorRT engine in the loop,
+empty room (0 camera detections in every run). Artefacts: `~/backups/a6-shapes-20260902T0346Z/`
+(pass 1, tree `ae5a2e4`) and `~/backups/a6-shapes-pass2-20260902T0409Z/` (after the A6 fixes; the summary files say HEAD=ae5a2e4 because the fixes were uncommitted until `3b62029`).
+
+### Pass 1 (tree `ae5a2e4`, 03:46–03:58Z)
+
+| S | Scene | Observed | Expected | ✓/✗ |
+|---|---|---|---|---|
+| S-1 | approach | 2 CONFIRMED ids for ONE target, range 9.8 → 0 m, doppler −0.78 (closing) … +0.81 (receding after passing), escalation TRACKED only, health NOMINAL | 1 id; THREATENING inside 4 m | ✗ twin tracks (A6-1); ✗ escalation: IDENTIFIED needs a *person* label (D-2) |
+| S-5 | lateral | 2 ids (twin), doppler +0.8…+1.2 (receding), window missed the polygon (scene left range at 14 s) | ENTERED/EXITED no_fly_left | ✗ timing; ✗ twin |
+| — | two_targets | 4 ids for two targets | 2 ids | ✗ twin |
+| S-2 | crossing | 4 ids, crossing happened before the window (t = 4 s) | ≤ 2 ids, 0 churn | ✗ timing; ✗ twin |
+| S-3 | clutter | 6 CONFIRMED ids for three static reflectors; clutter map occupancy 0.000 (reflectors at 5–12 m, map covers ±5 m) | 0 tracks after learning | ✗ scene outside the map (A6-2) |
+| S-6 | max_range | 2 ids, max range seen 12.1 m (window started 14 s after launch at 0.2 m/s) | first detection ≥ 14 m | ✗ timing |
+| — | hover | 2 ids at 5.8–6.1 m, doppler ±0.35 (stationary); outside the map, so not learned | RC-27 demonstration | observed |
+| S-11 | circle, 4 min | 2 ids, no churn over 4800 track messages; all rates 20/10/1 Hz flat; health NOMINAL; RAM 2651 → 2934 MB (tegrastats, 49 samples) | RAM flat, table ≤ 1 | ✗ twin; RAM +283 MB in 4 min — NOT a stability claim (a 30 min soak is the bar) |
+| S-4, S-7, S-8, S-9, S-10, S-12 | — | not drivable in sim (S-4 needs a re-entry scene; S-7/S-9/S-12 hardware; S-8 parser extraction; S-10 old bags fail to deserialize) | — | recorded |
+
+**Findings from pass 1:** A6-1 twin tracks — the sim published 2 raw returns per target and the
+one-to-one associator (B2) spawned a track from the second; fix: duplicate-return guard in the
+tracker + one centroid per target in the sim (ICD: cluster centroids). A6-2 clutter map extent
+±5 m / 0.25 m cells / 60 % threshold vs 0.1 m return noise: a centred reflector hits its cell in
+~62 % of frames; scene moved inside the map; the cell-size/threshold choice is D-4's (RC-27).
+A6-3 scene timing: harness reads 12 s + warmup after launch; scenes re-timed to be in range and
+doing the interesting thing inside the window. Escalation never leaves TRACKED without a person
+label (D-2, RC-17): expected for these scenes, recorded.
+
+### Pass 2 (tree `ae5a2e4` + A6/R6 fixes, 04:09–04:18Z, `~/backups/a6-shapes-pass2-20260902T0409Z/`)
+
+| S | Scene | Observed | Expected | ✓/✗ |
+|---|---|---|---|---|
+| S-1 | approach (14 m, 0.5 m/s) | **1** CONFIRMED id, range 9.5 → 0 m, doppler −0.72 while closing / +0.74 after passing; perimeter ENTERED 1 / EXITED 1; health NOMINAL | 1 id; ENTERED once | ✓ tracking, ✓ geofence; escalation TRACKED (no camera label; D-2) |
+| S-5 | lateral (x −12 → +15 at 4 m) | 1 id; no_fly_left + perimeter: ENTERED 2 / EXITED 3 | ENTERED then EXITED with the right zone ids | ✓ (one extra EXITED: edge chatter, A6-4) |
+| — | two_targets (±1 m, 14 m, 0.4 m/s) | **2** ids for two targets; ENTERED 19 / EXITED 17 — target 2 rides exactly on the polygon edge x = −1 | 2 ids | ✓ ids; A6-4 geofence has no hysteresis: boundary chatter |
+| S-2 | crossing (±12 m → cross at 24 s) | 2 ids, no new ids (ids may exchange at the crossing — NN behaviour, R6 verified); no_fly_left chatter 16/17 (path along the polygon's y = 6 edge) | no new ids | ✓ |
+| S-3 | clutter (3 reflectors at cell centres inside the map) | map learned (occupancy 0.002 = the 3 cells) but **3 CONFIRMED tracks persist**: ~38 % of returns leak into neighbouring cells and sustain the tracks | 0 tracks after learning | ✗ → D-4: 0.25 m cells / 60 % threshold vs 0.1 m return noise (A6-2) |
+| S-6 | max_range (14.9 m, 0.05 m/s) | 1 id, range 13.1–14.2 m in the window | first detection ≥ 14 m | ✓ |
+| — | hover (0, 6) | 1 id, doppler ±0.3 (stationary); outside the ±5 m map, so never learned | RC-27 demonstration | observed |
+| S-11 | circle, 60 s | 1 id, no churn; rates flat; NOMINAL; no_fly_left ENTERED 2 / EXITED 2 (orbit clips the polygon) | table ≤ 1 | ✓ (4-min soak in pass 1: RAM +283 MB; not a stability claim) |
+| gate | sim smoke on the fix tree (`ae5a2e4` + uncommitted fixes = `3b62029`) | exit 0, 0 error lines, 1 id, health NOMINAL | — | ✓ |
+
+**New from pass 2:** A6-4 geofence boundary chatter (no hysteresis) — Needs John (a hysteresis
+band, e.g. 0.25 m). D-4 gets a number: with the shipped map a static reflector keeps a CONFIRMED
+track through ~38 % leakage. D-2 stands: nothing escalates past TRACKED without a person label.
+
+
+## 10. Post-build bug hunt — verdict; pass lines
+
+| Pass | Status | Result |
+|---|---|---|
+| Role 6, cumulative diff `pre-review-20260902T0144Z..ae5a2e4` (src/, msgs/, test/) | RUN (16.2 min, 260k tok, 34 tool uses) | **FIX-FIRST** — F1 label join not time-corrected (rank 2, B), F2 tracker reaper/stamp on the boot clock breaks replay (3, C), F3 clutter_map_node iterators on width=0 clouds (4, C), F4 parser open-failure log unthrottled (6, D), F5 radar replug needs re-config (5, C/H), F6 geofence membership written after a dropped event (7, D). Verified: positionUpdate dims, block-diagonal mixing keeps CA/CT observable (scratch driver), 2 m parallel targets keep 2 ids, no clutter steal, crossing exchanges ids (NN), sim frame vs ICD, top-K, launch APIs. |
+| Fixes F1–F4, F6 + A6-1/2/3 | applied; build 0 warnings; 182 tests; cppcheck 6 | see §9 pass 2 |
+| Role 6, fixes only (`git diff ae5a2e4`) | RUN (6.1 min, 92k tok) | FIX-FIRST — R6b-1 join epoch must be the TrackArray header stamp, R6b-2 replay time jump, R6b-3 partial membership on cap, R6b-4 document the 0.8 m merge limit; all applied except R6b-4 (documented in HANDOFF traps) |
+| Role 6, third pass on R6b-1..3 | RUN (3.0 min, 61k tok) | **SHIP** — all three killed with scenarios; notes: helper-only test coverage for the epoch, unthrottled jump WARN under misconfiguration, INSIDE_THREAT cap semantics pre-existing |
+| cppcheck 2.7 (`--enable=warning,style,performance,portability`) | RUN after every batch | 6 findings = A1 baseline throughout (two new style findings in B2 and B6 were fixed before the checkpoint) |
+| clang-tidy 14 | SKIPPED for the batches (611 s per run; A1 baseline 710 warnings recorded) | rerun is a B8/owner item |
+| `/code-review high`, `/security-review` (tooling) | SKIPPED (owner-triggered tooling; role 6 covered the diff) | — |
+| Role 12 on the record | RUN (6.3 min, 112k tok) | 16 corrected lines, applied before the A7 commit: test count 182 → 160 GoogleTest cases (colcon adds a row per binary — the F-2 trap, repeated); "on the bench" → sim + real camera only; inference 22–27 Hz and GR3D 10–90 %; line counts recomputed at HEAD; 88 → 80 + 51; 32 → 30 + 1 + 2 + 5; config paths; camera 46–54 Hz; unit-test invariants moved out of "measured"; 38 % leak marked derived; D-6b → D-13. Verdict: trustworthy once the count is fixed |
+| Hardware smoke S-7/S-9/S-12 | SKIPPED (owner present required; hard rule) | John |
+
 
 ## Friction log
 
@@ -451,3 +567,45 @@ hardware smoke; S-8 needs the parser's pure part extracted. The rest run on the 
 | Restore rehearsal (extract 42 s; build 369 s; tests 4 s) | 23:50 | 23:57 | attempt 1 void (no /usr/bin/time) |
 | Rosbag archive (6.4 GB) | 00:07 | 00:16 | |
 | This record | 00:05 | 00:17 | |
+
+## Friction log (continued at A7)
+7. **Playbook §15 "checkpoint commits … work survives a dead session"** — held: the B1 edits
+   survived a CPU-complex watchdog reset (PMC BCCPLEXWDT) mid build gate; the /tmp scratchpad
+   (patch scripts, raw A3 finding tables `findings/role*.md`) and the last minutes of the session
+   transcript did not. Did: rebuilt B1 from the on-disk diff; §4 root-cause table is the surviving
+   finding record. Next version: audit scratch that must outlive the session goes under the repo's
+   gitignored `scripts/_*` or `~/backups/`, never tmpfs.
+8. **Gates "colcon build" with default parallelism** — a 6-worker near-full rebuild is the load that
+   preceded the reset. Did: `--parallel-workers 1 MAKEFLAGS=-j3` (341 s vs 369 s: parallelism was
+   not the bottleneck). Next version: name the worker count in §6.
+9. **Harness cleanup by `pkill -f <pattern>`** — the wrapper's own command line contained the
+   pattern (heredoc text, or the same pgrep string) and was killed three times, once leaving the
+   whole sim graph running silently — the owner's reported failure mode. Did: launch/cleanup
+   moved into script files (`smoke_run.sh`, `ps_check.sh`, `_a6_shape.sh`) whose invocation line
+   carries no pattern. Next version: §7 rule — never put process patterns on the caller's line.
+10. **Sim scenes vs ICD frame (RC-38)** — found while writing the bearing helper, not by any A3
+    lens: the reference frame is stated in the ICD but no agent was told to check the sim against
+    it. Next version: role 4's guarantee list includes "frame convention per producer, checked
+    against the ICD".
+11. **Header edits force near-full rebuilds** — constants.hpp/param_utils.hpp/types.hpp are
+    included everywhere; each touch cost ~5 min. Did: new helpers in their own headers
+    (bearing.hpp, position_update.hpp, topk_boxes.hpp, ros_pointcloud_adapter.hpp).
+
+
+### Timings (continued)
+| Step | Start (UTC) | End (UTC) | Notes |
+|---|---|---|---|
+| Crash forensics + resume | 02:34 | 02:45 | reset reason, build log, transcript tail |
+| B1 gates + commit 8b553a1 | 02:45 | 02:57 | build 297 s (-j3), smoke 96 s |
+| B2 gates + commit fb6f35c | 02:57 | 03:11 | build 341 s, 2 cppcheck fixes, stamp probe |
+| B3 gates + commit a085f90 | 03:11 | 03:20 | build 168 s |
+| B4 gates + commit 6ef134a | 03:20 | 03:26 | build 128 s, 1 test-fixture fix |
+| B5 gates + commit d311752 | 03:26 | 03:34 | build 364 s |
+| B6 gates + commit a26a487 | 03:34 | 03:40 | build 138 s + 50 s |
+| B7 gates + commit ae5a2e4 | 03:40 | 03:46 | build 126 s + 18 s |
+| A6 pass 1 (8 scenes incl. 4-min soak) | 03:46 | 03:58 | detached runner |
+| Role 6, cumulative diff (agent) | 03:46 | 04:03 | 260k tok, 16.2 min |
+| A6/R6 fixes: build, tests, cppcheck | 04:06 | 04:09 | one compile error (BoundedVector), fixed |
+| A6 pass 2 (8 scenes, 60-s circle) + role 6 on fixes (agent, 92k tok, 6.1 min) | 04:09 | 04:18 | concurrent |
+| R6b fixes: build, tests, cppcheck, smoke, role 6 third pass, commit 3b62029 | 04:18 | 04:30 | |
+| A7 record | 04:30 | see audit-log | README, CHANGELOG, resume-facts, retro, HANDOFF, this plan |
