@@ -1,0 +1,4 @@
+2026-09-02T01:45:46Z A0 audit log opened; backup point pre-review-20260902T0144Z (tree tgz e7024c3f…, git bundle), tags pre-fix-backup/pre-polish/pre-review present, none pushed
+2026-09-02T01:49:42Z A1 sim smoke attempt 1 failed: set -u vs ROS setup.bash unbound variable; flag removed, rerun
+2026-09-02T01:52:14Z A1 sim smoke done (/home/zork/backups/a1-sim-smoke-20260902T0149Z): camera 53.6 Hz, inference 22.5 Hz, tracks 20.0 Hz, radar 0 Hz in window (died after ~10 s), fusion 0 Hz + 17 stamp-gate WARNs, overlay FPS 50→17-24, GR3D 67-72%, tj 52-55C, RAM 4.6G+1.8G swap; health FAILED (radar+predictor DEAD)
+2026-09-02T01:58:05Z A1 stamp probe: /tracks arrive 415.7 ms (p50) after stamp vs camera 31.8 / inference 51.5; CLOCK_MONOTONIC-CLOCK_MONOTONIC_RAW=+415.5 ms (NTP slew 33.3 ppm @3.47 h uptime) -> RCL_STEADY_TIME vs driver CLOCK_MONOTONIC are two clocks; 150 ms label-fusion gate exceeded after ~75 min uptime. Tier B candidate F-9.
