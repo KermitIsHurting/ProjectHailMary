@@ -5,11 +5,13 @@
 #include "cuas_fusion/common/fixed_types.hpp"
 
 #include <linux/videodev2.h>
+#include <poll.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <cerrno>
+#include <cstdio>
 #include <cstring>
 #include <ctime>
 
@@ -19,6 +21,11 @@
 #endif
 
 namespace cuas {
+
+// DQBUF blocks forever on a dead CSI link; bounded by poll() so shutdown
+// and the node's reopen loop stay responsive (R12f). 500 ms is 15 frame
+// periods — far beyond any legitimate delivery jitter.
+static constexpr int32_t kDqbufTimeoutMs = 500;
 
 CameraDriver::CameraDriver()
     : fd_(-1), buffers_{}, buf_lengths_{}, streaming_(false)
@@ -45,7 +52,7 @@ bool CameraDriver::open(const std::string & device_path)
     fmt.fmt.pix.field       = V4L2_FIELD_NONE;
 
     if (ioctl(fd_, VIDIOC_S_FMT, &fmt) < 0) {
-        ::close(fd_);
+        (void)::close(fd_);
         fd_ = -1;
         return false;
     }
@@ -54,7 +61,9 @@ bool CameraDriver::open(const std::string & device_path)
     parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     parm.parm.capture.timeperframe.numerator   = 1;
     parm.parm.capture.timeperframe.denominator = CAMERA_FPS;
-    ioctl(fd_, VIDIOC_S_PARM, &parm);  // best-effort
+    // Best-effort: sensor drivers commonly reject S_PARM and fall back
+    // to the mode's native rate; discard is deliberate.
+    (void)ioctl(fd_, VIDIOC_S_PARM, &parm);
 
     struct v4l2_requestbuffers req{};
     req.count  = V4L2_BUF_COUNT;
@@ -62,7 +71,7 @@ bool CameraDriver::open(const std::string & device_path)
     req.memory = V4L2_MEMORY_MMAP;
 
     if (ioctl(fd_, VIDIOC_REQBUFS, &req) < 0 || req.count < 1) {
-        ::close(fd_);
+        (void)::close(fd_);
         fd_ = -1;
         return false;
     }
@@ -102,6 +111,15 @@ bool CameraDriver::open(const std::string & device_path)
     }
     streaming_ = true;
 
+    // One-time scratch allocation; grabFrame's cv ops then reuse these
+    // buffers every frame (R12e).
+    raw_sub_ = cv::Mat(CAMERA_HEIGHT, CAMERA_WIDTH, CV_16UC1);
+    bgr16_   = cv::Mat(CAMERA_HEIGHT, CAMERA_WIDTH, CV_16UC3);
+    for (int32_t i = 0; i < 3; ++i) {
+        channels16_[i] = cv::Mat(CAMERA_HEIGHT, CAMERA_WIDTH, CV_16UC1);
+        channels8_[i]  = cv::Mat(CAMERA_HEIGHT, CAMERA_WIDTH, CV_8UC1);
+    }
+
     return true;
 }
 
@@ -111,11 +129,38 @@ bool CameraDriver::grabFrame(cv::Mat & out_bgr, int64_t & timestamp_ns)
         return false;
     }
 
+    struct pollfd pfd{};
+    pfd.fd     = fd_;
+    pfd.events = POLLIN;
+    const int32_t pr = poll(&pfd, 1, kDqbufTimeoutMs);
+    if (pr <= 0) {
+        if (pr == 0) {
+            std::fprintf(stderr,
+                "CameraDriver: no frame within %d ms — CSI link dead?\n",
+                kDqbufTimeoutMs);
+        } else if (errno != EINTR) {
+            std::fprintf(stderr, "CameraDriver: poll failed: %s\n",
+                         strerror(errno));
+        } else {
+        }
+        // camera_node's existing reopen/retry loop owns recovery.
+        return false;
+    }
+
     struct v4l2_buffer buf{};
     buf.type   = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     buf.memory = V4L2_MEMORY_MMAP;
 
     if (ioctl(fd_, VIDIOC_DQBUF, &buf) < 0) {
+        return false;
+    }
+
+    // Trust boundary: buf.index is kernel-supplied. An out-of-range index
+    // (driver bug) would read through a null/garbage mapping below.
+    if ((buf.index >= V4L2_BUF_COUNT) || (buffers_[buf.index] == nullptr)) {
+        std::fprintf(stderr,
+            "CameraDriver: DQBUF returned invalid buffer index %u\n",
+            buf.index);
         return false;
     }
 
@@ -128,19 +173,18 @@ bool CameraDriver::grabFrame(cv::Mat & out_bgr, int64_t & timestamp_ns)
     cv::Mat raw16(CAMERA_HEIGHT, CAMERA_WIDTH, CV_16UC1,
                   buffers_[buf.index]);
 
-    cv::Mat raw_sub;
-    cv::subtract(raw16, cv::Scalar(CAMERA_BLACK_LEVEL), raw_sub);
+    cv::subtract(raw16, cv::Scalar(CAMERA_BLACK_LEVEL), raw_sub_);
 
-    cv::Mat bgr16;
-    cv::cvtColor(raw_sub, bgr16, cv::COLOR_BayerGB2BGR);
+    cv::cvtColor(raw_sub_, bgr16_, cv::COLOR_BayerGB2BGR);
 
-    // Per-channel WB gains convert black-subtracted 16-bit Bayer down to 8-bit BGR
-    cv::Mat channels[3];
-    cv::split(bgr16, channels);
-    channels[0].convertTo(channels[0], CV_8UC1, CAMERA_WB_GAIN_B * CAMERA_TONE_SCALE);
-    channels[1].convertTo(channels[1], CV_8UC1, CAMERA_WB_GAIN_G * CAMERA_TONE_SCALE);
-    channels[2].convertTo(channels[2], CV_8UC1, CAMERA_WB_GAIN_R * CAMERA_TONE_SCALE);
-    cv::merge(channels, 3, out_bgr);
+    // Per-channel WB gains convert black-subtracted 16-bit Bayer down to
+    // 8-bit BGR. Separate 8-bit destinations: an in-place convertTo with a
+    // depth change reallocates every call.
+    cv::split(bgr16_, channels16_);
+    channels16_[0].convertTo(channels8_[0], CV_8UC1, CAMERA_WB_GAIN_B * CAMERA_TONE_SCALE);
+    channels16_[1].convertTo(channels8_[1], CV_8UC1, CAMERA_WB_GAIN_G * CAMERA_TONE_SCALE);
+    channels16_[2].convertTo(channels8_[2], CV_8UC1, CAMERA_WB_GAIN_R * CAMERA_TONE_SCALE);
+    cv::merge(channels8_, 3, out_bgr);
 
     if (ioctl(fd_, VIDIOC_QBUF, &buf) < 0) {
         return false;
@@ -157,18 +201,31 @@ void CameraDriver::close()
 
     if (streaming_) {
         int32_t type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        ioctl(fd_, VIDIOC_STREAMOFF, &type);
+        if (ioctl(fd_, VIDIOC_STREAMOFF, &type) < 0) {
+            std::fprintf(stderr,
+                "CameraDriver: VIDIOC_STREAMOFF failed: %s\n",
+                strerror(errno));
+        }
         streaming_ = false;
     }
 
     for (int32_t i = 0; i < V4L2_BUF_COUNT; ++i) {
         if (buffers_[i] && buffers_[i] != MAP_FAILED) {
-            munmap(buffers_[i], buf_lengths_[i]);
+            if (munmap(buffers_[i], buf_lengths_[i]) != 0) {
+                // A failed munmap leaks the mapping; log it so a reopen
+                // storm exhausting mappings is diagnosable.
+                std::fprintf(stderr,
+                    "CameraDriver: munmap(buffer %d) failed: %s\n",
+                    i, strerror(errno));
+            }
             buffers_[i] = nullptr;
         }
     }
 
-    ::close(fd_);
+    if (::close(fd_) != 0) {
+        std::fprintf(stderr, "CameraDriver: close failed: %s\n",
+                     strerror(errno));
+    }
     fd_ = -1;
 }
 

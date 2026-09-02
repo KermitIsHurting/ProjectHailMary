@@ -4,9 +4,7 @@
 
 #include "cuas_fusion/common/fixed_types.hpp"
 
-#include <array>
 #include <cstddef>
-#include <string_view>
 
 namespace cuas {
 
@@ -46,14 +44,31 @@ static constexpr float32_t CAMERA_FX                  = 1862.7F;  // checkerboar
 static constexpr float32_t CAMERA_FY                  = 1877.7F;
 static constexpr float32_t CAMERA_CX                  = 1032.8F;
 static constexpr float32_t CAMERA_CY                  = 426.8F;
-static constexpr int32_t   CAMERA_IMAGE_W             = 1920;
-static constexpr int32_t   CAMERA_IMAGE_H             = 1080;
+// Derived, not duplicate literals: these must always equal the capture
+// resolution (values unchanged, R12g).
+static constexpr int32_t   CAMERA_IMAGE_W             = CAMERA_WIDTH;
+static constexpr int32_t   CAMERA_IMAGE_H             = CAMERA_HEIGHT;
 
 static constexpr uint32_t  TRACK_MAX_TRACKS            = 32U;
+// Raw radar returns kept per frame BEFORE clustering. Was borrowed from
+// TRACK_MAX_TRACKS, which capped a dense scene at its first 32 returns in
+// TLV order and dropped the distant target first (RC-10). Detections out
+// of the clusterer stay capped at TRACK_MAX_TRACKS.
+static constexpr uint32_t  RADAR_MAX_POINTS_PER_FRAME  = 256U;
 static constexpr float32_t TRACK_ASSOCIATION_DIST_M    = 3.0F;
 static constexpr int32_t   TRACK_CONFIRM_HITS          = 3;
 static constexpr int32_t   TRACK_MAX_MISSES            = 5;
+// Consecutive misses before a CONFIRMED track stops publishing (COASTED);
+// deletion happens at TRACK_MAX_MISSES.
+static constexpr int32_t   TRACK_COAST_MISSES          = 2;
 static constexpr float64_t kRadarDetectionSigmaM       = 0.15;
+// P3.2 measurement models. Doppler sigma is an indoor-profile estimate
+// (P4.1 derives it from the radar profile YAML); pixel sigma is detector
+// box-centre jitter, to be refined against the P0 bag corpus.
+static constexpr float64_t kRadarDopplerSigmaMps       = 0.2;
+static constexpr float64_t kRadarMinRangeM             = 0.5;
+static constexpr float64_t kCameraPixelSigmaPx         = 4.0;
+static constexpr float64_t kCameraMinDepthM            = 0.1;
 
 static constexpr float32_t kConfidenceDecayRate        = 0.05F;
 static constexpr float32_t kConfidenceGainRate         = 0.20F;
@@ -75,6 +90,29 @@ static constexpr float32_t kDopplerWeightFloor         = 0.1F;
 // Human locomotion acceleration cap, used to reject arm-swing velocity spikes
 // that leak into the IMM blended state between frames.
 static constexpr float64_t kMaxPhysicalAcceleration    = 3.0;
+// Track birth and gating (audit B2, D-9 engineering defaults). A track is
+// born from ONE return: position known to the sensor sigma, velocity
+// unknown. The velocity-jump gate is max(kMaxPhysicalAcceleration*dt,
+// kGateSigmas*sigma_v); the association gate is kAssocBaseGateM +
+// kGateSigmas*(sigma_pos + sigma_v*|dt|), capped at kAssocMaxGateM, where
+// dt is the extrapolation from the state time to the return's stamp.
+static constexpr float64_t kTrackInitVelSigmaMps       = 10.0;
+static constexpr float64_t kGateSigmas                 = 3.0;
+static constexpr float64_t kAssocBaseGateM             = 0.8;
+static constexpr float64_t kAssocMaxGateM              = 5.0;
+static constexpr float64_t kAssocMaxExtrapS            = 0.25;
+// One hit per stamp; a gap longer than this restarts confirmation (RC-37).
+static constexpr float64_t kTrackHitGapResetS          = 0.25;
+// Tracks with no return for this long are dropped by the tracker node.
+static constexpr float64_t kTrackReapAfterS            = 5.0;
+// Below this range the line-of-sight direction is undefined.
+static constexpr float64_t kRadialSpeedMinRangeM       = 1.0e-3;
+// Camera-label join in the threat classifier (D-10): a fused detection
+// set older than this is not applied, and a label joins a track only when
+// the fused position is within this distance AND the bearing agrees.
+static constexpr int64_t   kFusedLabelMaxAgeNs         = 250'000'000LL;
+static constexpr float32_t kLabelJoinMaxDistM          = 1.0F;
+static constexpr float32_t kLabelJoinMaxBearingDeg     = 15.0F;
 
 // Tight gate for new tracks keeps clutter from initiating confirmed IDs;
 // wider gate for confirmed tracks absorbs extended body returns.
@@ -85,8 +123,6 @@ static constexpr float32_t THREAT_VELOCITY_SUSPECT_MPS   = 2.0F;
 static constexpr float32_t THREAT_VELOCITY_THREAT_MPS    = 5.0F;
 static constexpr float32_t THREAT_APPROACH_THRESHOLD_MPS = -0.5F;
 static constexpr float32_t THREAT_MIN_CONFIDENCE         = 0.25F;
-
-static constexpr uint32_t  PREDICTION_MAX_STEPS        = 128U;
 
 // WHY: cap on forecast position uncertainty — without a measurement update
 // the open-loop covariance trace inflates across ticks, producing nonsense
@@ -99,15 +135,6 @@ static constexpr float32_t kMaxUncertaintyRadiusM      = 5.0F;
 static constexpr float64_t kPredictionStaleSec         = 0.5;
 
 static constexpr uint32_t  FUSION_MAX_DETECTIONS       = 128U;
-static constexpr uint32_t  FUSION_MAX_CLASSES          = 80U;
-
-static constexpr std::array<std::string_view, 3> THREAT_DRONE_CLASSES = {
-    "14", "4", "33"   // bird, airplane, kite (COCO numeric IDs)
-};
-
-static constexpr std::array<std::string_view, 5> THREAT_BENIGN_CLASSES = {
-    "0", "2", "7", "3", "1"  // person, car, truck, motorcycle, bicycle (COCO numeric IDs)
-};
 
 static constexpr float32_t kOverlayLabelFontScale   = 1.2F;
 static constexpr float32_t kOverlayTrackIdFontScale = 0.9F;

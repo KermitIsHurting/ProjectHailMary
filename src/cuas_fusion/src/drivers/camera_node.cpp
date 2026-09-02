@@ -7,6 +7,7 @@
 #include <sensor_msgs/msg/image.hpp>
 
 #include <atomic>
+#include <cstdio>
 #include <chrono>
 #include <cstring>
 #include <string>
@@ -55,6 +56,9 @@ private:
 
         cv::Mat bgr;
         int64_t ts_ns = 0;
+        // Hoisted: a per-iteration Image allocated its ~6 MB data vector
+        // every frame; resize() into retained capacity allocates once (R12e).
+        sensor_msgs::msg::Image msg;
 
         while (running_) {
             if (!driver_.grabFrame(bgr, ts_ns)) {
@@ -72,7 +76,6 @@ private:
                 continue;
             }
 
-            sensor_msgs::msg::Image msg;
             msg.header.stamp.sec     = static_cast<int32_t>(ts_ns / 1'000'000'000LL);
             msg.header.stamp.nanosec = static_cast<uint32_t>(ts_ns % 1'000'000'000LL);
             msg.header.frame_id      = "camera";
@@ -100,11 +103,25 @@ private:
 
 } // namespace cuas
 
+// Single sanctioned exception boundary (DEV-001): owned code never
+// throws, but rclcpp/rmw, parameter access, and bad_alloc can. Without
+// this handler a library throw becomes std::terminate with no fault
+// record, invisible to the health monitor. Catch by const ref per
+// MISRA C++:2023 18.3.2.
 int main(int argc, char ** argv)
 {
-    rclcpp::init(argc, argv);
-    auto node = std::make_shared<cuas::CameraNode>();
-    rclcpp::spin(node);
-    rclcpp::shutdown();
-    return 0;
+    int exit_code = 0;
+    try {
+        rclcpp::init(argc, argv);
+        auto node = std::make_shared<cuas::CameraNode>();
+        rclcpp::spin(node);
+        rclcpp::shutdown();
+    } catch (const std::exception& e) {
+        std::fprintf(stderr, "FATAL: unhandled exception in CameraNode: %s\n", e.what());
+        exit_code = 1;
+    } catch (...) {
+        std::fprintf(stderr, "FATAL: unhandled non-std exception in CameraNode\n");
+        exit_code = 1;
+    }
+    return exit_code;
 }

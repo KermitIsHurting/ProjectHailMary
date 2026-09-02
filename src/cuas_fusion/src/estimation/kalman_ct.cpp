@@ -2,28 +2,27 @@
 // @brief Coordinated-turn Kalman filter with omega-rate state.
 #include "cuas_fusion/estimation/kalman_ct.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
+#include "cuas_fusion/estimation/position_update.hpp"
 
 #include <algorithm>
 #include <cmath>
 
 namespace cuas {
 
-void KalmanCT::init(const Eigen::VectorXd& x0, const Eigen::MatrixXd& P0)
+void KalmanCT::init(const Vector6d& x0, const Matrix6d& P0)
 {
-    x_ = Eigen::VectorXd::Zero(7);
-    x_.head(std::min<int32_t>(static_cast<int32_t>(x0.size()), 7)) =
-        x0.head(std::min<int32_t>(static_cast<int32_t>(x0.size()), 7));
+    x_ = Vector7d::Zero();
+    x_.head<6>() = x0;
 
-    P_ = Eigen::MatrixXd::Identity(7, 7);
-    const int32_t sz = std::min<int32_t>(static_cast<int32_t>(P0.rows()), 7);
-    P_.topLeftCorner(sz, sz) = P0.topLeftCorner(sz, sz);
+    P_ = Matrix7d::Identity();
+    P_.topLeftCorner<6, 6>() = P0;
     initialized_ = true;
 }
 
 void KalmanCT::predict(float64_t dt)
 {
     const float64_t omega = x_(6);
-    Eigen::VectorXd x_new(7);
+    Vector7d x_new;
 
     // Straight-line linearisation when turn rate is below the guard threshold
     if (std::abs(omega) < omega_guard_) {
@@ -53,11 +52,21 @@ void KalmanCT::predict(float64_t dt)
         x_new(6) = omega;
     }
 
-    Eigen::MatrixXd F = Eigen::MatrixXd::Identity(7, 7);
+    Matrix7d F = Matrix7d::Identity();
     if (std::abs(omega) < omega_guard_) {
+        const float64_t vx = x_(3);
+        const float64_t vy = x_(4);
         F(0, 3) = dt;
         F(1, 4) = dt;
         F(2, 5) = dt;
+        // Analytic omega->0 limits of the coupling terms. Without them the
+        // position/velocity covariance never correlates with omega, so a
+        // filter starting at omega = 0 could never estimate a turn rate from
+        // position measurements at all.
+        F(0, 6) = -0.5 * vy * dt * dt;
+        F(1, 6) =  0.5 * vx * dt * dt;
+        F(3, 6) = -vy * dt;
+        F(4, 6) =  vx * dt;
     } else {
         const float64_t s  = std::sin(omega * dt);
         const float64_t c  = std::cos(omega * dt);
@@ -66,11 +75,18 @@ void KalmanCT::predict(float64_t dt)
 
         F(0, 3) = s / omega;
         F(0, 4) = -(1.0 - c) / omega;
-        F(0, 6) = (vx * c * dt * omega - vx * s + vy * s * dt * omega - vy * (1.0 - c))
+        // d(px')/domega by quotient rule on (vx*s - vy*(1-c))/omega:
+        // (N' * omega - N) / omega^2 with N' = vx*dt*c - vy*dt*s.
+        // The previous version had the vy terms sign-flipped, biasing the
+        // omega update whenever the track had a cross-track velocity
+        // component (Taylor limit check: must approach -vy*dt^2/2, the
+        // guard-branch value above).
+        F(0, 6) = (vx * c * dt * omega - vx * s - vy * s * dt * omega + vy * (1.0 - c))
                    / (omega * omega);
         F(1, 3) = (1.0 - c) / omega;
         F(1, 4) = s / omega;
-        F(1, 6) = (vx * s * dt * omega - vx * (1.0 - c) - vy * c * dt * omega + vy * s)
+        // d(py')/domega on (vx*(1-c) + vy*s)/omega, N' = vx*dt*s + vy*dt*c.
+        F(1, 6) = (vx * s * dt * omega - vx * (1.0 - c) + vy * c * dt * omega - vy * s)
                    / (omega * omega);
         F(2, 5) = dt;
         F(3, 3) = c;
@@ -85,7 +101,7 @@ void KalmanCT::predict(float64_t dt)
     const float64_t so2 = sigma_omega_ * sigma_omega_;
     const float64_t dt2 = dt * dt;
 
-    Eigen::MatrixXd Q = Eigen::MatrixXd::Zero(7, 7);
+    Matrix7d Q = Matrix7d::Zero();
     for (int32_t i = 0; i < 3; ++i) {
         Q(i, i)         = 0.25 * dt2 * dt2 * sa2;
         Q(i, i + 3)     = 0.5  * dt2 * dt  * sa2;
@@ -96,33 +112,28 @@ void KalmanCT::predict(float64_t dt)
 
     x_ = x_new;
     P_ = F * P_ * F.transpose() + Q;
+    estimation::symmetrize<7>(P_);
 }
 
-void KalmanCT::update(const Eigen::VectorXd& z, const Eigen::MatrixXd& R)
+void KalmanCT::update(const Eigen::Vector3d& z, const Eigen::Matrix3d& R)
 {
-    Eigen::MatrixXd H = Eigen::MatrixXd::Zero(3, 7);
-    H.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
-
-    const Eigen::VectorXd y = z - H * x_;
-    const Eigen::MatrixXd S = H * P_ * H.transpose() + R;
-    const Eigen::MatrixXd K = P_ * H.transpose() * S.inverse();
-    x_ = x_ + K * y;
-    P_ = (Eigen::MatrixXd::Identity(7, 7) - K * H) * P_;
+    // Skipped (prediction kept) when S is not positive definite (B3).
+    (void)estimation::positionUpdate<7>(x_, P_, z, R);
 }
 
-Eigen::VectorXd KalmanCT::getState() const
+Vector6d KalmanCT::getState() const
 {
-    return x_.head(6);
+    return x_.head<6>();
 }
 
-Eigen::MatrixXd KalmanCT::getCovariance() const
+Matrix6d KalmanCT::getCovariance() const
 {
-    return P_.topLeftCorner(6, 6);
+    return P_.topLeftCorner<6, 6>();
 }
 
-Eigen::MatrixXd KalmanCT::getF(float64_t dt) const
+Matrix6d KalmanCT::getF(float64_t dt) const
 {
-    Eigen::MatrixXd F6 = Eigen::MatrixXd::Identity(6, 6);
+    Matrix6d F6 = Matrix6d::Identity();
     const float64_t omega = x_(6);
     if (std::abs(omega) < omega_guard_) {
         F6(0, 3) = dt;
@@ -144,12 +155,12 @@ Eigen::MatrixXd KalmanCT::getF(float64_t dt) const
     return F6;
 }
 
-Eigen::MatrixXd KalmanCT::getQ(float64_t dt) const
+Matrix6d KalmanCT::getQ(float64_t dt) const
 {
     const float64_t sa2 = sigma_a_ * sigma_a_;
     const float64_t dt2 = dt * dt;
 
-    Eigen::MatrixXd Q6 = Eigen::MatrixXd::Zero(6, 6);
+    Matrix6d Q6 = Matrix6d::Zero();
     for (int32_t i = 0; i < 3; ++i) {
         Q6(i, i)         = 0.25 * dt2 * dt2 * sa2;
         Q6(i, i + 3)     = 0.5  * dt2 * dt  * sa2;
@@ -159,22 +170,9 @@ Eigen::MatrixXd KalmanCT::getQ(float64_t dt) const
     return Q6;
 }
 
-float64_t KalmanCT::likelihood(const Eigen::VectorXd& z, const Eigen::MatrixXd& R) const
+float64_t KalmanCT::likelihood(const Eigen::Vector3d& z, const Eigen::Matrix3d& R) const
 {
-    Eigen::MatrixXd H = Eigen::MatrixXd::Zero(3, 7);
-    H.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
-
-    const Eigen::VectorXd y = z - H * x_;
-    const Eigen::MatrixXd S = H * P_ * H.transpose() + R;
-    const float64_t det = S.determinant();
-    if (det < 1e-12) {
-        return 1e-12;
-    }
-
-    const float64_t n = static_cast<float64_t>(z.size());
-    const float64_t exponent = -0.5 * (y.transpose() * S.inverse() * y)(0, 0);
-    const float64_t norm = std::pow(2.0 * M_PI, n / 2.0) * std::sqrt(det);
-    return std::max(std::exp(exponent) / norm, 1e-12);
+    return estimation::positionLikelihood<7>(x_, P_, z, R);
 }
 
 } // namespace cuas

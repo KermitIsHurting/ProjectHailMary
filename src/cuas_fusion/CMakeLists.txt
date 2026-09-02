@@ -1,5 +1,11 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.17)
 project(cuas_fusion)
+
+# Reproducible default: an unset build type silently compiled at -O0 with
+# no flags, so "the build" meant different code than anyone assumed.
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE RelWithDebInfo)
+endif()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -27,15 +33,38 @@ find_package(OpenCV REQUIRED)
 message(STATUS "OpenCV_LIBS: ${OpenCV_LIBS}")
 message(STATUS "OpenCV_LIBRARIES: ${OpenCV_LIBRARIES}")
 
-find_library(NVINFER_LIB nvinfer PATHS /usr/lib/aarch64-linux-gnu)
-find_library(CUDART_LIB cudart PATHS /usr/local/cuda/lib64)
+# Runtime-only Jetson image (no nvcc), so FindCUDAToolkit cannot resolve a
+# toolkit; locate headers/runtime through the versionless /usr/local/cuda
+# symlink instead of hardcoding cuda-12.6 paths. Both lookups are guarded:
+# an unguarded NOTFOUND only fails at link time with a cryptic message.
+find_path(CUDA_INCLUDE_DIR cuda_runtime_api.h
+  PATHS /usr/local/cuda/include /usr/local/cuda/targets/aarch64-linux/include)
+if(NOT CUDA_INCLUDE_DIR)
+  message(FATAL_ERROR "cuda_runtime_api.h not found — install the CUDA runtime")
+endif()
+find_library(CUDART_LIB cudart
+  PATHS /usr/local/cuda/lib64 /usr/local/cuda/targets/aarch64-linux/lib)
+if(NOT CUDART_LIB)
+  message(FATAL_ERROR "libcudart not found — install the CUDA runtime")
+endif()
 
-include_directories(include ${EIGEN3_INCLUDE_DIR})
+find_library(NVINFER_LIB nvinfer PATHS /usr/lib/aarch64-linux-gnu)
+if(NOT NVINFER_LIB)
+  message(FATAL_ERROR "libnvinfer not found — install TensorRT")
+endif()
+
+include_directories(include)
+# Third-party headers are adopted code: SYSTEM suppresses their diagnostics so
+# the zero-warning policy (JPL P10) gates only code we own.
+include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})
 
 # -----------------------------------------------------------------------------
 # JSF AV C++ / MISRA C++:2023 enforcement flags
 #
-# Exceptions and RTTI disabled per JSF AV Rule 208 and MISRA Rule 18-4-1.
+# Exceptions and RTTI remain ENABLED — rclcpp requires both (DEV-001 below).
+# (An earlier revision claimed they were disabled citing "MISRA 18-4-1";
+# that is the 2008 dynamic-heap rule, not exceptions, and the claim was
+# false — kept corrected here so the record is honest.)
 # Third-party frameworks (ROS 2, OpenCV, Eigen, TensorRT) are adopted code
 # with documented deviations per MISRA Compliance:2020 Section 6.5. See
 # docs/CODING_STANDARD.md for DEV-001 through DEV-005.
@@ -57,7 +86,16 @@ set(CUAS_SAFETY_FLAGS
     -Wnull-dereference
     -Wimplicit-fallthrough
     -Wswitch-enum
+    -Wshadow
 )
+
+# Zero-warning policy is enforced, not aspirational: warnings in owned code
+# fail the build. -DCUAS_WERROR=OFF is the escape hatch for triaging a new
+# toolchain, never for landing code.
+option(CUAS_WERROR "Treat warnings in owned code as errors" ON)
+if(CUAS_WERROR)
+  list(APPEND CUAS_SAFETY_FLAGS -Werror)
+endif()
 
 # Stricter set used only when the target has no direct ROS header dependency.
 set(CUAS_STRICT_FLAGS
@@ -87,26 +125,40 @@ ament_target_dependencies(camera_node
   sensor_msgs
   std_msgs
 )
-target_include_directories(camera_node PRIVATE ${OpenCV_INCLUDE_DIRS} ${GST_INCLUDE_DIRS})
+target_include_directories(camera_node SYSTEM PRIVATE ${OpenCV_INCLUDE_DIRS} ${GST_INCLUDE_DIRS})
 target_link_libraries(camera_node ${OpenCV_LIBS} ${GST_LIBRARIES})
 target_compile_options(camera_node PRIVATE ${CUAS_SAFETY_FLAGS})
+
+# auto exposure node — lives in drivers/ but is NOT a protected camera
+# file: it only writes V4L2 exposure/gain controls on its own fd; the
+# capture path, formats, and registers are untouched (ROLLBACK.md holds).
+add_executable(auto_exposure_node
+  src/drivers/auto_exposure_node.cpp
+  src/drivers/auto_exposure.cpp
+)
+ament_target_dependencies(auto_exposure_node
+  rclcpp
+  sensor_msgs
+)
+target_include_directories(auto_exposure_node SYSTEM PRIVATE ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(auto_exposure_node ${OpenCV_LIBS})
+target_compile_options(auto_exposure_node PRIVATE ${CUAS_SAFETY_FLAGS})
 
 # TRT detector library (no ROS dependency — use stricter flags)
 add_library(trt_detector STATIC
   src/inference/trt_detector.cpp
 )
-target_include_directories(trt_detector PUBLIC
-  include
+target_include_directories(trt_detector PUBLIC include)
+target_include_directories(trt_detector SYSTEM PUBLIC
   ${OpenCV_INCLUDE_DIRS}
-  /usr/local/cuda-12.6/targets/aarch64-linux/include
-  /usr/local/cuda/include
+  ${CUDA_INCLUDE_DIR}
 )
 target_link_libraries(trt_detector
   ${OpenCV_LIBS}
   ${NVINFER_LIB}
   ${CUDART_LIB}
 )
-target_compile_options(trt_detector PRIVATE ${CUAS_SAFETY_FLAGS})
+target_compile_options(trt_detector PRIVATE ${CUAS_STRICT_FLAGS})
 
 # inference node
 add_executable(inference_node
@@ -126,7 +178,7 @@ add_library(fusion_engine STATIC
   src/fusion/fusion_engine.cpp
 )
 target_include_directories(fusion_engine PUBLIC include)
-target_compile_options(fusion_engine PRIVATE ${CUAS_SAFETY_FLAGS})
+target_compile_options(fusion_engine PRIVATE ${CUAS_STRICT_FLAGS})
 
 # fusion node
 add_executable(fusion_node
@@ -147,10 +199,14 @@ target_compile_options(fusion_node PRIVATE ${CUAS_SAFETY_FLAGS})
 add_library(tracking_lib STATIC
   src/tracking/track_manager.cpp
   src/tracking/hungarian_solver.cpp
+  src/tracking/measurement_models.cpp
   src/common/types.cpp
 )
 target_include_directories(tracking_lib PUBLIC include)
-target_compile_options(tracking_lib PRIVATE ${CUAS_SAFETY_FLAGS})
+target_compile_options(tracking_lib PRIVATE ${CUAS_STRICT_FLAGS})
+# DEV-002 enforcement: any Eigen heap allocation in the tracking math aborts
+# in Debug builds — the fixed-size claim is checked, not aspirational.
+target_compile_definitions(tracking_lib PRIVATE $<$<CONFIG:Debug>:EIGEN_NO_MALLOC>)
 
 # tracker node
 add_executable(tracker_node
@@ -169,7 +225,7 @@ add_library(classification_lib STATIC
 )
 target_include_directories(classification_lib PUBLIC include)
 target_link_libraries(classification_lib tracking_lib)
-target_compile_options(classification_lib PRIVATE ${CUAS_SAFETY_FLAGS})
+target_compile_options(classification_lib PRIVATE ${CUAS_STRICT_FLAGS})
 
 # classifier node
 add_executable(classifier_node
@@ -193,7 +249,7 @@ add_executable(imm_tracker_node
 )
 ament_target_dependencies(imm_tracker_node
   rclcpp sensor_msgs cuas_msgs geometry_msgs)
-target_include_directories(imm_tracker_node PRIVATE
+target_include_directories(imm_tracker_node SYSTEM PRIVATE
   ${EIGEN3_INCLUDE_DIR})
 target_compile_options(imm_tracker_node PRIVATE ${CUAS_SAFETY_FLAGS})
 
@@ -208,7 +264,7 @@ add_executable(kinematic_predictor_node
 )
 ament_target_dependencies(kinematic_predictor_node
   rclcpp cuas_msgs geometry_msgs)
-target_include_directories(kinematic_predictor_node PRIVATE
+target_include_directories(kinematic_predictor_node SYSTEM PRIVATE
   ${EIGEN3_INCLUDE_DIR})
 target_compile_options(kinematic_predictor_node PRIVATE ${CUAS_SAFETY_FLAGS})
 
@@ -224,7 +280,7 @@ add_executable(occlusion_predictor_node
 )
 ament_target_dependencies(occlusion_predictor_node
   rclcpp cuas_msgs geometry_msgs)
-target_include_directories(occlusion_predictor_node PRIVATE
+target_include_directories(occlusion_predictor_node SYSTEM PRIVATE
   ${EIGEN3_INCLUDE_DIR})
 target_compile_options(occlusion_predictor_node PRIVATE ${CUAS_SAFETY_FLAGS})
 
@@ -260,7 +316,7 @@ ament_target_dependencies(cuas_visualizer_node
   sensor_msgs
   cv_bridge
 )
-target_include_directories(cuas_visualizer_node PRIVATE ${OpenCV_INCLUDE_DIRS})
+target_include_directories(cuas_visualizer_node SYSTEM PRIVATE ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(cuas_visualizer_node ${OpenCV_LIBS})
 target_compile_options(cuas_visualizer_node PRIVATE ${CUAS_SAFETY_FLAGS})
 
@@ -274,7 +330,7 @@ ament_target_dependencies(cuas_overlay_node
   sensor_msgs
   cuas_msgs
 )
-target_include_directories(cuas_overlay_node PRIVATE ${OpenCV_INCLUDE_DIRS})
+target_include_directories(cuas_overlay_node SYSTEM PRIVATE ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(cuas_overlay_node ${OpenCV_LIBS})
 target_compile_options(cuas_overlay_node PRIVATE ${CUAS_SAFETY_FLAGS})
 
@@ -286,7 +342,7 @@ ament_target_dependencies(capture_node
   rclcpp
   sensor_msgs
 )
-target_include_directories(capture_node PRIVATE ${OpenCV_INCLUDE_DIRS})
+target_include_directories(capture_node SYSTEM PRIVATE ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(capture_node ${OpenCV_LIBS})
 target_compile_options(capture_node PRIVATE ${CUAS_SAFETY_FLAGS})
 
@@ -295,7 +351,7 @@ add_library(geofence_engine STATIC
   src/geofence_engine.cpp
 )
 target_include_directories(geofence_engine PUBLIC include)
-target_compile_options(geofence_engine PRIVATE ${CUAS_SAFETY_FLAGS})
+target_compile_options(geofence_engine PRIVATE ${CUAS_STRICT_FLAGS})
 
 # geofence node
 add_executable(geofence_node
@@ -313,7 +369,7 @@ add_library(reachability_engine STATIC
   src/reachability_engine.cpp
 )
 target_include_directories(reachability_engine PUBLIC include)
-target_compile_options(reachability_engine PRIVATE ${CUAS_SAFETY_FLAGS})
+target_compile_options(reachability_engine PRIVATE ${CUAS_STRICT_FLAGS})
 
 # reachability node
 add_executable(reachability_node
@@ -440,6 +496,7 @@ install(TARGETS
   clutter_map_node
   intent_classifier_node
   cuas_color_correct_node
+  auto_exposure_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -458,13 +515,67 @@ if(BUILD_TESTING)
     ../../test/unit/test_timestamp_associator.cpp
     src/fusion/timestamp_associator.cpp
   )
-  target_include_directories(test_timestamp_associator PRIVATE
-    include
+  target_include_directories(test_timestamp_associator PRIVATE include)
+  target_include_directories(test_timestamp_associator SYSTEM PRIVATE
     ${OpenCV_INCLUDE_DIRS}
   )
   target_link_libraries(test_timestamp_associator
     ${OpenCV_LIBS}
   )
+
+  ament_add_gtest(test_kalman_cv
+    ../../test/unit/test_kalman_cv.cpp
+    src/estimation/kalman_cv.cpp
+  )
+  target_include_directories(test_kalman_cv PRIVATE include)
+
+  ament_add_gtest(test_imm_filter
+    ../../test/unit/test_imm_filter.cpp
+    src/estimation/imm_filter.cpp
+    src/estimation/kalman_cv.cpp
+    src/estimation/kalman_ca.cpp
+    src/estimation/kalman_ct.cpp
+  )
+  target_include_directories(test_imm_filter PRIVATE include)
+
+  ament_add_gtest(test_imm_tracker
+    ../../test/unit/test_imm_tracker.cpp
+    src/tracking/imm_tracker.cpp
+    src/estimation/imm_filter.cpp
+    src/estimation/kalman_cv.cpp
+    src/estimation/kalman_ca.cpp
+    src/estimation/kalman_ct.cpp
+  )
+  target_include_directories(test_imm_tracker PRIVATE include)
+  ament_target_dependencies(test_imm_tracker sensor_msgs)
+
+  ament_add_gtest(test_hungarian_solver
+    ../../test/unit/test_hungarian_solver.cpp
+    src/tracking/hungarian_solver.cpp
+  )
+  target_include_directories(test_hungarian_solver PRIVATE include)
+
+  ament_add_gtest(test_fixed_containers
+    ../../test/unit/test_fixed_containers.cpp
+  )
+  target_include_directories(test_fixed_containers PRIVATE include)
+
+  ament_add_gtest(test_eigen_types
+    ../../test/unit/test_eigen_types.cpp
+  )
+  target_include_directories(test_eigen_types PRIVATE include)
+
+  ament_add_gtest(test_measurement_models
+    ../../test/unit/test_measurement_models.cpp
+    src/tracking/measurement_models.cpp
+  )
+  target_include_directories(test_measurement_models PRIVATE include)
+
+  ament_add_gtest(test_auto_exposure
+    ../../test/unit/test_auto_exposure.cpp
+    src/drivers/auto_exposure.cpp
+  )
+  target_include_directories(test_auto_exposure PRIVATE include)
 
   ament_add_gtest(test_threat_classifier
     ../../test/unit/test_threat_classifier.cpp
@@ -472,6 +583,47 @@ if(BUILD_TESTING)
     src/common/types.cpp
   )
   target_include_directories(test_threat_classifier PRIVATE include)
+  ament_target_dependencies(test_threat_classifier cuas_msgs)
+
+  ament_add_gtest(test_track_manager
+    ../../test/unit/test_track_manager.cpp
+    src/tracking/track_manager.cpp
+    src/tracking/hungarian_solver.cpp
+    src/tracking/track.cpp
+  )
+  target_include_directories(test_track_manager PRIVATE include)
+
+  ament_add_gtest(test_fusion_engine
+    ../../test/unit/test_fusion_engine.cpp
+    src/fusion/fusion_engine.cpp
+  )
+  target_include_directories(test_fusion_engine PRIVATE include)
+
+  ament_add_gtest(test_ros_image_adapter
+    ../../test/unit/test_ros_image_adapter.cpp
+  )
+  target_include_directories(test_ros_image_adapter PRIVATE include)
+  target_include_directories(test_ros_image_adapter SYSTEM PRIVATE
+    ${OpenCV_INCLUDE_DIRS}
+  )
+  target_link_libraries(test_ros_image_adapter ${OpenCV_LIBS})
+  ament_target_dependencies(test_ros_image_adapter sensor_msgs)
+
+  ament_add_gtest(test_trt_topk
+    ../../test/unit/test_trt_topk.cpp
+  )
+  target_include_directories(test_trt_topk PRIVATE include)
+
+  ament_add_gtest(test_detection_set_buffer
+    ../../test/unit/test_detection_set_buffer.cpp
+  )
+  target_include_directories(test_detection_set_buffer PRIVATE include)
+
+  ament_add_gtest(test_kinematic_predictor
+    ../../test/unit/test_kinematic_predictor.cpp
+    src/prediction/kinematic_predictor.cpp
+  )
+  target_include_directories(test_kinematic_predictor PRIVATE include)
 
   ament_add_gtest(test_geofence_engine
     test/test_geofence_engine.cpp
@@ -502,6 +654,18 @@ if(BUILD_TESTING)
     test/test_color_correct_engine.cpp
     src/color_correct_engine.cpp)
   target_include_directories(test_color_correct_engine PRIVATE include)
+
+  # The zero-warning policy gates tests too — they are shipped evidence.
+  foreach(cuas_test_target
+      test_timestamp_associator test_kalman_cv test_imm_filter
+      test_hungarian_solver test_fixed_containers test_eigen_types
+      test_measurement_models test_auto_exposure test_threat_classifier
+      test_track_manager test_fusion_engine test_detection_set_buffer
+      test_kinematic_predictor test_geofence_engine
+      test_reachability_engine test_health_monitor test_intent_classifier
+      test_clutter_map test_color_correct_engine)
+    target_compile_options(${cuas_test_target} PRIVATE ${CUAS_SAFETY_FLAGS})
+  endforeach()
 endif()
 
 ament_package()

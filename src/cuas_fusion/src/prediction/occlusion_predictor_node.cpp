@@ -1,6 +1,7 @@
 // @file occlusion_predictor_node.cpp
 // @brief ROS 2 node that maintains ghost tracks and publishes their forecasts.
 #include "cuas_fusion/common/constants.hpp"
+#include "cuas_fusion/common/param_utils.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 #include "cuas_fusion/common/track_state_ids.hpp"
@@ -12,6 +13,7 @@
 #include <cuas_msgs/msg/track_array.hpp>
 #include <cuas_msgs/msg/predicted_track.hpp>
 #include <cuas_msgs/msg/trajectory_waypoints.hpp>
+#include <cstdio>
 
 namespace cuas {
 
@@ -29,11 +31,13 @@ public:
 
         horizon_ = get_parameter("prediction_horizon_sec").as_double();
         step_dt_ = get_parameter("prediction_step_dt").as_double();
-        const float64_t rate    = get_parameter("publish_rate_hz").as_double();
+        float64_t rate    = get_parameter("publish_rate_hz").as_double();
+        rate = clamp_rate_hz(get_logger(), "publish_rate_hz", rate, 20.0);
         const float64_t max_occ = get_parameter("max_occlusion_sec").as_double();
         const float64_t gate    = get_parameter("mahalanobis_gate").as_double();
 
-        n_steps_ = static_cast<int32_t>(horizon_ / step_dt_);
+        n_steps_ = clamp_prediction_steps(get_logger(), horizon_, step_dt_,
+                                          kMaxTrajectorySteps);
         predictor_.configure(max_occ, gate);
 
         sub_ = create_subscription<cuas_msgs::msg::TrackArray>(
@@ -87,9 +91,11 @@ private:
                 if (ghost_tracks_.find(t.track_id) == nullptr) {
                     OcclusionPredictor::GhostTrack ghost;
                     ghost.track_id = t.track_id;
-                    ghost.state    = KinematicPredictor::build_state_from_position_speed(
+                    ghost.state    = KinematicPredictor::build_state_from_position_velocity(
                         t.position_x_m, t.position_y_m, t.position_z_m,
-                        static_cast<float64_t>(t.velocity_mps));
+                        static_cast<float64_t>(t.vx_mps),
+                        static_cast<float64_t>(t.vy_mps),
+                        static_cast<float64_t>(t.vz_mps));
                     ghost.covariance = KinematicPredictor::build_initial_covariance_6d();
                     ghost.occlusion_start_time_sec = now;
                     (void)ghost_tracks_.insert_or_assign(t.track_id, ghost);
@@ -161,9 +167,11 @@ private:
 
             pred.bearing_deg            = traj.final_bearing_deg;
             pred.elevation_deg          = traj.final_elevation_deg;
-            pred.model_weight_cv        = ghost.model_weights[0];
-            pred.model_weight_ca        = ghost.model_weights[1];
-            pred.model_weight_ct        = ghost.model_weights[2];
+            // CV is the only forward model (see kinematic_predictor.hpp);
+            // the fabricated 0.33/0.33/0.34 blend misrepresented the output.
+            pred.model_weight_cv        = 1.0;
+            pred.model_weight_ca        = 0.0;
+            pred.model_weight_ct        = 0.0;
             pred.track_state            = "OCCLUDED";
             pred.track_state_id         = cuas::track_state::kOccluded;
             // WHY: prediction_horizon_s is stamped onto Track by the tracker
@@ -211,11 +219,25 @@ private:
 
 } // namespace cuas
 
+// Single sanctioned exception boundary (DEV-001): owned code never
+// throws, but rclcpp/rmw, parameter access, and bad_alloc can. Without
+// this handler a library throw becomes std::terminate with no fault
+// record, invisible to the health monitor. Catch by const ref per
+// MISRA C++:2023 18.3.2.
 int main(int argc, char** argv)
 {
-    rclcpp::init(argc, argv);
-    auto node = std::make_shared<cuas::OcclusionPredictorNode>();
-    rclcpp::spin(node);
-    rclcpp::shutdown();
-    return 0;
+    int exit_code = 0;
+    try {
+        rclcpp::init(argc, argv);
+        auto node = std::make_shared<cuas::OcclusionPredictorNode>();
+        rclcpp::spin(node);
+        rclcpp::shutdown();
+    } catch (const std::exception& e) {
+        std::fprintf(stderr, "FATAL: unhandled exception in OcclusionPredictorNode: %s\n", e.what());
+        exit_code = 1;
+    } catch (...) {
+        std::fprintf(stderr, "FATAL: unhandled non-std exception in OcclusionPredictorNode\n");
+        exit_code = 1;
+    }
+    return exit_code;
 }

@@ -19,7 +19,7 @@ public:
     float32_t   position_z_m_  = 0.0F;
     float32_t   velocity_mps_  = 0.0F;
     float32_t   doppler_mps_   = 0.0F;  // negative = approaching
-    std::string class_label_;
+    int32_t     class_id_      = -1;    // -1 = unlabeled (A3.8)
     float32_t   confidence_   = 0.0F;
     TrackState  state_        = TrackState::TENTATIVE;
     int64_t     timestamp_ns_ = 0;

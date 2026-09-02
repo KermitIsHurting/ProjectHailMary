@@ -231,6 +231,25 @@ void OverlayEngine::draw_scaled_label(
     }
 }
 
+void OverlayEngine::draw_status_strip(cv::Mat& image,
+                                      const std::string& line1,
+                                      const std::string& line2,
+                                      bool alarm)
+{
+    if (image.empty()) {
+        return;
+    }
+    const int32_t strip_h = 44;
+    const cv::Rect roi(0, 0, image.cols, std::min(strip_h, image.rows));
+    cv::Mat band = image(roi);
+    const cv::Scalar bg = alarm ? cv::Scalar(0.0, 0.0, 120.0) : cv::Scalar(30.0, 30.0, 30.0);
+    cv::Mat fill(band.size(), band.type(), bg);
+    cv::addWeighted(fill, 0.6, band, 0.4, 0.0, band);
+    const cv::Scalar white(255.0, 255.0, 255.0);
+    cv::putText(image, line1, cv::Point(8, 17), cv::FONT_HERSHEY_SIMPLEX, 0.5, white, 1);
+    cv::putText(image, line2, cv::Point(8, 37), cv::FONT_HERSHEY_SIMPLEX, 0.5, white, 1);
+}
+
 void OverlayEngine::render(
     cv::Mat& image,
     const FixedVector<cuas_msgs::msg::TrajectoryWaypoints, TRACK_MAX_TRACKS>& waypoints,
@@ -243,12 +262,18 @@ void OverlayEngine::render(
         const cuas_msgs::msg::Track& track = tracks[ti];
 
         ThreatLevel level = ThreatLevel::UNKNOWN;
+        const cuas_msgs::msg::ThreatReport* report = nullptr;
         for (uint32_t ri = 0U; ri < threat_reports.size(); ++ri) {
             if (threat_reports[ri].track_id == track.track_id) {
-                level = threat_level_from_string(threat_reports[ri].threat_level);
+                level  = threat_level_from_string(threat_reports[ri].threat_level);
+                report = &threat_reports[ri];
                 break;
             }
         }
+        // The tracker never labels (its class_label is always "unknown");
+        // the classifier's report carries the fused camera label (RC-32).
+        const std::string& class_label =
+            (report != nullptr) ? report->class_label : track.class_label;
         const cv::Scalar color = threat_color(level);
 
         const TrackState state = track_state_from_string(track.track_state);
@@ -300,7 +325,7 @@ void OverlayEngine::render(
         }
         const float32_t label_alpha = alpha_val;
 
-        draw_scaled_label(image, threat_origin, track.class_label,
+        draw_scaled_label(image, threat_origin, class_label,
                           label_font_scale, label_thickness,
                           color, label_text_color,
                           label_use_background, label_alpha);

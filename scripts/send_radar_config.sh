@@ -21,26 +21,30 @@ DELAY=0.05   # 50 ms between commands
 # --- auto-detection ---
 
 detect_radar_ports() {
+  # The CP2105 exposes two USB interfaces: 00 = CLI/config, 01 = data — the
+  # same rule scripts/99-iwr6843.rules encodes. The old "lower ttyUSB index
+  # = data" guess was inverted on this box (RC-24).
   local ports=($(ls /dev/ttyUSB* 2>/dev/null | sort))
-  local radar_ports=()
+  DATA_PORT=""
+  CONFIG_PORT=""
   for port in "${ports[@]}"; do
-    local vid=$(udevadm info -q property -n "$port" 2>/dev/null \
-                | grep ID_VENDOR_ID | cut -d= -f2)
-    local pid=$(udevadm info -q property -n "$port" 2>/dev/null \
-                | grep ID_MODEL_ID | cut -d= -f2)
+    local props
+    props=$(udevadm info -q property -n "$port" 2>/dev/null)
+    local vid=$(grep '^ID_VENDOR_ID=' <<<"$props" | cut -d= -f2)
+    local pid=$(grep '^ID_MODEL_ID=' <<<"$props" | cut -d= -f2)
+    local iface=$(grep '^ID_USB_INTERFACE_NUM=' <<<"$props" | cut -d= -f2)
     if [[ "$vid" == "10c4" && "$pid" == "ea70" ]]; then
-      radar_ports+=("$port")
+      case "$iface" in
+        01) DATA_PORT="$port" ;;
+        00) CONFIG_PORT="$port" ;;
+      esac
     fi
   done
-  if [[ ${#radar_ports[@]} -lt 2 ]]; then
-    echo "ERROR: Expected 2 radar ports, found ${#radar_ports[@]}" >&2
+  if [[ -z "$DATA_PORT" || -z "$CONFIG_PORT" ]]; then
+    echo "ERROR: need CP210x interfaces 00 (config) and 01 (data); found data='$DATA_PORT' config='$CONFIG_PORT'" >&2
     echo "Plugged in ports: ${ports[*]}" >&2
     exit 1
   fi
-  # Sort — lower number = data port, higher number = config port
-  radar_ports=($(printf '%s\n' "${radar_ports[@]}" | sort))
-  DATA_PORT="${radar_ports[0]}"
-  CONFIG_PORT="${radar_ports[1]}"
   echo "Radar detected: data=$DATA_PORT  config=$CONFIG_PORT"
 }
 

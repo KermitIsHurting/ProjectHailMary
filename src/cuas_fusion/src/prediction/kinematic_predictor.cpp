@@ -1,7 +1,8 @@
 // @file kinematic_predictor.cpp
-// @brief Forward-propagation trajectory prediction with IMM model blending.
+// @brief Constant-velocity forward-propagation trajectory prediction.
 #include "cuas_fusion/prediction/kinematic_predictor.hpp"
 #include "cuas_fusion/common/constants.hpp"
+#include "cuas_fusion/common/bearing.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 
 #include <algorithm>
@@ -12,41 +13,30 @@ namespace cuas {
 KinematicPredictor::TrajectoryResult KinematicPredictor::propagateForward(
     const Eigen::VectorXd& state,
     const Eigen::MatrixXd& covariance,
-    const std::array<float64_t, 3>& model_weights,
-    const Eigen::MatrixXd& F_blended,
-    const Eigen::MatrixXd& Q_blended,
+    const Eigen::MatrixXd& F,
+    const Eigen::MatrixXd& Q,
     float64_t step_dt,
     int32_t n_steps)
 {
     TrajectoryResult result;
 
-    Eigen::VectorXd x_cv = state.head(6);
-    Eigen::VectorXd x_ca = state.head(6);
-    Eigen::VectorXd x_ct = state.head(6);
-    Eigen::MatrixXd P_cur = covariance.topLeftCorner(6, 6);
-    const Eigen::MatrixXd F6 = F_blended.topLeftCorner(6, 6);
-    const Eigen::MatrixXd Q6 = Q_blended.topLeftCorner(6, 6);
+    // Steps beyond the fixed buffer would be computed and then silently
+    // discarded by push_back — clamp instead of burning CPU on them.
+    const int32_t steps =
+        std::min(n_steps, static_cast<int32_t>(kMaxTrajectorySteps));
+
+    Vector6d x = state.head(6);
+    Matrix6d P_cur = covariance.topLeftCorner(6, 6);
+    const Matrix6d F6 = F.topLeftCorner(6, 6);
+    const Matrix6d Q6 = Q.topLeftCorner(6, 6);
 
     float64_t t = 0.0;
 
-    for (int32_t i = 0; i < n_steps; ++i) {
+    for (int32_t i = 0; i < steps; ++i) {
         t += step_dt;
 
-        x_cv = predictCvStep(x_cv, step_dt);
-        x_ca = predictCaStep(x_ca, step_dt);
-        x_ct = predictCtStep(x_ct, step_dt);
-
-        const Eigen::Vector3d blended_pos =
-            model_weights[0] * x_cv.head<3>() +
-            model_weights[1] * x_ca.head<3>() +
-            model_weights[2] * x_ct.head<3>();
-
-        const Eigen::Vector3d blended_vel =
-            model_weights[0] * x_cv.segment<3>(3) +
-            model_weights[1] * x_ca.segment<3>(3) +
-            model_weights[2] * x_ct.segment<3>(3);
-
-        (void)blended_vel;
+        x = predictCvStep(x, step_dt);
+        const Eigen::Vector3d pos = x.head<3>();
 
         P_cur = F6 * P_cur * F6.transpose() + Q6;
 
@@ -58,12 +48,15 @@ KinematicPredictor::TrajectoryResult KinematicPredictor::propagateForward(
         const float64_t rms       = std::sqrt(trace_pos / 3.0);
         const float64_t unc       = std::min(rms,
             static_cast<float64_t>(cuas::kMaxUncertaintyRadiusM));
-        const float64_t b   = std::atan2(blended_pos.y(), blended_pos.x()) * 180.0 / M_PI;
-        const float64_t xy  = std::sqrt(blended_pos.x() * blended_pos.x() +
-                                        blended_pos.y() * blended_pos.y());
-        const float64_t e   = std::atan2(blended_pos.z(), xy) * 180.0 / M_PI;
+        // Boresight-zero bearing like every other producer (RC-21); this
+        // was atan2(y, x), 90 deg off from fusion/classifier/CoT.
+        const float64_t b   = static_cast<float64_t>(bearingDegBoresightZero(
+            static_cast<float32_t>(pos.x()), static_cast<float32_t>(pos.y())));
+        const float64_t xy  = std::sqrt(pos.x() * pos.x() +
+                                        pos.y() * pos.y());
+        const float64_t e   = std::atan2(pos.z(), xy) * 180.0 / M_PI;
 
-        (void)result.positions.push_back(blended_pos);
+        (void)result.positions.push_back(pos);
         (void)result.timestamps_sec.push_back(t);
         (void)result.uncertainty_radii_m.push_back(unc);
         (void)result.bearing_deg.push_back(b);
@@ -78,48 +71,50 @@ KinematicPredictor::TrajectoryResult KinematicPredictor::propagateForward(
     return result;
 }
 
-Eigen::VectorXd KinematicPredictor::predictCvStep(
-    const Eigen::VectorXd& state, float64_t dt)
+KinematicPredictor::StepPlan KinematicPredictor::planSteps(
+    float64_t horizon_s, float64_t step_dt, float64_t fallback_horizon_s)
 {
-    Eigen::VectorXd x = state;
+    StepPlan plan;
+    float64_t h = horizon_s;
+    if (!(h > 0.0) || !std::isfinite(h)) {
+        h = fallback_horizon_s;
+    }
+    float64_t dt = step_dt;
+    if (!(dt > 0.0) || !std::isfinite(dt)) {
+        dt = 0.1;
+    }
+    const float64_t raw = std::ceil(h / dt);
+    if (raw > static_cast<float64_t>(kMaxTrajectorySteps)) {
+        plan.n_steps = static_cast<int32_t>(kMaxTrajectorySteps);
+        plan.step_dt = h / static_cast<float64_t>(kMaxTrajectorySteps);
+    } else {
+        plan.n_steps = std::max(1, static_cast<int32_t>(raw));
+        plan.step_dt = h / static_cast<float64_t>(plan.n_steps);
+    }
+    return plan;
+}
+
+Vector6d KinematicPredictor::predictCvStep(
+    const Vector6d& state, float64_t dt)
+{
+    Vector6d x = state;
     x(0) += state(3) * dt;
     x(1) += state(4) * dt;
     x(2) += state(5) * dt;
     return x;
 }
 
-Eigen::VectorXd KinematicPredictor::predictCaStep(
-    const Eigen::VectorXd& state, float64_t dt)
-{
-    Eigen::VectorXd x = state;
-    x(0) += state(3) * dt;
-    x(1) += state(4) * dt;
-    x(2) += state(5) * dt;
-    return x;
-}
-
-Eigen::VectorXd KinematicPredictor::predictCtStep(
-    const Eigen::VectorXd& state, float64_t dt)
-{
-    Eigen::VectorXd x = state;
-    x(0) += state(3) * dt;
-    x(1) += state(4) * dt;
-    x(2) += state(5) * dt;
-    return x;
-}
-
-Eigen::VectorXd KinematicPredictor::build_state_from_position_speed(
-    float64_t x_m, float64_t y_m, float64_t z_m, float64_t speed_mps)
+Eigen::VectorXd KinematicPredictor::build_state_from_position_velocity(
+    float64_t x_m, float64_t y_m, float64_t z_m,
+    float64_t vx_mps, float64_t vy_mps, float64_t vz_mps)
 {
     Eigen::VectorXd state = Eigen::VectorXd::Zero(6);
     state(0) = x_m;
     state(1) = y_m;
     state(2) = z_m;
-    if (speed_mps > 0.0) {
-        const float64_t bearing = std::atan2(y_m, x_m);
-        state(3) = speed_mps * std::cos(bearing);
-        state(4) = speed_mps * std::sin(bearing);
-    }
+    state(3) = vx_mps;
+    state(4) = vy_mps;
+    state(5) = vz_mps;
     return state;
 }
 

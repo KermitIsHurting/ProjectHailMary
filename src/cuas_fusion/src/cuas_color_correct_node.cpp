@@ -4,10 +4,13 @@
 #include "cuas_fusion/common/fixed_types.hpp"
 
 #include <rclcpp/rclcpp.hpp>
+
+#include <array>
 #include <sensor_msgs/msg/image.hpp>
 
 #include <cstddef>
 #include <memory>
+#include <cstdio>
 
 namespace cuas {
 
@@ -56,22 +59,51 @@ private:
             return;
         }
 
-        auto out = std::make_unique<sensor_msgs::msg::Image>(*msg);
-        engine_.apply_bgr(out->data.data(), pixel_count);
-        pub_->publish(std::move(out));
+        // Reuse a preallocated double-buffer: make_unique<Image>(*msg) was
+        // a ~6 MB heap allocation per frame (~180 MB/s allocator traffic at
+        // 30 fps). The vector assignment below copies pixels into the
+        // buffer's existing capacity — steady state allocates nothing.
+        sensor_msgs::msg::Image & out = out_buffers_[out_buffer_idx_];
+        out_buffer_idx_ = (out_buffer_idx_ + 1U) % 2U;
+        out.header       = msg->header;
+        out.height       = msg->height;
+        out.width        = msg->width;
+        out.encoding     = msg->encoding;
+        out.is_bigendian = msg->is_bigendian;
+        out.step         = msg->step;
+        out.data         = msg->data;
+        engine_.apply_bgr(out.data.data(), pixel_count);
+        pub_->publish(out);
     }
 
     ColorCorrectEngine engine_;
+    std::array<sensor_msgs::msg::Image, 2U> out_buffers_;
+    uint32_t out_buffer_idx_ = 0U;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr    pub_;
 };
 
 }  // namespace cuas
 
+// Single sanctioned exception boundary (DEV-001): owned code never
+// throws, but rclcpp/rmw, parameter access, and bad_alloc can. Without
+// this handler a library throw becomes std::terminate with no fault
+// record, invisible to the health monitor. Catch by const ref per
+// MISRA C++:2023 18.3.2.
 int main(int argc, char ** argv)
 {
-    rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<cuas::CuasColorCorrectNode>());
-    rclcpp::shutdown();
-    return 0;
+    int exit_code = 0;
+    try {
+        rclcpp::init(argc, argv);
+        auto node = std::make_shared<cuas::CuasColorCorrectNode>();
+        rclcpp::spin(node);
+        rclcpp::shutdown();
+    } catch (const std::exception& e) {
+        std::fprintf(stderr, "FATAL: unhandled exception in CuasColorCorrectNode: %s\n", e.what());
+        exit_code = 1;
+    } catch (...) {
+        std::fprintf(stderr, "FATAL: unhandled non-std exception in CuasColorCorrectNode\n");
+        exit_code = 1;
+    }
+    return exit_code;
 }

@@ -1,6 +1,7 @@
 // @file kinematic_predictor_node.cpp
 // @brief ROS 2 node that projects tracks forward and publishes predictions.
 #include "cuas_fusion/common/constants.hpp"
+#include "cuas_fusion/common/param_utils.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 #include "cuas_fusion/common/track_state_ids.hpp"
@@ -12,13 +13,13 @@
 #include <cuas_msgs/msg/track_array.hpp>
 #include <cuas_msgs/msg/predicted_track.hpp>
 #include <cuas_msgs/msg/trajectory_waypoints.hpp>
+#include <cstdio>
 
 namespace cuas {
 
 struct CovarianceCache {
     Eigen::Matrix<float64_t, 6, 6> P =
         Eigen::Matrix<float64_t, 6, 6>::Identity();
-    std::array<float64_t, 3> weights = {0.33, 0.33, 0.34};
 };
 
 class KinematicPredictorNode : public rclcpp::Node
@@ -33,9 +34,13 @@ public:
 
         horizon_ = get_parameter("prediction_horizon_sec").as_double();
         step_dt_ = get_parameter("prediction_step_dt").as_double();
-        const float64_t rate = get_parameter("publish_rate_hz").as_double();
+        float64_t rate = get_parameter("publish_rate_hz").as_double();
+        rate = clamp_rate_hz(get_logger(), "publish_rate_hz", rate, 20.0);
 
-        n_steps_ = static_cast<int32_t>(horizon_ / step_dt_);
+        // Validates horizon_/step_dt_ in place; the step count itself is
+        // planned per track from the horizon on the Track (RC-28).
+        (void)clamp_prediction_steps(get_logger(), horizon_, step_dt_,
+                                     kMaxTrajectorySteps);
 
         sub_ = create_subscription<cuas_msgs::msg::TrackArray>(
             "/tracks", 10,
@@ -60,7 +65,7 @@ private:
 
     void track_callback(const cuas_msgs::msg::TrackArray::ConstSharedPtr& msg)
     {
-        latest_tracks_ = *msg;
+        latest_tracks_ = msg;
 
         const uint32_t n = static_cast<uint32_t>(msg->tracks.size());
 
@@ -91,40 +96,48 @@ private:
             // there is no Kalman update to bound the open-loop propagation.
             CovarianceCache fresh;
             fresh.P = KinematicPredictor::build_initial_covariance_6d();
-            fresh.weights = {0.33, 0.33, 0.34};
             (void)cov_cache_.insert_or_assign(t.track_id, fresh);
         }
     }
 
     void publish()
     {
-        const uint32_t n = static_cast<uint32_t>(latest_tracks_.tracks.size());
+        if (latest_tracks_ == nullptr) {
+            return;
+        }
+        const uint32_t n = static_cast<uint32_t>(latest_tracks_->tracks.size());
         for (uint32_t ti = 0U; ti < n; ++ti) {
-            const cuas_msgs::msg::Track & t = latest_tracks_.tracks[ti];
+            const cuas_msgs::msg::Track & t = latest_tracks_->tracks[ti];
             if ((t.track_state_id != cuas::track_state::kConfirmed) &&
                 (t.track_state_id != cuas::track_state::kReacquired)) {
                 continue;
             }
 
             const Eigen::VectorXd state =
-                KinematicPredictor::build_state_from_position_speed(
+                KinematicPredictor::build_state_from_position_velocity(
                     t.position_x_m, t.position_y_m, t.position_z_m,
-                    static_cast<float64_t>(t.velocity_mps));
+                    static_cast<float64_t>(t.vx_mps),
+                    static_cast<float64_t>(t.vy_mps),
+                    static_cast<float64_t>(t.vz_mps));
 
             CovarianceCache* cache = cov_cache_.find(t.track_id);
             if (cache == nullptr) {
                 continue;
             }
             Eigen::MatrixXd P = cache->P;
-            const std::array<float64_t, 3> weights = cache->weights;
 
+            // The horizon advertised on the Track (3-10 s by threat level)
+            // decides the forecast length; every forecast used to run the
+            // node's fixed 5 s regardless (RC-28).
+            const KinematicPredictor::StepPlan plan = KinematicPredictor::planSteps(
+                static_cast<float64_t>(t.prediction_horizon_s), step_dt_, horizon_);
             const Eigen::MatrixXd F =
-                KinematicPredictor::build_transition_matrix_6d(step_dt_);
+                KinematicPredictor::build_transition_matrix_6d(plan.step_dt);
             const Eigen::MatrixXd Q =
-                KinematicPredictor::build_process_noise_6d(step_dt_, kSigmaASq);
+                KinematicPredictor::build_process_noise_6d(plan.step_dt, kSigmaASq);
 
-            auto traj = predictor_.propagateForward(state, P, weights, F, Q,
-                                                    step_dt_, n_steps_);
+            auto traj = predictor_.propagateForward(state, P, F, Q,
+                                                    plan.step_dt, plan.n_steps);
 
             // WHY: cache->P is reset per measurement in track_callback; no
             // inter-tick propagation here — each forecast starts from the
@@ -157,9 +170,11 @@ private:
 
             pred.bearing_deg            = traj.final_bearing_deg;
             pred.elevation_deg          = traj.final_elevation_deg;
-            pred.model_weight_cv        = weights[0];
-            pred.model_weight_ca        = weights[1];
-            pred.model_weight_ct        = weights[2];
+            // CV is the only forward model (see kinematic_predictor.hpp);
+            // the fabricated 0.33/0.33/0.34 blend misrepresented the output.
+            pred.model_weight_cv        = 1.0;
+            pred.model_weight_ca        = 0.0;
+            pred.model_weight_ct        = 0.0;
             pred.track_state            = t.track_state;
             pred.track_state_id         = t.track_state_id;
             // WHY: prediction_horizon_s is stamped onto Track by the tracker
@@ -188,9 +203,10 @@ private:
     KinematicPredictor predictor_;
     float64_t horizon_ = 0.0;
     float64_t step_dt_ = 0.0;
-    int32_t   n_steps_ = 0;
 
-    cuas_msgs::msg::TrackArray latest_tracks_;
+    // ConstSharedPtr, not a deep copy: TrackArray copies allocate per tick
+    // (A3.6; intent_classifier_node is the reference pattern).
+    cuas_msgs::msg::TrackArray::ConstSharedPtr latest_tracks_;
     FixedMap<uint32_t, CovarianceCache, TRACK_MAX_TRACKS> cov_cache_{};
 
     rclcpp::Subscription<cuas_msgs::msg::TrackArray>::SharedPtr sub_;
@@ -201,11 +217,25 @@ private:
 
 } // namespace cuas
 
+// Single sanctioned exception boundary (DEV-001): owned code never
+// throws, but rclcpp/rmw, parameter access, and bad_alloc can. Without
+// this handler a library throw becomes std::terminate with no fault
+// record, invisible to the health monitor. Catch by const ref per
+// MISRA C++:2023 18.3.2.
 int main(int argc, char** argv)
 {
-    rclcpp::init(argc, argv);
-    auto node = std::make_shared<cuas::KinematicPredictorNode>();
-    rclcpp::spin(node);
-    rclcpp::shutdown();
-    return 0;
+    int exit_code = 0;
+    try {
+        rclcpp::init(argc, argv);
+        auto node = std::make_shared<cuas::KinematicPredictorNode>();
+        rclcpp::spin(node);
+        rclcpp::shutdown();
+    } catch (const std::exception& e) {
+        std::fprintf(stderr, "FATAL: unhandled exception in KinematicPredictorNode: %s\n", e.what());
+        exit_code = 1;
+    } catch (...) {
+        std::fprintf(stderr, "FATAL: unhandled non-std exception in KinematicPredictorNode\n");
+        exit_code = 1;
+    }
+    return exit_code;
 }

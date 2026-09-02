@@ -1,6 +1,7 @@
 // @file trt_detector.cpp
 // @brief TensorRT engine loader and YOLO preprocessing/postprocessing pipeline.
 #include "cuas_fusion/inference/trt_detector.hpp"
+#include "cuas_fusion/inference/topk_boxes.hpp"
 #include "cuas_fusion/common/clock.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 
@@ -9,6 +10,7 @@
 #include <opencv2/imgproc.hpp>
 
 #include <algorithm>
+#include <cstdio>
 #include <cstring>
 #include <fstream>
 #include <vector>
@@ -39,27 +41,69 @@ bool TrtDetector::init(const std::string& engine_path)
     if (raw_runtime == nullptr) {
         return false;
     }
-    runtime_ = RuntimePtr(raw_runtime, [](nvinfer1::IRuntime* p) { delete p; });
+    runtime_ = RuntimePtr(raw_runtime);
 
     nvinfer1::ICudaEngine* raw_engine =
         runtime_->deserializeCudaEngine(engine_data.data(), file_size);
     if (raw_engine == nullptr) {
         return false;
     }
-    engine_ = EnginePtr(raw_engine, [](nvinfer1::ICudaEngine* p) { delete p; });
+    engine_ = EnginePtr(raw_engine);
 
+    // Exactly one input and one output (A2.8): a multi-tensor engine used
+    // to silently keep whichever tensor the loop saw last.
+    int32_t n_inputs  = 0;
+    int32_t n_outputs = 0;
     const int32_t nb_io = engine_->getNbIOTensors();
     for (int32_t i = 0; i < nb_io; ++i) {
         const char* name = engine_->getIOTensorName(i);
         const nvinfer1::TensorIOMode mode = engine_->getTensorIOMode(name);
         if (mode == nvinfer1::TensorIOMode::kINPUT) {
+            ++n_inputs;
             input_name_ = name;
         } else if (mode == nvinfer1::TensorIOMode::kOUTPUT) {
+            ++n_outputs;
             output_name_ = name;
         } else {
         }
     }
-    if ((input_name_ == nullptr) || (output_name_ == nullptr)) {
+    if ((n_inputs != 1) || (n_outputs != 1) ||
+        (input_name_ == nullptr) || (output_name_ == nullptr)) {
+        std::fprintf(stderr,
+            "TrtDetector: engine has %d inputs / %d outputs, expected 1/1\n",
+            n_inputs, n_outputs);
+        return false;
+    }
+
+    // Shape validation against the compile-time buffers (A2.8): a different
+    // YOLO variant engine would make enqueueV3 write past output_dev_ — a
+    // device-side overflow with no diagnostic.
+    const auto dims_match = [](const nvinfer1::Dims& d,
+                               const std::array<int64_t, 4>& expect,
+                               int32_t nb) -> bool {
+        if (d.nbDims != nb) {
+            return false;
+        }
+        for (int32_t k = 0; k < nb; ++k) {
+            if (static_cast<int64_t>(d.d[k]) != expect[static_cast<std::size_t>(k)]) {
+                return false;
+            }
+        }
+        return true;
+    };
+    const nvinfer1::Dims in_dims  = engine_->getTensorShape(input_name_);
+    const nvinfer1::Dims out_dims = engine_->getTensorShape(output_name_);
+    const std::array<int64_t, 4> expect_in{
+        1, INFERENCE_INPUT_C, INFERENCE_INPUT_H, INFERENCE_INPUT_W};
+    const std::array<int64_t, 4> expect_out{
+        1, 4 + INFERENCE_NUM_CLASSES, INFERENCE_NUM_ANCHORS, 0};
+    if (!dims_match(in_dims, expect_in, 4) ||
+        !dims_match(out_dims, expect_out, 3)) {
+        std::fprintf(stderr,
+            "TrtDetector: engine tensor shapes do not match the compiled "
+            "YOLOv8 buffers (expected input 1x%dx%dx%d, output 1x%dx%d)\n",
+            INFERENCE_INPUT_C, INFERENCE_INPUT_H, INFERENCE_INPUT_W,
+            4 + INFERENCE_NUM_CLASSES, INFERENCE_NUM_ANCHORS);
         return false;
     }
 
@@ -67,7 +111,7 @@ bool TrtDetector::init(const std::string& engine_path)
     if (raw_ctx == nullptr) {
         return false;
     }
-    context_ = ContextPtr(raw_ctx, [](nvinfer1::IExecutionContext* p) { delete p; });
+    context_ = ContextPtr(raw_ctx);
 
     input_bytes_  = static_cast<std::size_t>(1) * INFERENCE_INPUT_C
                  * INFERENCE_INPUT_H * INFERENCE_INPUT_W * sizeof(float32_t);
@@ -111,6 +155,12 @@ bool TrtDetector::init(const std::string& engine_path)
         return false;
     }
 
+    preproc_resized_ = cv::Mat(INFERENCE_INPUT_H, INFERENCE_INPUT_W, CV_8UC3);
+    preproc_float_   = cv::Mat(INFERENCE_INPUT_H, INFERENCE_INPUT_W, CV_32FC3);
+    for (auto& channel : preproc_channels_) {
+        channel = cv::Mat(INFERENCE_INPUT_H, INFERENCE_INPUT_W, CV_32FC1);
+    }
+
     initialized_ = true;
     return true;
 }
@@ -121,12 +171,12 @@ bool TrtDetector::preprocess(const cv::Mat& bgr_frame)
         return false;
     }
 
-    cv::Mat resized;
+    cv::Mat& resized = preproc_resized_;
     cv::resize(bgr_frame, resized,
                cv::Size(INFERENCE_INPUT_W, INFERENCE_INPUT_H),
                0.0, 0.0, cv::INTER_LINEAR);
 
-    cv::Mat float_img;
+    cv::Mat& float_img = preproc_float_;
     resized.convertTo(float_img, CV_32FC3, 1.0 / 255.0);
 
     // One-time sanity check — values above 1.0 indicate the ISP isn't 8-bit
@@ -144,8 +194,8 @@ bool TrtDetector::preprocess(const cv::Mat& bgr_frame)
     const std::size_t plane_size =
         static_cast<std::size_t>(INFERENCE_INPUT_H) * INFERENCE_INPUT_W;
 
-    cv::Mat channels[3];
-    cv::split(float_img, channels);
+    std::array<cv::Mat, 3>& channels = preproc_channels_;
+    cv::split(float_img, channels.data());
     std::memcpy(dst,                        channels[2].data, plane_size * sizeof(float32_t));
     std::memcpy(dst +     plane_size,       channels[1].data, plane_size * sizeof(float32_t));
     std::memcpy(dst + 2 * plane_size,       channels[0].data, plane_size * sizeof(float32_t));
@@ -163,13 +213,21 @@ bool TrtDetector::postprocess(FixedVector<BoundingBox, 128U>& detections_out,
     const float32_t scale_x = static_cast<float32_t>(orig_w) / static_cast<float32_t>(INFERENCE_INPUT_W);
     const float32_t scale_y = static_cast<float32_t>(orig_h) / static_cast<float32_t>(INFERENCE_INPUT_H);
 
-    FixedVector<BoundingBox, 128U> candidates;
+    // Best 128 by confidence across all 8400 anchors (RC-19): the old
+    // first-128-in-anchor-order cap dropped the nearest target whenever
+    // clutter boxes filled it first.
+    TopKBoxes<128U> topk;
+
+    constexpr std::size_t kAnchorStride =
+        static_cast<std::size_t>(INFERENCE_NUM_ANCHORS);
 
     for (int32_t a = 0; a < INFERENCE_NUM_ANCHORS; ++a) {
+        const std::size_t ai = static_cast<std::size_t>(a);
         float32_t max_score = 0.0F;
         int32_t   max_cls   = 0;
         for (int32_t c = 0; c < INFERENCE_NUM_CLASSES; ++c) {
-            const float32_t s = raw[static_cast<std::size_t>(4 + c) * INFERENCE_NUM_ANCHORS + a];
+            const float32_t s =
+                raw[static_cast<std::size_t>(4 + c) * kAnchorStride + ai];
             if (s > max_score) {
                 max_score = s;
                 max_cls   = c;
@@ -180,10 +238,10 @@ bool TrtDetector::postprocess(FixedVector<BoundingBox, 128U>& detections_out,
             continue;
         }
 
-        const float32_t cx = raw[static_cast<std::size_t>(0) * INFERENCE_NUM_ANCHORS + a];
-        const float32_t cy = raw[static_cast<std::size_t>(1) * INFERENCE_NUM_ANCHORS + a];
-        const float32_t bw = raw[static_cast<std::size_t>(2) * INFERENCE_NUM_ANCHORS + a];
-        const float32_t bh = raw[static_cast<std::size_t>(3) * INFERENCE_NUM_ANCHORS + a];
+        const float32_t cx = raw[0U * kAnchorStride + ai];
+        const float32_t cy = raw[1U * kAnchorStride + ai];
+        const float32_t bw = raw[2U * kAnchorStride + ai];
+        const float32_t bh = raw[3U * kAnchorStride + ai];
 
         BoundingBox det{};
         det.x            = (cx - bw * 0.5F) * scale_x;
@@ -194,15 +252,15 @@ bool TrtDetector::postprocess(FixedVector<BoundingBox, 128U>& detections_out,
         det.class_id     = max_cls;
         det.timestamp_ns = timestamp_ns;
 
-        if (!candidates.push_back(det)) {
-            break;
-        }
+        topk.offer(det);
     }
 
+    FixedVector<BoundingBox, 128U> candidates = topk.boxes();
     nms(candidates, INFERENCE_NMS_THRESH);
 
     if (candidates.size() > static_cast<uint32_t>(INFERENCE_MAX_DET)) {
-        candidates.resize(static_cast<uint32_t>(INFERENCE_MAX_DET));
+        // Shrink cannot fail: INFERENCE_MAX_DET <= capacity by construction.
+        (void)candidates.resize(static_cast<uint32_t>(INFERENCE_MAX_DET));
     }
 
     detections_out = candidates;

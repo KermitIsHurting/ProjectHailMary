@@ -3,6 +3,7 @@
 #include "cuas_fusion/clutter_map.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
+#include "cuas_fusion/common/ros_pointcloud_adapter.hpp"
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
@@ -13,6 +14,7 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <cstdio>
 
 namespace cuas {
 
@@ -58,10 +60,45 @@ public:
     }
 
 private:
+    static bool has_float_field(const sensor_msgs::msg::PointCloud2 & msg,
+                                const char * name)
+    {
+        for (const auto & f : msg.fields) {
+            if (f.name == name) {
+                return f.datatype == sensor_msgs::msg::PointField::FLOAT32;
+            }
+        }
+        return false;
+    }
+
     void cloud_cb(const sensor_msgs::msg::PointCloud2::ConstSharedPtr & msg)
     {
+        // A foreign publisher on /radar/detections with a different layout
+        // used to throw out of the iterator constructor into the process
+        // exception boundary; per-frame drop-with-warn is the right graceful
+        // degradation (A2.5). Covers publish_filtered's fields too.
+        if (!has_float_field(*msg, "x") || !has_float_field(*msg, "y") ||
+            !has_float_field(*msg, "z") || !has_float_field(*msg, "velocity"))
+        {
+            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+                "Dropping PointCloud2 without float32 x/y/z/velocity fields");
+            return;
+        }
+
         FixedVector<float32_t, kClutterMapMaxPoints> xs;
         FixedVector<float32_t, kClutterMapMaxPoints> ys;
+
+        // The parser now publishes width=0 clouds on an empty scene (RC-12);
+        // the iterator constructor dereferences data.front() on them, so an
+        // empty frame is forwarded as-is and still counts as a learning
+        // frame (R6 F3).
+        if (cloudIsEmpty(*msg)) {
+            if (!map_.is_learned()) {
+                map_.add_frame(xs, ys);
+            }
+            pub_->publish(*msg);
+            return;
+        }
 
         sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x");
         sensor_msgs::PointCloud2ConstIterator<float> iter_y(*msg, "y");
@@ -149,7 +186,7 @@ private:
         }
         msg.state           = learned_state;
         msg.frames_learned  = map_.frame_count();
-        msg.frames_required = ClutterMap::kLearnFrames;
+        msg.frames_required = map_.learn_frames();
         msg.occupancy_ratio = map_.occupancy_ratio();
         msg.stamp           = clock_.now();
         pub_status_->publish(msg);
@@ -170,11 +207,25 @@ private:
 
 } // namespace cuas
 
+// Single sanctioned exception boundary (DEV-001): owned code never
+// throws, but rclcpp/rmw, parameter access, and bad_alloc can. Without
+// this handler a library throw becomes std::terminate with no fault
+// record, invisible to the health monitor. Catch by const ref per
+// MISRA C++:2023 18.3.2.
 int main(int argc, char ** argv)
 {
-    rclcpp::init(argc, argv);
-    auto node = std::make_shared<cuas::ClutterMapNode>();
-    rclcpp::spin(node);
-    rclcpp::shutdown();
-    return 0;
+    int exit_code = 0;
+    try {
+        rclcpp::init(argc, argv);
+        auto node = std::make_shared<cuas::ClutterMapNode>();
+        rclcpp::spin(node);
+        rclcpp::shutdown();
+    } catch (const std::exception& e) {
+        std::fprintf(stderr, "FATAL: unhandled exception in ClutterMapNode: %s\n", e.what());
+        exit_code = 1;
+    } catch (...) {
+        std::fprintf(stderr, "FATAL: unhandled non-std exception in ClutterMapNode\n");
+        exit_code = 1;
+    }
+    return exit_code;
 }

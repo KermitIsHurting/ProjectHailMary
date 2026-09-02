@@ -43,9 +43,8 @@ Application code under `src/cuas_fusion/` follows JSF AV C++ and MISRA C++:2023.
 
 ### I/O
 
-1. Application code contains no `fprintf`, `printf`, `stdout`, `stderr`, or `std::snprintf`.
-2. Node wrappers log via the `RCLCPP_*` macros.
-3. Pure math classes format output through `std::ostringstream`.
+1. Node code logs via the `RCLCPP_*` macros; pure math classes format output through `std::ostringstream`.
+2. Sanctioned `stderr` uses only: the per-process `main()` exception boundary (DEV-001 precaution — no logger is guaranteed alive there), the TensorRT `ILogger` sink, and the no-ROS `CameraDriver` teardown diagnostics.
 
 ### Control Flow
 
@@ -66,7 +65,7 @@ Application code under `src/cuas_fusion/` follows JSF AV C++ and MISRA C++:2023.
 All fixed bounds live in `include/cuas_fusion/common/constants.hpp`:
 
 1. `TRACK_MAX_TRACKS` maximum simultaneous active tracks.
-2. `PREDICTION_MAX_STEPS` maximum prediction horizon steps.
+2. `kMaxTrajectorySteps` (kinematic_predictor.hpp) maximum prediction horizon steps.
 3. `FUSION_MAX_DETECTIONS` maximum detections per frame.
 4. `FUSION_MAX_CLASSES` bound on COCO class cache.
 5. `TIMESTAMP_BUFFER_SIZE` camera frame ring buffer depth.
@@ -76,45 +75,106 @@ New constants for future upgrades (Hungarian assignment, geofencing, health moni
 
 ## Documented Deviations
 
-### DEV-001: ROS 2 Framework
+Format per MISRA Compliance:2020 §4.2 — each record states the guideline(s),
+the reason category (R1 code quality, R2 access to hardware/system interface,
+R3 adopted-code integration, R4 non-compliant adopted code), the
+circumstances, the risk assessment with precautions, and the locations.
 
-Rules deviated: JSF AV 206 (dynamic alloc), 208 (exceptions), 178 (RTTI).
+**Sign-off**: J. Lopez (project owner), 2026-07-07. A new or widened
+deviation requires re-approval; a shrunken one only a changelog entry.
 
-Rationale: ROS 2 Humble is the middleware and uses exceptions, dynamic allocation, and RTTI internally.
+### DEV-001: exceptions and RTTI not disabled (ROS 2 framework)
 
-Mitigation: application logic lives in pure C++ classes. ROS nodes are thin adapters. Exception-throwing library calls at the boundary (`cv_bridge::toCvShare`, `std::stoi`) are replaced with non-throwing equivalents.
+- **Guidelines**: JSF AV 208 (exceptions), JSF AV 178 (RTTI), MISRA 18.x family.
+- **Reason**: R3 adopted code.
+- **Circumstances**: rclcpp/rosidl require exceptions and RTTI; `-fno-exceptions` does not link. Owned code contains zero `throw`/`try`/`catch` and no `dynamic_cast`/`typeid` (audit-verified).
+- **Risk & precautions**: a library throw inside a callback would otherwise reach `std::terminate` with no fault record. Precaution (enforced): every `main()` wraps init/spin in the single sanctioned catch-all, logging FATAL to stderr with a defined exit code, so the fault path is deterministic and visible to the health monitor. Throwing boundary calls are replaced with non-throwing equivalents (`std::from_chars`, `cuas::rosImageToBgr`).
+- **Locations**: every node `main()` (tagged by the shared comment block).
 
-### DEV-002: Eigen3
+### DEV-002: Eigen internal allocation
 
-Rules deviated: JSF AV 206.
-
-Rationale: Eigen may allocate heap memory for large matrices.
-
-Mitigation: all matrices use fixed dimensions (6x6, 9x9, 7x7). `EIGEN_NO_MALLOC` can be defined in debug builds.
+- **Guidelines**: JSF AV 206 (dynamic allocation), JPL P3.
+- **Reason**: R3 adopted code.
+- **Circumstances**: Eigen allocates for dynamic-size matrices. As of A3.1 the estimation/tracking/prediction hot path uses only fixed-size types (`Vector6d`/`Matrix6d`/`Vector7d`/`Matrix7d`/`Vector9d`/`Matrix9d`, measurement `Vector3d`/`Matrix3d`), which live on the stack.
+- **Risk & precautions**: a future edit could silently reintroduce a heap-allocating dynamic temporary. Precaution (enforced, not aspirational): `tracking_lib` compiles with `EIGEN_NO_MALLOC` in Debug builds, so any Eigen heap allocation aborts at the allocation site. Dynamic `MatrixXd` remains only in node-boundary glue (predictor F/Q builders) and test fixtures.
+- **Locations**: `src/estimation/*`, `src/tracking/*`, `src/prediction/kinematic_predictor.cpp`; enforcement in `CMakeLists.txt` (tracking_lib).
 
 ### DEV-003: OpenCV
 
-Rules deviated: JSF AV 206, 208.
-
-Rationale: OpenCV manages image buffers with dynamic allocation and uses exceptions.
-
-Mitigation: OpenCV is confined to the camera driver, inference node, and visualization node. Failures surface at the node boundary through return codes.
+- **Guidelines**: JSF AV 206, 208.
+- **Reason**: R3 adopted code.
+- **Circumstances**: OpenCV manages image buffers dynamically and reports errors via exceptions.
+- **Risk & precautions**: confined to the camera driver, inference preprocess, and visualization; per-frame Mats are preallocated members (A3.4, R12e) so steady-state allocation is zero; `cv::Exception` escape paths are covered by the DEV-001 process boundary, and hot-path callbacks validate geometry/encoding before invoking cv (clutter/visualizer guards).
+- **Locations**: `drivers/camera_driver.cpp`, `inference/trt_detector.cpp`, `visualization/*`, `fusion/timestamp_associator.cpp`.
 
 ### DEV-004: TensorRT
 
-Rules deviated: JSF AV 206, 208.
+- **Guidelines**: JSF AV 206, 208.
+- **Reason**: R3 adopted code.
+- **Circumstances**: TensorRT owns GPU memory and imposes the `nvinfer1::ILogger` callback signature.
+- **Risk & precautions**: encapsulated in `TrtDetector`; the engine loads once at init; engine tensor count and shapes are validated against the compile-time buffers (A2.8) so a mismatched engine fails init instead of overflowing device buffers; the logger latches kERROR+ to stderr (a silent sink hid every load failure). Buffers are RAII with stateless functor deleters.
+- **Locations**: `inference/trt_detector.{hpp,cpp}` (one-shot init allocation tagged DEV-004).
 
-Rationale: TensorRT manages GPU memory and inference buffers. The `nvinfer1::ILogger::log` callback signature is imposed by the framework.
+### DEV-005: std::vector/std::string at the ROS boundary
 
-Mitigation: TensorRT is encapsulated in `TrtDetector` and `inference_node`. The engine loads once at init. The logger callback is a silent sink; severity surfaces through the `bool init()` and `bool infer()` return codes.
+- **Guidelines**: JSF AV 206.
+- **Reason**: R3 adopted code (rosidl-generated types).
+- **Circumstances**: ROS 2 messages require `std::vector`/`std::string`.
+- **Risk & precautions**: the internal pipeline uses `FixedVector`/`FixedMap` and integer ids; strings and vectors appear only in node wrapper code at single chokepoints (`parseClassId`/`classIdToLabel`, `trackStateToString`/`FromString`, `track_state_to_id`). Since A3.8, no hot-path value type carries `std::string`.
+- **Locations**: node wrapper files; chokepoint helpers in `common/types.hpp`.
 
-### DEV-005: std::vector and std::string at ROS Boundary
+### DEV-006: rclcpp/rosidl allocation in the publish/subscribe machinery
 
-Rules deviated: JSF AV 206.
+- **Guidelines**: MISRA 21.6.1 (Advisory), JPL P3, DO-178C D2.
+- **Reason**: R3 adopted code.
+- **Circumstances**: the executor and DDS allocate internally per publish/take; owned code minimizes traffic (FixedVector state, `reserve()`, ConstSharedPtr snapshots, member-message reuse) but cannot remove the middleware residue.
+- **Risk & precautions**: allocator jitter inside callbacks, bounded in practice by small message sizes. Full cure (TLSF executor allocator, loaned messages, bounded IDL) is a tracked roadmap item, not a blocker.
+- **Locations**: every `publish()`/subscription in node files.
 
-Rationale: ROS 2 message types require `std::vector` for variable-length arrays and `std::string` for text.
+### DEV-007: const_cast in the zero-copy image wrap
 
-Mitigation: internal pipeline uses `FixedVector` and `FixedMap`. Conversion to `std::vector` happens only in node wrapper code. `FusedDetection::class_label` keeps `std::string` for ROS message compatibility.
+- **Guidelines**: MISRA 8.2.3 (Required).
+- **Reason**: R3 (OpenCV external-buffer `cv::Mat` ctor takes non-const `void*`); R1 also applies — the compliant alternative is a ~6 MB/frame copy.
+- **Risk & precautions**: the returned Mat is treated as read-only by contract (documented at the helper); consumers verified read-only.
+- **Locations**: `common/ros_image_adapter.hpp:25,32`.
+
+### DEV-008: reinterpret_cast to sockaddr*
+
+- **Guidelines**: MISRA 8.2.5 (Required).
+- **Reason**: R2 access to system interface — the BSD sockets ABI requires it; no conforming alternative exists.
+- **Risk & precautions**: confined to the single `sendto` call site.
+- **Locations**: `output/cot_publisher_node.cpp` (sendUdp).
+
+### DEV-009: type-erased callbacks (std::function) in the rclcpp API
+
+- **Guidelines**: JPL P9 (no function pointers).
+- **Reason**: R3 — subscriptions/timers are `std::function` by API.
+- **Risk & precautions**: callbacks are bound member functions or explicit-capture lambdas (analyzable capture set); no owned function-pointer tables exist.
+- **Locations**: every `create_subscription`/`create_wall_timer` call.
+
+### DEV-010: unsynchronized shared state under the single-threaded executor
+
+- **Guidelines**: DO-178C D1 / concurrency.
+- **Reason**: R1.
+- **Circumstances**: `latest_*` members are written in subscription callbacks and read in timer callbacks without locks — safe iff the node spins on a single-threaded executor, which every launch file uses. Nodes with their own capture/parse threads (camera, radar, fusion, overlay) do lock.
+- **Risk & precautions**: this record is void if a MultiThreadedExecutor is ever adopted; mutexes then become mandatory. Adding them preemptively is the recommended eventual state.
+- **Locations**: geofence, reachability, kinematic/occlusion predictor, imm_tracker, intent classifier nodes.
+
+### DEV-011: unbounded strings in cuas_msgs (sequences bounded in 0.9.0-alpha)
+
+- **Guidelines**: DO-178C D1, JPL P2 at the interface.
+- **Reason**: R1 (deferred interface change).
+- **Circumstances**: originally every .msg sequence and string was unbounded. OVERHAUL P3.1 (2026-07-07, 0.9.0-alpha) bounded all sequences to their producer-side capacity constants (32/64/128/256); the CDR wire form is unchanged, so old bags replay. The deviation now covers only the **string** fields (`class_label`, `track_state`, `threat_level`, `escalation_state`, `zone_id`), which remain unbounded: they cross the wire only via the `common/types.hpp` chokepoint helpers, and the `*_id` integer fields already present are the migration path that retires them.
+- **Risk & precautions**: middleware-side string allocation per publish (subsumed by DEV-006); sequence bounds are enforced by construction (fixed-capacity producer pools).
+- **Locations**: string fields in `msgs/cuas_msgs/msg/*.msg`.
+
+### DEV-012: display/test-utility path allocations
+
+- **Guidelines**: JPL P3.
+- **Reason**: R1 code quality.
+- **Circumstances**: visualizer/overlay/capture per-frame clones, ostringstream label text, and marker vector growth live on operator-display paths that tolerate allocator jitter; the tracking hot path is unaffected.
+- **Risk & precautions**: display latency jitter only; excluded from this record is anything feeding the CoT or track outputs.
+- **Locations**: `visualization/*`, capture node.
 
 ## Forward Compatibility
 
@@ -129,6 +189,6 @@ The standard accommodates these planned upgrades without structural change.
 7. A reachability node consumes `FixedVector<Track>`.
 8. Engagement logic reuses `EscalationState`.
 9. A health monitor emits `RCLCPP_WARN` with per-sensor state.
-10. GPS georeferencing adds WGS84 fields to `Track` and `ThreatReport`.
+10. GPS georeferencing adds WGS84 fields to `Track` and `ThreatReport` (the CoT lat/lon stub in docs/ICD.md §4 is the consumer waiting on it).
 
 All fixed-size bounds live in `constants.hpp` so future limits can be tuned in one place.

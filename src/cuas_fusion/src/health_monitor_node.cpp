@@ -1,7 +1,10 @@
 // @file health_monitor_node.cpp
 // @brief ROS 2 node computing pipeline liveness from pipeline topic callbacks.
 #include "cuas_fusion/common/fixed_types.hpp"
+#include "cuas_fusion/common/param_utils.hpp"
 #include "cuas_fusion/health_monitor.hpp"
+
+#include "cuas_fusion/common/track_state_ids.hpp"
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
@@ -14,6 +17,7 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <cstdio>
 
 namespace cuas {
 
@@ -26,9 +30,10 @@ public:
     , clock_(std::make_shared<rclcpp::Clock>(RCL_STEADY_TIME))
     {
         (void)declare_parameter<float64_t>("publish_rate_hz", 1.0);
-        const float64_t rate = get_parameter("publish_rate_hz").as_double();
+        float64_t rate = get_parameter("publish_rate_hz").as_double();
+        rate = clamp_rate_hz(get_logger(), "publish_rate_hz", rate, 1.0);
 
-        monitor_.set_expected_hz(kTopicRadar,      16.0F);
+        monitor_.set_expected_hz(kTopicRadar,      20.0F);
         monitor_.set_expected_hz(kTopicCamera,     30.0F);
         monitor_.set_expected_hz(kTopicTracker,    20.0F);
         monitor_.set_expected_hz(kTopicClassifier, 20.0F);
@@ -67,44 +72,57 @@ public:
     }
 
 private:
-    float32_t now_sec() const
+    int64_t now_ns() const
     {
-        return static_cast<float32_t>(clock_->now().seconds());
+        return clock_->now().nanoseconds();
     }
 
     void radar_cb(const sensor_msgs::msg::PointCloud2::ConstSharedPtr & msg)
     {
         (void)msg;
-        monitor_.update(kTopicRadar, now_sec());
+        monitor_.update(kTopicRadar, now_ns());
     }
 
     void camera_cb(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
     {
         (void)msg;
-        monitor_.update(kTopicCamera, now_sec());
+        monitor_.update(kTopicCamera, now_ns());
     }
 
     void tracks_cb(const cuas_msgs::msg::TrackArray::ConstSharedPtr & msg)
     {
-        (void)msg;
-        monitor_.update(kTopicTracker, now_sec());
+        const int64_t t = now_ns();
+        monitor_.update(kTopicTracker, t);
+        // The predictor publishes one PredictedTrack per CONFIRMED track, so
+        // an empty scene is expected silence, not a dead node (RC-12).
+        bool any_predictable = false;
+        for (std::size_t i = 0U; i < msg->tracks.size(); ++i) {
+            const uint8_t s = msg->tracks[i].track_state_id;
+            if ((s == cuas::track_state::kConfirmed) || (s == cuas::track_state::kReacquired)) {
+                any_predictable = true;
+                break;
+            }
+        }
+        if (!any_predictable) {
+            monitor_.mark_idle(kTopicPredictor, t);
+        }
     }
 
     void threats_cb(const cuas_msgs::msg::ThreatReportArray::ConstSharedPtr & msg)
     {
         (void)msg;
-        monitor_.update(kTopicClassifier, now_sec());
+        monitor_.update(kTopicClassifier, now_ns());
     }
 
     void predict_cb(const cuas_msgs::msg::PredictedTrack::ConstSharedPtr & msg)
     {
         (void)msg;
-        monitor_.update(kTopicPredictor, now_sec());
+        monitor_.update(kTopicPredictor, now_ns());
     }
 
     void publish_tick()
     {
-        const float32_t t = now_sec();
+        const int64_t t = now_ns();
         for (uint32_t i = 0U; i < kTopicCount; ++i) {
             monitor_.refresh_status(i, t);
         }
@@ -146,11 +164,25 @@ private:
 
 } // namespace cuas
 
+// Single sanctioned exception boundary (DEV-001): owned code never
+// throws, but rclcpp/rmw, parameter access, and bad_alloc can. Without
+// this handler a library throw becomes std::terminate with no fault
+// record, invisible to the health monitor. Catch by const ref per
+// MISRA C++:2023 18.3.2.
 int main(int argc, char ** argv)
 {
-    rclcpp::init(argc, argv);
-    auto node = std::make_shared<cuas::HealthMonitorNode>();
-    rclcpp::spin(node);
-    rclcpp::shutdown();
-    return 0;
+    int exit_code = 0;
+    try {
+        rclcpp::init(argc, argv);
+        auto node = std::make_shared<cuas::HealthMonitorNode>();
+        rclcpp::spin(node);
+        rclcpp::shutdown();
+    } catch (const std::exception& e) {
+        std::fprintf(stderr, "FATAL: unhandled exception in HealthMonitorNode: %s\n", e.what());
+        exit_code = 1;
+    } catch (...) {
+        std::fprintf(stderr, "FATAL: unhandled non-std exception in HealthMonitorNode\n");
+        exit_code = 1;
+    }
+    return exit_code;
 }

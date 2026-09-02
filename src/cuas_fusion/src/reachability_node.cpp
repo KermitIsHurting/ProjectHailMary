@@ -1,6 +1,7 @@
 // @file reachability_node.cpp
 // @brief ROS 2 node that computes per-track intercept estimates at a fixed cadence.
 #include "cuas_fusion/common/constants.hpp"
+#include "cuas_fusion/common/param_utils.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 #include "cuas_fusion/common/track_state_ids.hpp"
@@ -16,6 +17,7 @@
 #include <cmath>
 #include <functional>
 #include <memory>
+#include <cstdio>
 
 namespace cuas {
 
@@ -34,12 +36,13 @@ static ReachabilityTrackState build_track_state(
     rstate.x_m = t.position_x_m;
     rstate.y_m = t.position_y_m;
 
-    const float64_t bearing = std::atan2(
-        static_cast<float64_t>(t.position_y_m),
-        static_cast<float64_t>(t.position_x_m));
-    const float32_t vmag = t.velocity_mps;
-    rstate.vx_mps = vmag * static_cast<float32_t>(std::cos(bearing));
-    rstate.vy_mps = vmag * static_cast<float32_t>(std::sin(bearing));
+    // Track.msg carries the estimated velocity vector; use it directly.
+    // Reconstructing velocity as |v| along the position bearing pointed
+    // every target radially outward from the sensor, which made
+    // speed_toward reduce to -|v| and the published intercept geometry
+    // fictitious (never intercept-possible for magnitude velocities).
+    rstate.vx_mps = t.vx_mps;
+    rstate.vy_mps = t.vy_mps;
 
     for (uint32_t r = 0U; r < 4U; ++r) {
         for (uint32_t c = 0U; c < 4U; ++c) {
@@ -75,7 +78,8 @@ public:
         (void)declare_parameter<float64_t>("publish_rate_hz", 20.0);
 
         const int64_t   mtl  = get_parameter("min_threat_level").as_int();
-        const float64_t rate = get_parameter("publish_rate_hz").as_double();
+        float64_t rate = get_parameter("publish_rate_hz").as_double();
+        rate = clamp_rate_hz(get_logger(), "publish_rate_hz", rate, 20.0);
         min_threat_level_ = static_cast<int32_t>(mtl);
 
         pub_ = create_publisher<cuas_msgs::msg::InterceptReportArray>(
@@ -116,7 +120,19 @@ private:
 
     void tracks_callback(const cuas_msgs::msg::TrackArray::ConstSharedPtr& msg)
     {
-        latest_tracks_ = *msg;
+        latest_tracks_ = msg;
+        // Priorities follow the tracker's id set (RC-4): the 32-slot map
+        // filled with dead ids and every later track fell below
+        // min_threat_level for the life of the process.
+        threat_priorities_.erase_if(
+            [&msg](const uint32_t& id, const int32_t&) -> bool {
+                for (std::size_t k = 0U; k < msg->tracks.size(); ++k) {
+                    if (msg->tracks[k].track_id == id) {
+                        return false;
+                    }
+                }
+                return true;
+            });
     }
 
     void threats_callback(
@@ -135,9 +151,10 @@ private:
         cuas_msgs::msg::InterceptReportArray out;
         out.stamp = this->now();
 
-        const uint32_t n_tracks = static_cast<uint32_t>(latest_tracks_.tracks.size());
+        const uint32_t n_tracks = (latest_tracks_ == nullptr)
+            ? 0U : static_cast<uint32_t>(latest_tracks_->tracks.size());
         for (uint32_t ti = 0U; ti < n_tracks; ++ti) {
-            const cuas_msgs::msg::Track& tr = latest_tracks_.tracks[ti];
+            const cuas_msgs::msg::Track& tr = latest_tracks_->tracks[ti];
             const int32_t* pri_ptr = threat_priorities_.find(tr.track_id);
             int32_t pri = 0;
             if (pri_ptr != nullptr) {
@@ -170,7 +187,9 @@ private:
 
     ReachabilityEngine engine_;
     FixedMap<uint32_t, int32_t, TRACK_MAX_TRACKS> threat_priorities_;
-    cuas_msgs::msg::TrackArray latest_tracks_;
+    // ConstSharedPtr, not a deep copy: TrackArray copies allocate per tick
+    // (A3.6; intent_classifier_node is the reference pattern).
+    cuas_msgs::msg::TrackArray::ConstSharedPtr latest_tracks_;
     int32_t min_threat_level_;
 
     rclcpp::Publisher<cuas_msgs::msg::InterceptReportArray>::SharedPtr pub_;
@@ -181,11 +200,25 @@ private:
 
 } // namespace cuas
 
+// Single sanctioned exception boundary (DEV-001): owned code never
+// throws, but rclcpp/rmw, parameter access, and bad_alloc can. Without
+// this handler a library throw becomes std::terminate with no fault
+// record, invisible to the health monitor. Catch by const ref per
+// MISRA C++:2023 18.3.2.
 int main(int argc, char** argv)
 {
-    rclcpp::init(argc, argv);
-    auto node = std::make_shared<cuas::ReachabilityNode>();
-    rclcpp::spin(node);
-    rclcpp::shutdown();
-    return 0;
+    int exit_code = 0;
+    try {
+        rclcpp::init(argc, argv);
+        auto node = std::make_shared<cuas::ReachabilityNode>();
+        rclcpp::spin(node);
+        rclcpp::shutdown();
+    } catch (const std::exception& e) {
+        std::fprintf(stderr, "FATAL: unhandled exception in ReachabilityNode: %s\n", e.what());
+        exit_code = 1;
+    } catch (...) {
+        std::fprintf(stderr, "FATAL: unhandled non-std exception in ReachabilityNode\n");
+        exit_code = 1;
+    }
+    return exit_code;
 }

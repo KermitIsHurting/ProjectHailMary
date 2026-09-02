@@ -33,9 +33,6 @@ bool TrackManager::init()
 
     R_detection_ = Eigen::Matrix3d::Identity() *
                    (kRadarDetectionSigmaM * kRadarDetectionSigmaM);
-
-    cost_matrix_.resize(static_cast<Eigen::Index>(TRACK_MAX_TRACKS),
-                        static_cast<Eigen::Index>(TRACK_MAX_TRACKS));
     return true;
 }
 
@@ -65,7 +62,7 @@ void TrackManager::initiateTrack(uint32_t slot, const FusedDetection& det)
     t.position_z_m_ = det.position_z_m;
     t.velocity_mps_ = std::abs(det.velocity_mps);
     t.doppler_mps_  = det.velocity_mps;
-    t.class_label_  = det.class_label;
+    t.class_id_     = det.class_id;
     t.confidence_   = det.confidence;
     t.state_        = TrackState::TENTATIVE;
     t.timestamp_ns_ = det.timestamp_ns;
@@ -77,20 +74,48 @@ void TrackManager::applyDetection(uint32_t slot, const FusedDetection& det)
     Track&      t = e.track;
 
     // Standard linear Kalman measurement update on the 3-DOF position block.
+    // The gain must be applied to the state: shrinking P while overwriting
+    // the state with the raw measurement made P overconfident about a
+    // full-noise state and tightened the gate around it (A1.9).
     const Eigen::Matrix3d S = e.P + R_detection_;
-    const Eigen::Matrix3d K = e.P * S.inverse();
-    e.P = (Eigen::Matrix3d::Identity() - K) * e.P;
-
-    t.position_x_m_ = det.position_x_m;
-    t.position_y_m_ = det.position_y_m;
-    t.position_z_m_ = det.position_z_m;
+    const Eigen::LLT<Eigen::Matrix3d> llt(S);
+    if (llt.info() == Eigen::Success) {
+        const Eigen::Matrix3d K =
+            e.P * llt.solve(Eigen::Matrix3d::Identity());
+        const Eigen::Vector3d pos{
+            static_cast<float64_t>(t.position_x_m_),
+            static_cast<float64_t>(t.position_y_m_),
+            static_cast<float64_t>(t.position_z_m_)
+        };
+        const Eigen::Vector3d meas{
+            static_cast<float64_t>(det.position_x_m),
+            static_cast<float64_t>(det.position_y_m),
+            static_cast<float64_t>(det.position_z_m)
+        };
+        const Eigen::Vector3d updated = pos + K * (meas - pos);
+        e.P = (Eigen::Matrix3d::Identity() - K) * e.P;
+        t.position_x_m_ = static_cast<float32_t>(updated.x());
+        t.position_y_m_ = static_cast<float32_t>(updated.y());
+        t.position_z_m_ = static_cast<float32_t>(updated.z());
+    } else {
+        // S is PD by construction, so a failed factorization means the
+        // covariance is corrupt (NaN): re-anchor on the measurement.
+        e.P = Eigen::Matrix3d::Identity() * kInitialPosVar;
+        t.position_x_m_ = det.position_x_m;
+        t.position_y_m_ = det.position_y_m;
+        t.position_z_m_ = det.position_z_m;
+    }
     t.velocity_mps_ = std::abs(det.velocity_mps);
     t.doppler_mps_  = det.velocity_mps;
-    t.class_label_  = det.class_label;
+    t.class_id_     = det.class_id;
     t.confidence_   = det.confidence;
     t.timestamp_ns_ = det.timestamp_ns;
 
-    ++e.hit_count;
+    // Saturate: hit history is only meaningful up to the confirm threshold,
+    // and it is no longer reset by misses, so it must not run away.
+    if (e.hit_count < TRACK_CONFIRM_HITS) {
+        ++e.hit_count;
+    }
     e.miss_count = 0;
 
     if (e.hit_count >= TRACK_CONFIRM_HITS) {
@@ -102,12 +127,19 @@ void TrackManager::applyMiss(uint32_t slot)
 {
     TrackEntry& e = entries_[slot];
     ++e.miss_count;
-    e.hit_count = 0;
-    e.P        += Eigen::Matrix3d::Identity() * kMissProcessVar;
+    e.P += Eigen::Matrix3d::Identity() * kMissProcessVar;
 
     if (e.miss_count >= TRACK_MAX_MISSES) {
         e.active = false;
-    } else {
+        return;
+    }
+    // M-of-N demotion (A1.9): hit history is never reset, and a confirmed
+    // track keeps publishing through short dropouts — only
+    // TRACK_COAST_MISSES consecutive misses demote it to COASTED, from
+    // which one hit re-confirms it immediately.
+    if (e.track.state_ != TrackState::CONFIRMED ||
+        e.miss_count >= TRACK_COAST_MISSES)
+    {
         e.track.state_ = TrackState::COASTED;
     }
 }
@@ -134,8 +166,8 @@ bool TrackManager::update(const FusedDetection* detections,
     const uint32_t M = m_val;
     const uint32_t N = active_slots.size();
 
-    cost_matrix_.resize(static_cast<Eigen::Index>(N),
-                        static_cast<Eigen::Index>(M));
+    auto cost = cost_matrix_.topLeftCorner(static_cast<Eigen::Index>(N),
+                                           static_cast<Eigen::Index>(M));
 
     for (uint32_t i = 0U; i < N; ++i) {
         const TrackEntry& e = entries_[active_slots[i]];
@@ -144,7 +176,17 @@ bool TrackManager::update(const FusedDetection* detections,
             static_cast<float64_t>(e.track.position_y_m_),
             static_cast<float64_t>(e.track.position_z_m_)
         };
+
+        // One factorization per track instead of two inversions per pair
+        // (A3.3). A failed LLT means a corrupt (NaN) covariance: price the
+        // whole row out so the solver's finite-cost precondition holds.
         const Eigen::Matrix3d S = e.P + R_detection_;
+        const Eigen::LLT<Eigen::Matrix3d> llt(S);
+        const bool s_ok = (llt.info() == Eigen::Success);
+        Eigen::Matrix3d S_inv = Eigen::Matrix3d::Identity();
+        if (s_ok) {
+            S_inv = llt.solve(Eigen::Matrix3d::Identity());
+        }
 
         // Confirmed tracks get a wider gate so arm/leg returns from the same
         // body don't fall outside and spawn fragment tracks; tentative tracks
@@ -165,17 +207,21 @@ bool TrackManager::update(const FusedDetection* detections,
 
             const Eigen::Index ri = static_cast<Eigen::Index>(i);
             const Eigen::Index cj = static_cast<Eigen::Index>(j);
-            if (mahalanobisGate(innovation, S, gate_chi2)) {
-                cost_matrix_(ri, cj) = innovation.dot(S.inverse() * innovation);
+            if (s_ok) {
+                // NaN-safe gate: a non-finite distance fails the comparison
+                // and prices the pair out.
+                const float64_t md2 = innovation.dot(S_inv * innovation);
+                cost(ri, cj) =
+                    (md2 < gate_chi2) ? md2 : HungarianSolver::kLargeCost;
             } else {
-                cost_matrix_(ri, cj) = HungarianSolver::kLargeCost;
+                cost(ri, cj) = HungarianSolver::kLargeCost;
             }
         }
     }
 
     FixedVector<int32_t, TRACK_MAX_TRACKS> assignment;
     FixedVector<int32_t, TRACK_MAX_TRACKS> unassigned_dets;
-    if (!solver_.solve(cost_matrix_, assignment, unassigned_dets)) {
+    if (!solver_.solve(cost, assignment, unassigned_dets)) {
         return false;
     }
 

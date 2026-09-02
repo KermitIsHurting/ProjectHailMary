@@ -10,7 +10,9 @@ namespace cuas {
 void TimestampAssociator::addCameraFrame(const cv::Mat& frame, int64_t timestamp_ns)
 {
     std::lock_guard<std::mutex> lock(mutex_);
-    buffer_[head_].frame = frame.clone();
+    // copyTo reuses the ring slot's buffer once allocated (clone() allocated
+    // ~6 MB per frame at 30 Hz, A3.5). Steady state: zero allocations.
+    frame.copyTo(buffer_[head_].frame);
     buffer_[head_].timestamp_ns = timestamp_ns;
     head_ = (head_ + 1U) % TIMESTAMP_BUFFER_SIZE;
     if (count_ < TIMESTAMP_BUFFER_SIZE) {
@@ -42,7 +44,9 @@ bool TimestampAssociator::findBestMatch(int64_t radar_ts_ns,
         return false;
     }
 
-    out_frame = buffer_[best].frame;
+    // Deep copy into the caller's (reusable) Mat: a shallow share would be
+    // overwritten in place when the ring slot recycles under copyTo.
+    buffer_[best].frame.copyTo(out_frame);
     out_ts_ns = buffer_[best].timestamp_ns;
     return true;
 }

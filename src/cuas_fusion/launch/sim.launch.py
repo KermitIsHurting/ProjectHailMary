@@ -1,6 +1,8 @@
 # WHY: replaces hardware radar with SimRadar for software-in-the-loop testing
 # so the full pipeline can run without an IWR6843ISK attached.
 from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 import os
@@ -12,7 +14,34 @@ def generate_launch_description():
     rviz_config = os.path.join(pkg_share, 'config', 'cuas_demo.rviz')
     geofence_config = os.path.join(pkg_share, 'config', 'geofence_zones.yaml')
 
+    default_engine_path = os.path.join(
+        os.path.expanduser('~'), 'ProjectHailMarry', 'models',
+        'yolov8s_int8.engine')
+    default_extrinsics = os.path.join(pkg_share, 'config', 'extrinsics.yaml')
+
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'engine_path',
+            default_value=default_engine_path,
+            description='TensorRT engine file for inference_node.',
+        ),
+        DeclareLaunchArgument(
+            'extrinsics_file',
+            default_value=default_extrinsics,
+            description='Radar-to-camera SE(3) extrinsics parameter file '
+                        '(see config/extrinsics.yaml).',
+        ),
+        DeclareLaunchArgument(
+            'scenario',
+            default_value='approach',
+            description='sim_radar_node scene: approach | lateral | circle | '
+                        'two_targets | crossing | clutter | max_range | hover',
+        ),
+        DeclareLaunchArgument(
+            'noise_seed',
+            default_value='42',
+            description='sim_radar_node noise seed',
+        ),
         Node(
             package='tf2_ros',
             executable='static_transform_publisher',
@@ -25,9 +54,9 @@ def generate_launch_description():
             name='sim_radar_node',
             parameters=[{
                 'use_sim_time': False,
-                'scenario': 'approach',
-                'publish_rate_hz': 16.0,
-                'noise_seed': 42,
+                'scenario': LaunchConfiguration('scenario'),
+                'publish_rate_hz': 20.0,
+                'noise_seed': LaunchConfiguration('noise_seed'),
             }],
         ),
         Node(
@@ -73,14 +102,15 @@ def generate_launch_description():
             name='inference_node',
             parameters=[{
                 'use_sim_time': False,
-                'engine_path': '/home/zork/ProjectHailMarry/models/yolov8s_int8.engine',
+                'engine_path': LaunchConfiguration('engine_path'),
             }],
         ),
         Node(
             package='cuas_fusion',
             executable='fusion_node',
             name='fusion_node',
-            parameters=[{'use_sim_time': False}],
+            parameters=[LaunchConfiguration('extrinsics_file'),
+                        {'use_sim_time': False}],
         ),
         Node(
             package='cuas_fusion',

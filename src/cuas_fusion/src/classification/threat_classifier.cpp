@@ -1,5 +1,6 @@
 // @file threat_classifier.cpp
 // @brief Threat classification and escalation state machine.
+#include "cuas_fusion/common/bearing.hpp"
 #include "cuas_fusion/classification/threat_classifier.hpp"
 
 #include <algorithm>
@@ -19,9 +20,9 @@ ClassificationResult ThreatClassifier::classify(
 {
     ClassificationResult result;
 
-    if (track.class_label_.empty()) {
+    if (track.class_id_ < 0) {
         result.threat_level = ThreatLevel::UNKNOWN;
-    } else if (track.class_label_ == "0") {
+    } else if (track.class_id_ == 0) {
         const float32_t abs_vel = std::abs(track.velocity_mps_);
         if (abs_vel <= 2.0F) {
             result.threat_level = ThreatLevel::BENIGN;
@@ -68,7 +69,7 @@ ClassificationResult ThreatClassifier::classify(
         }
 
         case EscalationState::TRACKED: {
-            if (!track.class_label_.empty() && track.class_label_ == "0") {
+            if (track.class_id_ == 0) {
                 if (ts.identified_s == 0.0) {
                     ts.identified_s = current_time_s;
                 }
@@ -116,7 +117,7 @@ ClassificationResult ThreatClassifier::classify(
     result.escalation_state = ts.state;
 
     float32_t q = 0.3F;
-    if (!track.class_label_.empty()) {
+    if (track.class_id_ >= 0) {
         q += 0.3F;
     }
     if (track.state_ == TrackState::CONFIRMED) {
@@ -130,6 +131,20 @@ ClassificationResult ThreatClassifier::classify(
     return result;
 }
 
+void ThreatClassifier::retainOnly(const FixedVector<uint32_t, TRACK_MAX_TRACKS>& ids)
+{
+    states_.erase_if(
+        [&](uint32_t id, const PerTrackState& s) {
+            (void)s;
+            for (uint32_t i = 0U; i < ids.size(); ++i) {
+                if (ids[i] == id) {
+                    return false;
+                }
+            }
+            return true;
+        });
+}
+
 void ThreatClassifier::pruneStale(float64_t current_time_s, float64_t timeout_s)
 {
     states_.erase_if(
@@ -141,8 +156,7 @@ void ThreatClassifier::pruneStale(float64_t current_time_s, float64_t timeout_s)
 
 float32_t ThreatClassifier::bearing_deg(float32_t x_m, float32_t y_m) const
 {
-    const float32_t pi_f = 3.14159265358979F;
-    return std::atan2(x_m, y_m) * 180.0F / pi_f;
+    return bearingDegBoresightZero(x_m, y_m);
 }
 
 float32_t ThreatClassifier::predicted_range(float32_t x_m, float32_t y_m,

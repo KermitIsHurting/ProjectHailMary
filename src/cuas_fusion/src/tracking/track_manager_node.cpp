@@ -3,6 +3,7 @@
 #include "cuas_fusion/common/constants.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
+#include "cuas_fusion/common/track_state_ids.hpp"
 #include "cuas_fusion/common/types.hpp"
 #include "cuas_fusion/tracking/track_manager.hpp"
 
@@ -10,6 +11,7 @@
 #include <cuas_msgs/msg/fused_detection_array.hpp>
 #include <cuas_msgs/msg/track_array.hpp>
 #include <cuas_msgs/msg/track.hpp>
+#include <cstdio>
 
 namespace cuas {
 
@@ -47,7 +49,7 @@ private:
             fd.position_y_m = d.position_y_m;
             fd.position_z_m = d.position_z_m;
             fd.velocity_mps = d.velocity_mps;
-            fd.class_label  = d.class_label;
+            fd.class_id     = parseClassId(d.class_label);
             fd.confidence   = d.confidence;
             fd.timestamp_ns = d.timestamp_ns;
             (void)detections.push_back(fd);
@@ -61,6 +63,7 @@ private:
 
         cuas_msgs::msg::TrackArray out;
         out.header = msg->header;
+        out.tracks.reserve(confirmed.size());
 
         for (uint32_t i = 0U; i < confirmed.size(); ++i) {
             const Track& t = confirmed[i];
@@ -71,10 +74,15 @@ private:
             tm.position_z_m  = t.position_z_m_;
             tm.velocity_mps  = t.velocity_mps_;
             tm.doppler_mps   = t.doppler_mps_;
-            tm.class_label   = t.class_label_;
+            tm.class_label   = classIdToLabel(t.class_id_);
             tm.confidence    = t.confidence_;
             tm.track_state   = trackStateToString(t.state_);
             tm.timestamp_ns  = t.timestamp_ns_;
+            // Positions come from radar; the label (when present) rode in
+            // via the fusion camera join (P3.1).
+            tm.source_mask = (t.class_id_ >= 0)
+                ? static_cast<uint8_t>(track_source::kRadar | track_source::kCamera)
+                : track_source::kRadar;
             out.tracks.push_back(tm);
         }
 
@@ -88,11 +96,25 @@ private:
 
 } // namespace cuas
 
+// Single sanctioned exception boundary (DEV-001): owned code never
+// throws, but rclcpp/rmw, parameter access, and bad_alloc can. Without
+// this handler a library throw becomes std::terminate with no fault
+// record, invisible to the health monitor. Catch by const ref per
+// MISRA C++:2023 18.3.2.
 int main(int argc, char** argv)
 {
-    rclcpp::init(argc, argv);
-    auto node = std::make_shared<cuas::TrackerNode>();
-    rclcpp::spin(node);
-    rclcpp::shutdown();
-    return 0;
+    int exit_code = 0;
+    try {
+        rclcpp::init(argc, argv);
+        auto node = std::make_shared<cuas::TrackerNode>();
+        rclcpp::spin(node);
+        rclcpp::shutdown();
+    } catch (const std::exception& e) {
+        std::fprintf(stderr, "FATAL: unhandled exception in TrackerNode: %s\n", e.what());
+        exit_code = 1;
+    } catch (...) {
+        std::fprintf(stderr, "FATAL: unhandled non-std exception in TrackerNode\n");
+        exit_code = 1;
+    }
+    return exit_code;
 }

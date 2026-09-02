@@ -1,7 +1,12 @@
 // @file threat_classifier_node.cpp
 // @brief ROS 2 node wrapping ThreatClassifier and publishing threat reports.
+#include "cuas_fusion/classification/label_join.hpp"
 #include "cuas_fusion/classification/threat_classifier.hpp"
+#include "cuas_fusion/common/clock.hpp"
+#include "cuas_fusion/common/constants.hpp"
+#include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
+#include "cuas_fusion/common/param_utils.hpp"
 #include "cuas_fusion/common/track_state_ids.hpp"
 #include "cuas_fusion/common/types.hpp"
 #include "cuas_fusion/tracking/track.hpp"
@@ -16,6 +21,7 @@
 #include <cmath>
 #include <mutex>
 #include <string>
+#include <cstdio>
 
 namespace cuas {
 
@@ -60,15 +66,23 @@ public:
         declare_parameter("escalation_dwell_s", 1.0);
         declare_parameter("track_timeout_s", 5.0);
 
-        threatening_range_m_ = static_cast<float32_t>(
-            get_parameter("threatening_range_m").as_double());
-        threatening_velocity_mps_ = static_cast<float32_t>(
-            get_parameter("threatening_velocity_mps").as_double());
-        zone_radius_m_ = static_cast<float32_t>(
-            get_parameter("zone_radius_m").as_double());
-        escalation_dwell_s_ = static_cast<float32_t>(
-            get_parameter("escalation_dwell_s").as_double());
-        track_timeout_s_ = get_parameter("track_timeout_s").as_double();
+        // Ranges validated at declaration (RC-14): a negative dwell or a
+        // zero timeout would escalate instantly / prune every scan.
+        threatening_range_m_ = static_cast<float32_t>(clamp_param(get_logger(),
+            "threatening_range_m", get_parameter("threatening_range_m").as_double(),
+            4.0, 0.0, 1000.0));
+        threatening_velocity_mps_ = static_cast<float32_t>(clamp_param(get_logger(),
+            "threatening_velocity_mps", get_parameter("threatening_velocity_mps").as_double(),
+            0.3, 0.0, 100.0));
+        zone_radius_m_ = static_cast<float32_t>(clamp_param(get_logger(),
+            "zone_radius_m", get_parameter("zone_radius_m").as_double(),
+            3.0, 0.0, 1000.0));
+        escalation_dwell_s_ = static_cast<float32_t>(clamp_param(get_logger(),
+            "escalation_dwell_s", get_parameter("escalation_dwell_s").as_double(),
+            1.0, 0.0, 600.0));
+        track_timeout_s_ = clamp_param(get_logger(),
+            "track_timeout_s", get_parameter("track_timeout_s").as_double(),
+            5.0, 0.05, 3600.0);
 
         pub_ = create_publisher<cuas_msgs::msg::ThreatReportArray>("/threat/reports", 5);
 
@@ -95,16 +109,39 @@ private:
 
     void track_callback(const cuas_msgs::msg::TrackArray::ConstSharedPtr& msg)
     {
-        const float64_t now_s = this->now().seconds();
+        // Dwell and prune on the steady clock the rest of the pipeline
+        // stamps with (RC-6); this->now() is wall time and jumps with NTP.
+        const int64_t   t_now_ns = cuas::now_ns();
+        const float64_t now_s    = static_cast<float64_t>(t_now_ns) * 1.0e-9;
 
         cuas_msgs::msg::ThreatReportArray out;
         out.header = msg->header;
+        // The positions in a TrackArray are valid at its header stamp (the
+        // tracker predicts to the publish tick), not at each track's last
+        // radar hit (R6b-1).
+        const int64_t tracks_ns =
+            (static_cast<int64_t>(msg->header.stamp.sec) * 1'000'000'000LL) +
+            static_cast<int64_t>(msg->header.stamp.nanosec);
 
+        // Only a fresh fused set may label tracks (RC-5b): the node used to
+        // keep the last non-empty set forever and re-apply its labels to
+        // whatever track pointed the same way minutes later.
         cuas_msgs::msg::FusedDetectionArray::ConstSharedPtr fused;
         {
             std::lock_guard<std::mutex> lock(fused_mutex_);
             fused = latest_fused_;
         }
+        int64_t fused_ns = 0;
+        if (fused) {
+            fused_ns =
+                (static_cast<int64_t>(fused->header.stamp.sec) * 1'000'000'000LL) +
+                static_cast<int64_t>(fused->header.stamp.nanosec);
+            if ((t_now_ns - fused_ns) > kFusedLabelMaxAgeNs) {
+                fused.reset();
+            }
+        }
+
+        FixedVector<uint32_t, TRACK_MAX_TRACKS> live_ids;
 
         const uint32_t n_tracks = static_cast<uint32_t>(msg->tracks.size());
         for (uint32_t ti = 0U; ti < n_tracks; ++ti) {
@@ -116,33 +153,35 @@ private:
             t.position_z_m_  = tm.position_z_m;
             t.velocity_mps_  = tm.velocity_mps;
             t.doppler_mps_   = tm.doppler_mps;
-            t.class_label_   = tm.class_label;
+            t.class_id_      = parseClassId(tm.class_label);
             t.confidence_    = tm.confidence;
-            t.state_         = trackStateFromString(tm.track_state);
+            bool state_known = true;
+            t.state_         = trackStateFromString(tm.track_state,
+                                                    &state_known);
+            if (!state_known) {
+                RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+                    "Unrecognized track_state '%s' on track %u — treating "
+                    "as TENTATIVE", tm.track_state.c_str(), tm.track_id);
+            }
             t.timestamp_ns_  = tm.timestamp_ns;
+            (void)live_ids.push_back(tm.track_id);
 
-            const cuas_msgs::msg::FusedDetection* matched_fd = nullptr;
+            // Label join (D-10, R6 F1): nearest fused detection by position
+            // after extrapolating the track to the fused set's instant,
+            // within kLabelJoinMaxDistM AND on the same bearing. Bearing
+            // alone let a label jump to any track in a 15 deg wedge.
             if (fused && !fused->detections.empty()) {
-                const float32_t track_az = classifier_.bearing_deg(
-                    tm.position_x_m, tm.position_y_m);
-                float32_t best_diff = 999.0F;
-
-                const uint32_t n_det = static_cast<uint32_t>(
-                    fused->detections.size());
-                for (uint32_t di = 0U; di < n_det; ++di) {
-                    const cuas_msgs::msg::FusedDetection & fd = fused->detections[di];
-                    const float32_t diff = std::abs(fd.azimuth_deg - track_az);
-                    if (diff < best_diff) {
-                        best_diff = diff;
-                        matched_fd = &fd;
-                    }
-                }
-
-                if ((matched_fd != nullptr) && (best_diff < 15.0F)) {
-                    t.class_label_ = matched_fd->class_label;
-                    t.confidence_  = matched_fd->confidence;
-                } else {
-                    matched_fd = nullptr;
+                LabelJoinTrack lt;
+                lt.x_m = tm.position_x_m;  lt.y_m = tm.position_y_m;  lt.z_m = tm.position_z_m;
+                lt.vx  = tm.vx_mps;        lt.vy  = tm.vy_mps;        lt.vz  = tm.vz_mps;
+                lt.stamp_ns = tracks_ns;
+                const int32_t di = joinFusedLabel(lt, fused->detections, fused_ns,
+                                                  kLabelJoinMaxDistM, kLabelJoinMaxBearingDeg);
+                if (di >= 0) {
+                    const cuas_msgs::msg::FusedDetection& fd =
+                        fused->detections[static_cast<std::size_t>(di)];
+                    t.class_id_    = parseClassId(fd.class_label);
+                    t.confidence_  = fd.confidence;
                 }
             }
 
@@ -150,22 +189,16 @@ private:
                 t, now_s, threatening_range_m_,
                 threatening_velocity_mps_, escalation_dwell_s_);
 
-            if (!logged_first_ && !t.class_label_.empty()) {
+            if (!logged_first_ && (t.class_id_ >= 0)) {
                 RCLCPP_INFO(get_logger(),
-                    "First classification: track_id=%u class_label='%s' vel=%.2f -> %s esc=%s q=%.2f",
-                    t.track_id_, t.class_label_.c_str(),
+                    "First classification: track_id=%u class_id=%d vel=%.2f -> %s esc=%s q=%.2f",
+                    t.track_id_, t.class_id_,
                     static_cast<float64_t>(t.velocity_mps_),
                     threatLevelToString(cr.threat_level),
                     escalationStateToString(cr.escalation_state),
                     static_cast<float64_t>(cr.quality_score));
                 logged_first_ = true;
             }
-
-            // WHY: projected impact coordinates reflect doppler-derived
-            // velocity extrapolation — raw position would misrepresent
-            // threat trajectory to downstream consumers.
-            const ThreatClassifier::ImpactPoint impact = classifier_.predicted_impact(
-                t.position_x_m_, t.position_y_m_, t.doppler_mps_, 5.0F);
 
             cuas_msgs::msg::ThreatReport report;
             report.track_id            = t.track_id_;
@@ -174,15 +207,13 @@ private:
             report.position_y_m        = t.position_y_m_;
             report.position_z_m        = t.position_z_m_;
             report.velocity_mps        = t.velocity_mps_;
-            report.class_label         = t.class_label_;
+            report.class_label         = classIdToLabel(t.class_id_);
             report.confidence          = t.confidence_;
             report.track_state         = tm.track_state;
             report.timestamp_ns        = t.timestamp_ns_;
             report.quality_score       = cr.quality_score;
             report.dwell_time_s        = cr.dwell_time_s;
             report.escalation_state    = escalationStateToString(cr.escalation_state);
-            report.predicted_impact_x_m = impact.x_m;
-            report.predicted_impact_y_m = impact.y_m;
 
             const float32_t actual_range = std::sqrt(
                 (t.position_x_m_ * t.position_x_m_) +
@@ -200,11 +231,26 @@ private:
             // pipeline where threat level is known; classifier owns threat policy.
             report.prediction_horizon_s = horizon_for_level(report.threat_level_id);
 
+            // WHY: projected impact coordinates reflect doppler-derived
+            // velocity extrapolation — raw position would misrepresent
+            // threat trajectory to downstream consumers. The extrapolation
+            // horizon is the same per-level horizon stamped on the report;
+            // a fixed 5 s here previously contradicted the advertised
+            // horizon for every non-IDENTIFIED level.
+            const ThreatClassifier::ImpactPoint impact = classifier_.predicted_impact(
+                t.position_x_m_, t.position_y_m_, t.doppler_mps_,
+                report.prediction_horizon_s);
+            report.predicted_impact_x_m = impact.x_m;
+            report.predicted_impact_y_m = impact.y_m;
+
             out.reports.push_back(report);
         }
 
         pub_->publish(out);
 
+        // States follow the tracker's id set (RC-4); the timeout stays as a
+        // backstop for a tracker that stops publishing.
+        classifier_.retainOnly(live_ids);
         classifier_.pruneStale(now_s, track_timeout_s_);
     }
 
@@ -226,11 +272,25 @@ private:
 
 } // namespace cuas
 
+// Single sanctioned exception boundary (DEV-001): owned code never
+// throws, but rclcpp/rmw, parameter access, and bad_alloc can. Without
+// this handler a library throw becomes std::terminate with no fault
+// record, invisible to the health monitor. Catch by const ref per
+// MISRA C++:2023 18.3.2.
 int main(int argc, char** argv)
 {
-    rclcpp::init(argc, argv);
-    auto node = std::make_shared<cuas::ClassifierNode>();
-    rclcpp::spin(node);
-    rclcpp::shutdown();
-    return 0;
+    int exit_code = 0;
+    try {
+        rclcpp::init(argc, argv);
+        auto node = std::make_shared<cuas::ClassifierNode>();
+        rclcpp::spin(node);
+        rclcpp::shutdown();
+    } catch (const std::exception& e) {
+        std::fprintf(stderr, "FATAL: unhandled exception in ClassifierNode: %s\n", e.what());
+        exit_code = 1;
+    } catch (...) {
+        std::fprintf(stderr, "FATAL: unhandled non-std exception in ClassifierNode\n");
+        exit_code = 1;
+    }
+    return exit_code;
 }

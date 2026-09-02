@@ -1,5 +1,6 @@
 // @file fusion_engine.cpp
 // @brief Projects radar detections into camera frame and joins them with YOLO boxes.
+#include "cuas_fusion/common/bearing.hpp"
 #include "cuas_fusion/fusion/fusion_engine.hpp"
 #include "cuas_fusion/common/constants.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
@@ -11,7 +12,19 @@ namespace cuas {
 
 bool FusionEngine::init(const ExtrinsicTransform& extrinsic)
 {
-    extrinsic_   = extrinsic;
+    if (!extrinsicRotationMatrix(extrinsic, rot_)) {
+        return false;
+    }
+    // Negated form: a NaN offset must fail init, not poison every projection.
+    const bool t_ok = (std::abs(extrinsic.t_x_m) < 1.0e6F) &&
+                      (std::abs(extrinsic.t_y_m) < 1.0e6F) &&
+                      (std::abs(extrinsic.t_z_m) < 1.0e6F);
+    if (!t_ok) {
+        return false;
+    }
+    trans_[0]    = extrinsic.t_x_m;
+    trans_[1]    = extrinsic.t_y_m;
+    trans_[2]    = extrinsic.t_z_m;
     miss_count_  = 0U;
     initialized_ = true;
     return true;
@@ -44,12 +57,17 @@ bool FusionEngine::projectAndAssociate(
 
     for (uint32_t rpti = 0U; rpti < radar_pts.size(); ++rpti) {
         const RadarDetection& rpt = radar_pts[rpti];
-        // Radar frame (x right, y forward, z up) to camera frame (x right, y down, z forward)
-        const float32_t x_cam = rpt.x + extrinsic_.x_m;
-        const float32_t z_cam = rpt.y + extrinsic_.y_m;
-        const float32_t y_cam = -(rpt.z + extrinsic_.z_m);
+        // Full SE(3) radar→camera projection; the default extrinsic
+        // quaternion reduces this to the old axis permutation exactly.
+        const float32_t x_cam = (rot_[0] * rpt.x) + (rot_[1] * rpt.y) +
+                                (rot_[2] * rpt.z) + trans_[0];
+        const float32_t y_cam = (rot_[3] * rpt.x) + (rot_[4] * rpt.y) +
+                                (rot_[5] * rpt.z) + trans_[1];
+        const float32_t z_cam = (rot_[6] * rpt.x) + (rot_[7] * rpt.y) +
+                                (rot_[8] * rpt.z) + trans_[2];
 
-        if (z_cam <= 0.0F) {
+        // Negated: a NaN depth takes the skip branch (behind-camera guard).
+        if (!(z_cam > 0.0F)) {
             continue;
         }
 
@@ -119,13 +137,8 @@ bool FusionEngine::projectAndAssociate(
         const float32_t yv = acc.box->y + acc.box->h * 0.5F;
 
         // EMA smooths only the radar 3D position; YOLO centre is already stable
-        const int32_t key = acc.box->class_id;
-        EmaState* ema = ema_per_class_.find(key);
-        if (ema == nullptr) {
-            EmaState fresh;
-            (void)ema_per_class_.insert_or_assign(key, fresh);
-            ema = ema_per_class_.find(key);
-        }
+        EmaState* ema = associateEma(acc.box->class_id, rx, ry, rz,
+                                     acc.timestamp_ns);
         if (ema != nullptr) {
             if (ema->valid) {
                 rx   = kEmaAlpha * rx   + (1.0F - kEmaAlpha) * ema->x;
@@ -133,13 +146,13 @@ bool FusionEngine::projectAndAssociate(
                 rz   = kEmaAlpha * rz   + (1.0F - kEmaAlpha) * ema->z;
                 rvel = kEmaAlpha * rvel + (1.0F - kEmaAlpha) * ema->vel;
             }
-            ema->x = rx;
-            ema->y = ry;
-            ema->z = rz;
-            ema->u = yu;
-            ema->v = yv;
+            ema->x   = rx;
+            ema->y   = ry;
+            ema->z   = rz;
             ema->vel = rvel;
-            ema->valid = true;
+            ema->class_id       = acc.box->class_id;
+            ema->last_update_ns = acc.timestamp_ns;
+            ema->valid          = true;
         }
 
         FusedDetection fd;
@@ -147,19 +160,63 @@ bool FusionEngine::projectAndAssociate(
         fd.position_y_m = ry;
         fd.position_z_m = rz;
         fd.velocity_mps = rvel;
-        fd.class_label  = std::to_string(acc.box->class_id);
+        fd.class_id     = acc.box->class_id;
         fd.confidence   = acc.box->confidence;
         fd.pixel_u      = yu;
         fd.pixel_v      = yv;
         fd.timestamp_ns = acc.timestamp_ns;
-        fd.range_m      = ry;
-        fd.azimuth_deg  = std::atan2(rx, ry) * 180.0F / static_cast<float32_t>(M_PI);
+        // Euclidean range, not the forward coordinate (RC-29).
+        fd.range_m      = std::sqrt((rx * rx) + (ry * ry) + (rz * rz));
+        fd.azimuth_deg  = bearingDegBoresightZero(rx, ry);
         fd.bbox_width_px  = acc.box->w;
         fd.bbox_height_px = acc.box->h;
         (void)fused_out.push_back(fd);
     }
 
     return true;
+}
+
+FusionEngine::EmaState* FusionEngine::associateEma(
+    int32_t class_id, float32_t x, float32_t y, float32_t z, int64_t now_ns)
+{
+    for (EmaState& s : ema_states_) {
+        if (s.valid && (now_ns - s.last_update_ns) > kEmaTimeoutNs) {
+            s.valid = false;
+        }
+    }
+
+    EmaState* best   = nullptr;
+    float32_t best_d = kEmaGateM;
+    for (EmaState& s : ema_states_) {
+        if (!s.valid || s.class_id != class_id) {
+            continue;
+        }
+        const float32_t dx = x - s.x;
+        const float32_t dy = y - s.y;
+        const float32_t dz = z - s.z;
+        const float32_t d  = std::sqrt(dx * dx + dy * dy + dz * dz);
+        if (d <= best_d) {
+            best_d = d;
+            best   = &s;
+        }
+    }
+    if (best != nullptr) {
+        return best;
+    }
+
+    // No gate match: recycle a free slot, else the longest-unrefreshed one.
+    EmaState* oldest = &ema_states_[0];
+    for (EmaState& s : ema_states_) {
+        if (!s.valid) {
+            s = EmaState{};
+            return &s;
+        }
+        if (s.last_update_ns < oldest->last_update_ns) {
+            oldest = &s;
+        }
+    }
+    *oldest = EmaState{};
+    return oldest;
 }
 
 } // namespace cuas

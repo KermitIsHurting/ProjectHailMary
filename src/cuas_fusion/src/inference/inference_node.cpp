@@ -10,6 +10,7 @@
 
 #include <cstdlib>
 #include <string>
+#include <cstdio>
 
 namespace cuas {
 
@@ -36,6 +37,7 @@ public:
             rclcpp::shutdown();
             return;
         }
+        initialized_ = true;
 
         pub_ = create_publisher<vision_msgs::msg::Detection2DArray>(
             "/inference/detections", 5);
@@ -46,6 +48,8 @@ public:
 
         RCLCPP_INFO(get_logger(), "Inference node ready — engine: %s", engine_path.c_str());
     }
+
+    bool initialized() const { return initialized_; }
 
 private:
     void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr& msg)
@@ -65,6 +69,7 @@ private:
 
         vision_msgs::msg::Detection2DArray out;
         out.header = msg->header;
+        out.detections.reserve(detections.size());
 
         for (std::size_t i = 0U; i < detections.size(); ++i) {
             const BoundingBox& bb = detections[i];
@@ -88,17 +93,39 @@ private:
     }
 
     TrtDetector detector_;
+    bool        initialized_ = false;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_;
     rclcpp::Publisher<vision_msgs::msg::Detection2DArray>::SharedPtr pub_;
 };
 
 } // namespace cuas
 
+// Single sanctioned exception boundary (DEV-001): owned code never
+// throws, but rclcpp/rmw, parameter access, and bad_alloc can. Without
+// this handler a library throw becomes std::terminate with no fault
+// record, invisible to the health monitor. Catch by const ref per
+// MISRA C++:2023 18.3.2.
 int main(int argc, char** argv)
 {
-    rclcpp::init(argc, argv);
-    auto node = std::make_shared<cuas::InferenceNode>();
-    rclcpp::spin(node);
-    rclcpp::shutdown();
-    return 0;
+    int exit_code = 0;
+    try {
+        rclcpp::init(argc, argv);
+        auto node = std::make_shared<cuas::InferenceNode>();
+        if (!node->initialized()) {
+            // A missing engine used to exit 0 ("finished cleanly"), and the
+            // launch treated the silent node as healthy (RC-22).
+            std::fprintf(stderr, "FATAL: InferenceNode has no detector — exiting 1\n");
+            rclcpp::shutdown();
+            return 1;
+        }
+        rclcpp::spin(node);
+        rclcpp::shutdown();
+    } catch (const std::exception& e) {
+        std::fprintf(stderr, "FATAL: unhandled exception in InferenceNode: %s\n", e.what());
+        exit_code = 1;
+    } catch (...) {
+        std::fprintf(stderr, "FATAL: unhandled non-std exception in InferenceNode\n");
+        exit_code = 1;
+    }
+    return exit_code;
 }

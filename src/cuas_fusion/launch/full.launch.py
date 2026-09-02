@@ -1,5 +1,5 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, RegisterEventHandler
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, LogInfo, RegisterEventHandler
 from launch.conditions import IfCondition, UnlessCondition
 from launch.event_handlers import OnProcessExit
 from launch.substitutions import LaunchConfiguration
@@ -18,6 +18,13 @@ def generate_launch_description():
     radar_profile = os.path.join(pkg_share, 'config', 'radar_profile.cfg')
 
     color_correct = LaunchConfiguration('color_correct')
+    auto_exposure = LaunchConfiguration('auto_exposure')
+    engine_path = LaunchConfiguration('engine_path')
+    default_engine_path = os.path.join(
+        os.path.expanduser('~'), 'ProjectHailMarry', 'models',
+        'yolov8s_int8.engine')
+    extrinsics_file = LaunchConfiguration('extrinsics_file')
+    default_extrinsics = os.path.join(pkg_share, 'config', 'extrinsics.yaml')
 
     send_radar_config = ExecuteProcess(
         cmd=['bash', '-c',
@@ -34,12 +41,40 @@ def generate_launch_description():
         parameters=[system_params, {'use_sim_time': False}],
     )
 
+    def start_parser_if_config_ok(event, context):
+        # The parser only starts when the radar accepted its config; a
+        # failed config script used to be followed by a parser reading a
+        # sensor that never began streaming (RC-24).
+        if event.returncode == 0:
+            return [radar_parser_node]
+        return [LogInfo(msg=f'send_radar_config exited {event.returncode}: '
+                            'radar_parser_node NOT started')]
+
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'engine_path',
+            default_value=default_engine_path,
+            description='TensorRT engine file for inference_node.',
+        ),
         DeclareLaunchArgument(
             'color_correct',
             default_value='true',
             description='Insert cuas_color_correct_node between camera and inference '
                         'and remap inference image input to /camera/image_corrected.',
+        ),
+        DeclareLaunchArgument(
+            'auto_exposure',
+            # Off by default: it writes V4L2 exposure/gain to the camera every
+            # tick and has not had its NEEDS-HARDWARE check (RC-32).
+            default_value='false',
+            description='Run auto_exposure_node: closed-loop V4L2 exposure/gain '
+                        'servo from /camera/image_raw brightness.',
+        ),
+        DeclareLaunchArgument(
+            'extrinsics_file',
+            default_value=default_extrinsics,
+            description='Radar-to-camera SE(3) extrinsics parameter file '
+                        '(see config/extrinsics.yaml).',
         ),
         Node(
             package='tf2_ros',
@@ -51,7 +86,7 @@ def generate_launch_description():
         RegisterEventHandler(
             OnProcessExit(
                 target_action=send_radar_config,
-                on_exit=[radar_parser_node],
+                on_exit=start_parser_if_config_ok,
             )
         ),
         Node(
@@ -93,6 +128,13 @@ def generate_launch_description():
         ),
         Node(
             package='cuas_fusion',
+            executable='auto_exposure_node',
+            name='auto_exposure_node',
+            parameters=[{'use_sim_time': False}],
+            condition=IfCondition(auto_exposure),
+        ),
+        Node(
+            package='cuas_fusion',
             executable='cuas_color_correct_node',
             name='cuas_color_correct_node',
             parameters=[{'use_sim_time': False}],
@@ -104,7 +146,7 @@ def generate_launch_description():
             name='inference_node',
             parameters=[{
                 'use_sim_time': False,
-                'engine_path': '/home/zork/ProjectHailMarry/models/yolov8s_int8.engine',
+                'engine_path': engine_path,
             }],
             condition=UnlessCondition(color_correct),
         ),
@@ -114,7 +156,7 @@ def generate_launch_description():
             name='inference_node',
             parameters=[{
                 'use_sim_time': False,
-                'engine_path': '/home/zork/ProjectHailMarry/models/yolov8s_int8.engine',
+                'engine_path': engine_path,
             }],
             remappings=[('/camera/image_raw', '/camera/image_corrected')],
             condition=IfCondition(color_correct),
@@ -123,7 +165,7 @@ def generate_launch_description():
             package='cuas_fusion',
             executable='fusion_node',
             name='fusion_node',
-            parameters=[{'use_sim_time': False}],
+            parameters=[extrinsics_file, {'use_sim_time': False}],
         ),
         Node(
             package='cuas_fusion',
@@ -189,7 +231,6 @@ def generate_launch_description():
             executable='cuas_overlay_node',
             name='cuas_overlay_node',
             parameters=[{'use_sim_time': False}],
-            remappings=[('/camera/image_raw', '/camera/image_corrected')],
         ),
         Node(
             package='rviz2',

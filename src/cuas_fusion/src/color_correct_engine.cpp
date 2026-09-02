@@ -7,6 +7,19 @@ namespace cuas {
 namespace {
 
 constexpr float32_t kMaxLevel = 255.0F;
+constexpr float32_t kMaxGain  = 8.0F;
+
+// A NaN gain survives both range checks in scale_clamp (comparisons are
+// false) and reaches the undefined float->uint8 cast; out-of-range gains
+// produce a solid-color image. Negated comparisons so NaN takes the
+// identity fallback.
+float32_t sanitize_gain(const float32_t gain)
+{
+    if (!(gain >= 0.0F) || !(gain <= kMaxGain)) {
+        return 1.0F;
+    }
+    return gain;
+}
 
 uint8_t scale_clamp(const uint32_t input, const float32_t gain)
 {
@@ -30,9 +43,9 @@ ColorCorrectEngine::ColorCorrectEngine()
 ColorCorrectEngine::ColorCorrectEngine(const float32_t blue_gain,
                                        const float32_t green_gain,
                                        const float32_t red_gain)
-: blue_gain_(blue_gain),
-  green_gain_(green_gain),
-  red_gain_(red_gain),
+: blue_gain_(sanitize_gain(blue_gain)),
+  green_gain_(sanitize_gain(green_gain)),
+  red_gain_(sanitize_gain(red_gain)),
   blue_lut_{},
   green_lut_{},
   red_lut_{}

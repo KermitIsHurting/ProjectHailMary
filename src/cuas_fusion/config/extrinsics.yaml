@@ -1,0 +1,25 @@
+# Radar-to-camera SE(3) extrinsics: p_cam = R(q) * p_radar + t.
+#
+# Frames: radar (x right, y forward/boresight, z up);
+#         camera optical (x right, y down, z forward/optical axis).
+#
+# rotation_wxyz: unit quaternion [w, x, y, z]. The nominal value below is
+#   +90 deg about radar x — the pure axis convention for a perfectly
+#   aligned mount. A calibrated value additionally carries the real mount
+#   misalignment (1-2 deg of mount error is 25-50 cm of projection error
+#   at 15 m — do not skip calibration for outdoor work).
+#
+# translation_m: radar origin expressed in CAMERA axes [x, y, z]. The
+#   values below are the tape-measure offsets used to date, re-expressed
+#   from the old radar-frame form (-0.0075, 0.017, -0.079) via the nominal
+#   rotation.
+#
+# Replace both with the output of scripts/calibrate_extrinsics.py after a
+# corner-reflector calibration run, and record the solver residual here:
+#   calibration: <date> <n_pairs> pairs, RMS <x.x> px  (residual is the
+#   floor for any pixel-space association gate).
+/**:
+  ros__parameters:
+    extrinsics:
+      rotation_wxyz: [0.70710678, 0.70710678, 0.0, 0.0]
+      translation_m: [-0.0075, 0.079, 0.017]

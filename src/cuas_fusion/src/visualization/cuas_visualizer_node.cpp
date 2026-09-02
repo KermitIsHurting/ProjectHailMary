@@ -1,10 +1,12 @@
 // @file cuas_visualizer_node.cpp
 // @brief ROS 2 visualization node rendering tracks, trajectories, PPI, and HUD.
+#include "cuas_fusion/common/bearing.hpp"
 #include "cuas_fusion/common/constants.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 #include "cuas_fusion/common/ros_image_adapter.hpp"
 #include "cuas_fusion/common/track_state_ids.hpp"
+#include "cuas_fusion/common/types.hpp"
 #include "cuas_fusion/visualization/cuas_visualizer.hpp"
 
 #include <sensor_msgs/msg/image.hpp>
@@ -12,14 +14,13 @@
 
 #include <algorithm>
 #include <array>
-#include <charconv>
 #include <chrono>
 #include <cmath>
 #include <iomanip>
 #include <limits>
 #include <sstream>
 #include <string>
-#include <system_error>
+#include <cstdio>
 
 namespace {
 
@@ -67,21 +68,6 @@ static constexpr std::array<const char*, kCocoNameCount> kCocoNames = {{
     "vase", "scissors", "teddy bear", "hair drier", "toothbrush"
 }};
 
-static int32_t parseClassId(const std::string& s)
-{
-    if (s.empty()) {
-        return -1;
-    }
-    int32_t value = 0;
-    const auto* begin_ptr = s.data();
-    const auto* end_ptr   = s.data() + s.size();
-    const auto result = std::from_chars(begin_ptr, end_ptr, value);
-    if (result.ec != std::errc{}) {
-        return -1;
-    }
-    return value;
-}
-
 CuasVisualizerNode::CuasVisualizerNode()
 : Node("cuas_visualizer_node")
 {
@@ -127,7 +113,7 @@ CuasVisualizerNode::CuasVisualizerNode()
         std::bind(&CuasVisualizerNode::fusedDetectionCallback, this, std::placeholders::_1));
 
     image_sub_ = create_subscription<sensor_msgs::msg::Image>(
-        "camera/image_raw", 1,
+        "/camera/image_raw", 1,
         std::bind(&CuasVisualizerNode::imageCallback, this, std::placeholders::_1));
 
     annotated_pub_ = create_publisher<sensor_msgs::msg::Image>(
@@ -147,6 +133,20 @@ void CuasVisualizerNode::trackCallback(
 {
     std::lock_guard<std::mutex> lock(mutex_);
     latest_tracks_ = msg;
+    // Per-track caches follow the tracker's id set (RC-4): 32 lifetime ids
+    // used to fill them, after which no new track got an arc or a label.
+    const auto gone = [&msg](const uint32_t& id) -> bool {
+        for (std::size_t k = 0U; k < msg->tracks.size(); ++k) {
+            if (msg->tracks[k].track_id == id) {
+                return false;
+            }
+        }
+        return true;
+    };
+    latest_predictions_.erase_if(
+        [&gone](const uint32_t& id, const cuas_msgs::msg::PredictedTrack&) { return gone(id); });
+    latest_trajectories_.erase_if(
+        [&gone](const uint32_t& id, const cuas_msgs::msg::TrajectoryWaypoints&) { return gone(id); });
 }
 
 void CuasVisualizerNode::predictedTrackCallback(
@@ -186,6 +186,17 @@ void CuasVisualizerNode::imageCallback(
     const sensor_msgs::msg::Image::ConstSharedPtr& msg)
 {
     std::lock_guard<std::mutex> lock(mutex_);
+
+    // Annotate at most kVizMaxAnnotateHz frames by stamp (RC-26): at the
+    // camera's 50 Hz this node, the overlay and the capture node each
+    // cloned a 6 MB frame and lagged 4-5 periods behind.
+    const int64_t stamp_ns =
+        (static_cast<int64_t>(msg->header.stamp.sec) * 1'000'000'000LL) +
+        static_cast<int64_t>(msg->header.stamp.nanosec);
+    if ((stamp_ns - last_annotated_stamp_ns_) < kVizMinAnnotatePeriodNs) {
+        return;
+    }
+    last_annotated_stamp_ns_ = stamp_ns;
 
     cv::Mat base_frame;
     if (!rosImageToBgr(*msg, base_frame)) {
@@ -836,7 +847,8 @@ void CuasVisualizerNode::publishMarkers()
             const float64_t px = track.position_x_m;
             const float64_t py = track.position_y_m;
             const float64_t pz = track.position_z_m;
-            bearing   = std::atan2(py, px) * 180.0 / M_PI;
+            bearing   = static_cast<float64_t>(bearingDegBoresightZero(
+                static_cast<float32_t>(px), static_cast<float32_t>(py)));
             elevation = std::atan2(pz, std::sqrt(px * px + py * py)) * 180.0 / M_PI;
         }
 
@@ -931,11 +943,25 @@ void CuasVisualizerNode::publishMarkers()
 
 } // namespace cuas
 
+// Single sanctioned exception boundary (DEV-001): owned code never
+// throws, but rclcpp/rmw, parameter access, and bad_alloc can. Without
+// this handler a library throw becomes std::terminate with no fault
+// record, invisible to the health monitor. Catch by const ref per
+// MISRA C++:2023 18.3.2.
 int main(int argc, char** argv)
 {
-    rclcpp::init(argc, argv);
-    auto node = std::make_shared<cuas::CuasVisualizerNode>();
-    rclcpp::spin(node);
-    rclcpp::shutdown();
-    return 0;
+    int exit_code = 0;
+    try {
+        rclcpp::init(argc, argv);
+        auto node = std::make_shared<cuas::CuasVisualizerNode>();
+        rclcpp::spin(node);
+        rclcpp::shutdown();
+    } catch (const std::exception& e) {
+        std::fprintf(stderr, "FATAL: unhandled exception in CuasVisualizerNode: %s\n", e.what());
+        exit_code = 1;
+    } catch (...) {
+        std::fprintf(stderr, "FATAL: unhandled non-std exception in CuasVisualizerNode\n");
+        exit_code = 1;
+    }
+    return exit_code;
 }

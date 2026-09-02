@@ -11,3 +11,7 @@ models/*.pt
 build.log
 graphify-out/manifest.json
 graphify-out/cost.json
+
+# playbook §8 rule 12: throwaway harness/readout paths
+launch/_harness_*
+scripts/_*

@@ -22,7 +22,7 @@ ImmFilter::ImmFilter()
     }
 }
 
-void ImmFilter::init(const Eigen::VectorXd& x0, const Eigen::MatrixXd& P0)
+void ImmFilter::init(const Vector6d& x0, const Matrix6d& P0)
 {
     cv_.init(x0, P0);
     ca_.init(x0, P0);
@@ -37,13 +37,7 @@ void ImmFilter::predict(float64_t dt)
         return;
     }
 
-    std::array<float64_t, 3> c_bar{};
-    for (int32_t j = 0; j < 3; ++j) {
-        for (int32_t i = 0; i < 3; ++i) {
-            c_bar[j] += tp_[i][j] * mu_[i];
-        }
-        c_bar[j] = std::max(c_bar[j], 1e-12);
-    }
+    const std::array<float64_t, 3> c_bar = mixedPrior();
 
     std::array<std::array<float64_t, 3>, 3> mu_ij{};
     for (int32_t i = 0; i < 3; ++i) {
@@ -52,8 +46,8 @@ void ImmFilter::predict(float64_t dt)
         }
     }
 
-    std::array<Eigen::VectorXd, 3> states;
-    std::array<Eigen::MatrixXd, 3> covs;
+    std::array<Vector6d, 3> states;
+    std::array<Matrix6d, 3> covs;
     states[0] = cv_.getState();
     states[1] = ca_.getState();
     states[2] = ct_.getState();
@@ -62,23 +56,27 @@ void ImmFilter::predict(float64_t dt)
     covs[2] = ct_.getCovariance();
 
     for (int32_t j = 0; j < 3; ++j) {
-        Eigen::VectorXd x0_j = Eigen::VectorXd::Zero(6);
+        Vector6d x0_j = Vector6d::Zero();
         for (int32_t i = 0; i < 3; ++i) {
             x0_j += mu_ij[i][j] * states[i];
         }
 
-        Eigen::MatrixXd P0_j = Eigen::MatrixXd::Zero(6, 6);
+        Matrix6d P0_j = Matrix6d::Zero();
         for (int32_t i = 0; i < 3; ++i) {
-            const Eigen::VectorXd dx = states[i] - x0_j;
+            const Vector6d dx = states[i] - x0_j;
             P0_j += mu_ij[i][j] * (covs[i] + dx * dx.transpose());
         }
 
+        // setMixedState, not init(): mixing may only replace the shared
+        // 6-dim block. init() zeroed CA's acceleration and CT's turn rate
+        // every predict cycle, collapsing all three models to near-CV and
+        // leaving maneuver detection only process-noise differences.
         if (j == 0) {
-            cv_.init(x0_j, P0_j);
+            cv_.setMixedState(x0_j, P0_j);
         } else if (j == 1) {
-            ca_.init(x0_j, P0_j);
+            ca_.setMixedState(x0_j, P0_j);
         } else {
-            ct_.init(x0_j, P0_j);
+            ct_.setMixedState(x0_j, P0_j);
         }
     }
 
@@ -87,7 +85,7 @@ void ImmFilter::predict(float64_t dt)
     ct_.predict(dt);
 }
 
-void ImmFilter::update(const Eigen::VectorXd& z, const Eigen::MatrixXd& R)
+void ImmFilter::update(const Eigen::Vector3d& z, const Eigen::Matrix3d& R)
 {
     if (!initialized_) {
         return;
@@ -101,36 +99,61 @@ void ImmFilter::update(const Eigen::VectorXd& z, const Eigen::MatrixXd& R)
     ca_.update(z, R);
     ct_.update(z, R);
 
-    float64_t c_sum = mu_[0] * L0 + mu_[1] * L1 + mu_[2] * L2;
-    if (c_sum < 1e-30) {
-        c_sum = 1e-30;
-    }
-
-    mu_[0] = mu_[0] * L0 / c_sum;
-    mu_[1] = mu_[1] * L1 / c_sum;
-    mu_[2] = mu_[2] * L2 / c_sum;
+    // mu_j <- c_bar_j * L_j / sum, with c_bar the MIXED prior (RC-7). The
+    // old update multiplied the previous posterior instead, so nothing ever
+    // flowed back into a mode that lost a few rounds: mu_CT reached 1e-323
+    // in straight flight and the IMM was a CV filter from then on.
+    const std::array<float64_t, 3> c_bar = mixedPrior();
+    mu_[0] = c_bar[0] * L0;
+    mu_[1] = c_bar[1] * L1;
+    mu_[2] = c_bar[2] * L2;
 
     const float64_t sum = mu_[0] + mu_[1] + mu_[2];
-    mu_[0] /= sum;
-    mu_[1] /= sum;
-    mu_[2] /= sum;
+    // A non-finite or collapsed sum means the weight state is corrupt (e.g.
+    // a NaN slipped through a sub-filter). Reset to uniform priors —
+    // explicit recovery per JPL P5 — instead of dividing NaN through and
+    // poisoning every subsequent blended state.
+    if (!(sum > 1e-300) || !std::isfinite(sum)) {
+        mu_ = {0.33, 0.33, 0.34};
+        return;
+    }
+    float64_t floored_sum = 0.0;
+    for (int32_t j = 0; j < 3; ++j) {
+        mu_[j] = std::max(mu_[j] / sum, kMuFloor);
+        floored_sum += mu_[j];
+    }
+    for (int32_t j = 0; j < 3; ++j) {
+        mu_[j] /= floored_sum;
+    }
 }
 
-Eigen::VectorXd ImmFilter::getState() const
+std::array<float64_t, 3> ImmFilter::mixedPrior() const
+{
+    std::array<float64_t, 3> c_bar{};
+    for (int32_t j = 0; j < 3; ++j) {
+        for (int32_t i = 0; i < 3; ++i) {
+            c_bar[j] += tp_[i][j] * mu_[i];
+        }
+        c_bar[j] = std::max(c_bar[j], kMuFloor);
+    }
+    return c_bar;
+}
+
+Vector6d ImmFilter::getState() const
 {
     return mu_[0] * cv_.getState() + mu_[1] * ca_.getState() + mu_[2] * ct_.getState();
 }
 
-Eigen::MatrixXd ImmFilter::getCovariance() const
+Matrix6d ImmFilter::getCovariance() const
 {
-    const Eigen::VectorXd x_combined = getState();
-    Eigen::MatrixXd P = Eigen::MatrixXd::Zero(6, 6);
+    const Vector6d x_combined = getState();
+    Matrix6d P = Matrix6d::Zero();
 
-    std::array<Eigen::VectorXd, 3> states = {cv_.getState(), ca_.getState(), ct_.getState()};
-    std::array<Eigen::MatrixXd, 3> covs   = {cv_.getCovariance(), ca_.getCovariance(), ct_.getCovariance()};
+    std::array<Vector6d, 3> states = {cv_.getState(), ca_.getState(), ct_.getState()};
+    std::array<Matrix6d, 3> covs   = {cv_.getCovariance(), ca_.getCovariance(), ct_.getCovariance()};
 
     for (int32_t i = 0; i < 3; ++i) {
-        const Eigen::VectorXd dx = states[i] - x_combined;
+        const Vector6d dx = states[i] - x_combined;
         P += mu_[i] * (covs[i] + dx * dx.transpose());
     }
     return P;
@@ -168,37 +191,37 @@ void ImmFilter::setVelocity(const Eigen::Vector3d& v)
     ct_.setVelocity(v);
 }
 
-Eigen::MatrixXd ImmFilter::getMixedF(float64_t dt) const
+Matrix6d ImmFilter::getMixedF(float64_t dt) const
 {
     return mu_[0] * cv_.getF(dt) + mu_[1] * ca_.getF(dt) + mu_[2] * ct_.getF(dt);
 }
 
-Eigen::MatrixXd ImmFilter::getMixedQ(float64_t dt) const
+Matrix6d ImmFilter::getMixedQ(float64_t dt) const
 {
     return mu_[0] * cv_.getQ(dt) + mu_[1] * ca_.getQ(dt) + mu_[2] * ct_.getQ(dt);
 }
 
-Eigen::VectorXd ImmFilter::getModelState(uint32_t index) const
+Vector6d ImmFilter::getModelState(uint32_t index) const
 {
     switch (index) {
         case 0U: { return cv_.getState(); }
         case 1U: { return ca_.getState(); }
         case 2U: { return ct_.getState(); }
-        default: { return Eigen::VectorXd::Zero(6); }
+        default: { return Vector6d::Zero(); }
     }
 }
 
-Eigen::MatrixXd ImmFilter::getCvTransitionMatrix(float64_t dt) const
+Matrix6d ImmFilter::getCvTransitionMatrix(float64_t dt) const
 {
     return cv_.getF(dt);
 }
 
-Eigen::MatrixXd ImmFilter::getCaTransitionMatrix(float64_t dt) const
+Matrix6d ImmFilter::getCaTransitionMatrix(float64_t dt) const
 {
     return ca_.getF(dt);
 }
 
-Eigen::MatrixXd ImmFilter::getCtTransitionMatrix(float64_t dt) const
+Matrix6d ImmFilter::getCtTransitionMatrix(float64_t dt) const
 {
     return ct_.getF(dt);
 }

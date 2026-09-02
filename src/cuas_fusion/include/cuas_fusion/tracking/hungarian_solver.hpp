@@ -15,6 +15,11 @@ class HungarianSolver {
 public:
     static constexpr float64_t kLargeCost = 1.0e9;
 
+    // Stride-flexible view so callers can pass a topLeftCorner() block of a
+    // fixed-size matrix (or a plain MatrixXd) without copying (A3.2).
+    using CostMatrixRef =
+        Eigen::Ref<const Eigen::MatrixXd, 0, Eigen::OuterStride<>>;
+
     HungarianSolver() = default;
 
     // Solve the rectangular assignment problem N tracks x M detections.
@@ -22,7 +27,7 @@ public:
     // unassigned_detections collects detection indices no track claimed.
     // A cost entry >= kLargeCost is treated as a gated-out pair and the
     // corresponding assignment is dropped after the square-padded solve.
-    bool solve(const Eigen::MatrixXd& cost,
+    bool solve(const CostMatrixRef& cost,
                FixedVector<int32_t, TRACK_MAX_TRACKS>& assignment,
                FixedVector<int32_t, TRACK_MAX_TRACKS>& unassigned_detections);
 

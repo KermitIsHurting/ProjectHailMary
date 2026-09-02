@@ -58,15 +58,12 @@ FixedVector<SimRadarPoint, kSimRadarMaxPoints> SimRadar::getPoints() const
             continue;
         }
 
-        int32_t n_points = static_cast<int32_t>(t.rcs_dbsm / 5.0F);
-        if (n_points < 2) {
-            n_points = 2;
-        }
-        if (n_points > 8) {
-            n_points = 8;
-        }
-
-        for (int32_t p = 0; p < n_points; ++p) {
+        // One centroid per target: /radar/detections carries cluster
+        // centroids (ICD §3), and the parser's DBSCAN would have merged the
+        // raw returns of one body. Publishing 2-8 raw returns per target
+        // made the tracker spawn twin tracks (A6 approach run).
+        (void)t.rcs_dbsm;
+        for (int32_t p = 0; p < 1; ++p) {
             const float32_t nx = gaussian_sample() * kSimRadarNoiseSigmaM;
             const float32_t ny = gaussian_sample() * kSimRadarNoiseSigmaM;
             const float32_t nz = gaussian_sample() * kSimRadarNoiseSigmaM;
@@ -83,9 +80,11 @@ FixedVector<SimRadarPoint, kSimRadarMaxPoints> SimRadar::getPoints() const
                 obs_range = kMinRange;
             }
 
-            // WHY: negative doppler means approaching (radar convention)
+            // Radial velocity in the TI convention: positive = receding,
+            // negative = closing (verified against the April hardware bags,
+            // audit D-7). The old leading minus inverted the sign (RC-36).
             const float32_t doppler =
-                -(t.vx_mps * x_obs + t.vy_mps * y_obs + t.vz_mps * z_obs) / obs_range;
+                (t.vx_mps * x_obs + t.vy_mps * y_obs + t.vz_mps * z_obs) / obs_range;
 
             SimRadarPoint pt;
             pt.x_m         = x_obs;
@@ -104,6 +103,13 @@ FixedVector<SimRadarPoint, kSimRadarMaxPoints> SimRadar::getPoints() const
 
 ScenarioTarget& SimRadar::getTarget(uint32_t index)
 {
+    // Out-of-range access into the FixedVector is UB by its contract; hand
+    // back an inert dummy instead (A2.9). The node is single-threaded.
+    if (index >= targets_.size()) {
+        static ScenarioTarget dummy{};
+        dummy = ScenarioTarget{};
+        return dummy;
+    }
     return targets_[index];
 }
 

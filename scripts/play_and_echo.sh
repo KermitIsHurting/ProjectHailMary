@@ -2,10 +2,13 @@
 set -eo pipefail
 
 source /opt/ros/humble/setup.bash
-source /home/zork/ProjectHailMarry/install/setup.bash
-export AMENT_PREFIX_PATH=/home/zork/ProjectHailMarry/install/cuas_fusion:/home/zork/ProjectHailMarry/install/cuas_msgs:/opt/ros/humble
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKSPACE="$(dirname "$SCRIPT_DIR")"
+BAG="${1:-$HOME/demo_take3}"
+source "$WORKSPACE/install/setup.bash"
+export AMENT_PREFIX_PATH="$WORKSPACE/install/cuas_fusion:$WORKSPACE/install/cuas_msgs:/opt/ros/humble"
 
-ros2 bag play /home/zork/demo_take3 --clock &
+ros2 bag play "$BAG" --clock --topics /radar/detections /camera/image_raw &
 BAG_PID=$!
 sleep 4
 

@@ -15,3 +15,15 @@ uint8 track_state_id
 float32 vx_mps               # velocity x component in base_link frame
 float32 vy_mps               # velocity y component in base_link frame
 
+# --- OVERHAUL P3.1 additive fields (old bags replay with zeros here) ---
+float32 vz_mps               # velocity z component in base_link frame
+float32 ax_mps2              # acceleration estimate (CA-model weighted)
+float32 ay_mps2
+float32 az_mps2
+# Row-major upper triangle of the 6x6 (position, velocity) covariance:
+# (0,0),(0,1)..(0,5),(1,1)..(1,5),(2,2)..  All-zero = not populated.
+float64[21] covariance
+# Bit 0 = radar, bit 1 = camera have contributed to this track's
+# state/label (track_source constants in common/track_state_ids.hpp).
+uint8 source_mask
+

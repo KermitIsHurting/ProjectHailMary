@@ -1,7 +1,12 @@
 // @file kinematic_predictor.hpp
-// @brief Forward-propagation trajectory predictor over a fixed horizon.
+// @brief Constant-velocity forward-propagation trajectory predictor.
+//
+// CV-only by design: the 6-DOF pos/vel state built from Track.msg carries no
+// acceleration or turn-rate information, so CA/CT forward models would have
+// nothing to integrate. Publishers report model_weight_cv=1 accordingly.
 #pragma once
 
+#include "cuas_fusion/common/eigen_types.hpp"
 #include "cuas_fusion/common/fixed_containers.hpp"
 #include "cuas_fusion/common/fixed_types.hpp"
 
@@ -26,21 +31,36 @@ public:
 
     KinematicPredictor() = default;
 
+    // Steps and step length for a per-track horizon (RC-28): the horizon
+    // advertised on the Track (3-10 s by threat level) used to be ignored
+    // and every forecast ran the node's fixed 5 s. Beyond the trajectory
+    // buffer the step is coarsened so the last waypoint still lands on the
+    // horizon. A non-positive or non-finite horizon falls back to
+    // `fallback_horizon_s`.
+    struct StepPlan {
+        int32_t   n_steps = 1;
+        float64_t step_dt = 0.1;
+    };
+    static StepPlan planSteps(float64_t horizon_s, float64_t step_dt,
+                              float64_t fallback_horizon_s);
+
     TrajectoryResult propagateForward(
         const Eigen::VectorXd& state,
         const Eigen::MatrixXd& covariance,
-        const std::array<float64_t, 3>& model_weights,
-        const Eigen::MatrixXd& F_blended,
-        const Eigen::MatrixXd& Q_blended,
+        const Eigen::MatrixXd& F,
+        const Eigen::MatrixXd& Q,
         float64_t step_dt,
         int32_t n_steps);
 
-    static Eigen::VectorXd predictCvStep(const Eigen::VectorXd& state, float64_t dt);
-    static Eigen::VectorXd predictCaStep(const Eigen::VectorXd& state, float64_t dt);
-    static Eigen::VectorXd predictCtStep(const Eigen::VectorXd& state, float64_t dt);
+    static Vector6d predictCvStep(const Vector6d& state, float64_t dt);
 
-    static Eigen::VectorXd build_state_from_position_speed(
-        float64_t x_m, float64_t y_m, float64_t z_m, float64_t speed_mps);
+    // Takes the track's velocity vector as-is. The previous builder took a
+    // speed and pointed it along the position bearing, so every forecast
+    // ran radially outward regardless of true heading (same defect as
+    // reachability A1.3).
+    static Eigen::VectorXd build_state_from_position_velocity(
+        float64_t x_m, float64_t y_m, float64_t z_m,
+        float64_t vx_mps, float64_t vy_mps, float64_t vz_mps);
     static Eigen::MatrixXd build_initial_covariance_6d();
     static Eigen::MatrixXd build_transition_matrix_6d(float64_t step_dt);
     static Eigen::MatrixXd build_process_noise_6d(float64_t step_dt,

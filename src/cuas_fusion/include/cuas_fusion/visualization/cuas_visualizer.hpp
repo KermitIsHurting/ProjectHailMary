@@ -74,6 +74,9 @@ private:
     cuas_msgs::msg::FusedDetectionArray::ConstSharedPtr latest_fused_detections_;
     cuas_msgs::msg::ThreatReportArray::ConstSharedPtr latest_threats_;
     cuas_msgs::msg::TrackArray::ConstSharedPtr latest_tracks_;
+    // ~15 Hz annotated output (RC-26).
+    static constexpr int64_t kVizMinAnnotatePeriodNs = 66'000'000LL;
+    int64_t last_annotated_stamp_ns_ = 0;
     FixedMap<uint32_t, cuas_msgs::msg::PredictedTrack,      TRACK_MAX_TRACKS> latest_predictions_{};
     FixedMap<uint32_t, cuas_msgs::msg::TrajectoryWaypoints, TRACK_MAX_TRACKS> latest_trajectories_{};
     FixedMap<uint32_t, std::string,                         TRACK_MAX_TRACKS> threat_levels_{};
