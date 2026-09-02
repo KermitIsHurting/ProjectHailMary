@@ -1,4 +1,4 @@
-# ProjectHailMary audit plan (playbook §15 audit mode) — v1 after A1/A2
+# ProjectHailMary audit plan (playbook §15 audit mode) — v2 after A4 triage
 
 Executor: the AI executor session. Owner: John. Branch: `polish` off
 `misra-audit-fixes`. §0 written 2026-09-02T00:17Z; §1–§2 at 02:00Z. Owner away for the run; issue list not received.
@@ -163,7 +163,7 @@ checker was never found in the repo (A1 F-7); no MISRA C++:2023 checker is insta
 | F-3 | Repo doc counts disagree: 97 (RESUME_PLAN), 108 (the repo rules file, HANDOFF §1, OVERHAUL_PLAN), 136 (HANDOFF §8) — 108 counts `TEST(` only and omits 21 `TEST_F(` | `grep -cE '^TEST(_F)?\(' test/unit/*.cpp src/cuas_fusion/test/*.cpp` = 129 at d8a5fa7 |
 | F-4 | Owned C++: 11,827 lines src+include (9,297 non-blank non-comment); tests 2,283; 22 `add_executable`, 11 `add_library`, 19 `.msg` (136 fields), 7 launch files, 26 topics (ICD §3) | `git ls-files … \| xargs wc -l`; `grep -c add_executable CMakeLists.txt` |
 | F-5 | cppcheck 2.7 native (no MISRA addon; without ROS include paths): **6 findings** — 1 warning (`constParameter`), 3 style, 2 performance; 5 s | `/home/zork/backups/a1-static-analysis-20260902T0147Z.log`; July baseline was 68 with different flags |
-| F-6 | clang-tidy 14: run in progress at assembly time; count patched below when it lands | see §1.1 note; compile DB generated in a scratch configure |
+| F-6 | clang-tidy 14 (checks: clang-analyzer-*, bugprone-*, cert-*, cppcoreguidelines-* minus magic-numbers/constant-array-index, readability-function-size, readability-magic-numbers): **710 warnings, 0 errors**, all in owned code; 168 in `cuas_visualizer_node.cpp` alone; top checks: readability-magic-numbers 475, cppcoreguidelines-pro-type-vararg 69, cert-err33-c 52, cppcoreguidelines-pro-bounds-pointer-arithmetic 31, bugprone-easily-swappable-parameters 21, bugprone-narrowing-conversions,cppcoreguidelines-narrowing-conversions 13; 611 s | `~/backups/a1-clang-tidy-20260902T0157Z.log`, raw `~/backups/ct-build/tidy.out`; compile DB from a scratch `cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON` configure (4 s). July baseline: 771 with a different check set |
 | F-7 | **No coding-standard checker exists in the repo** that could have produced "144 violations across 20 files" (CHANGELOG 0.7.0, commit `7e57574`); no `.clang-tidy`, `.clang-format`, cppcheck config, or MISRA tool; STANDARDS_CHECKLIST §4 states no free MISRA C++:2023 checker exists | `git ls-files \| grep -iE 'clang-tidy\|clang-format\|cppcheck\|misra'` → none; `git show --stat 8652f22` = 56 .cpp/.hpp touched, not 20 |
 | F-8 | The July audit (`AUDIT_REPORT.md`) is a manual 60-finding register; 47 of its IDs appear in fix commits on this branch | `git log --format=%s main..HEAD \| grep -oE 'A[1-6]\.[0-9]+' \| sort -u \| wc -l` |
 
@@ -297,6 +297,127 @@ are mixed. Needs hardware check only for the absolute numbers on the radar path.
 | S-14 | Launch + config | `launch/*.py` (7), `config/*.yaml` | `generate_launch_description` | which nodes, params, remaps |
 | S-15 | Build, scripts, install | `CMakeLists.txt`, `package.xml`, `setup_env.sh`, `install*.sh` (empty), `scripts/*.sh` | — | flags, targets, onboarding |
 | S-16 | Docs and claims | `README` (absent), `CHANGELOG.md`, `docs/{ICD,architecture_diagram,latency_budget,CODING_STANDARD}.md`, `*_PLAN.md`, `HANDOFF.md`, `docs/RESUME_BULLETS.md` | — | what is claimed |
+
+
+## 3. A3 lens sweep — agents, budgets, results
+
+| Role | Scope (§2) | Budget | Used | Wall | Findings | Verdict |
+|---|---|---|---|---|---|---|
+| 3 failure-forcing | S-1..S-9 | 250k | 269k | 13.7 min | 20 | — |
+| 4 cross-file / guarantees | S-13, S-14, all consumers | 250k | 188k | 11.1 min | 11 (+ inventory) | — |
+| 5 adversarial-input S1–S8 | parsers, decision path, time, FSMs, network, files, resources, params | 250k | 224k | 10.7 min | 13 | — |
+| 10 systems integration | graph, launch, health, budget, onboarding | 200k | 189k | 11.4 min | 11 | 21/27 lines connected |
+| 6a bug finder | S-1..S-5 | 350k | 267k | 19.4 min | 12 | FIX-FIRST |
+| 6b bug finder | S-6..S-12 | 350k | 343k | 13.0 min | 13 | FIX-FIRST |
+| 12 cold reader | all docs vs commands | 200k | 156k | 10.6 min | 51 rows (22 contradicted) | corrected-lines list |
+| 9 altitude | — | — | — | — | SKIPPED (owner call) | Needs John's decision |
+
+Raw finding tables are kept verbatim in the audit scratch (`findings/role*.md`) and folded into §4 by root cause. Tree frozen at `3986d6f` throughout A3.
+
+## 4. A4 triage — root causes (deduped across roles 3, 4, 5, 6a, 6b, 10, 12), acceptance, tier, batch
+
+Acceptance: A = ≥2 independent finders or orchestrator-reproduced; P = needs probe; H = needs hardware check; J = Needs John's decision (not built). Impact rank per playbook §5.
+
+| RC | Root cause (one line) | Found by | Accept | Impact | Tier | Batch |
+|---|---|---|---|---|---|---|
+| RC-1 | `Track.doppler_mps` hard-coded 0 → IDENTIFIED→THREATENING unreachable, CoT 1 Hz path never fires, predicted impact = current position | R5-2b, R4-1, R3-3, R6b-1, R6a-3, R10-1 | A | 1 | A | B2 |
+| RC-2 | IMM velocity-jump gate (0.15 m/s per update vs zero prior) pins fast targets to ~0 m/s (3 m/s → 0.17; 2 m/s → 0.24 over 10 seeds) | R3-1, R6a-1 (both scratch-proven) | A | 1 | A | B2 |
+| RC-3 | 0.8 m Euclidean NN gate + zero-velocity init → fast target spawns a new tentative track per frame, never confirms | R3-2 (scratch-proven) | A | 1 | A | B2 |
+| RC-4 | `FixedMap<32>` keyed by unbounded track_id never pruned: reachability silent, geofence ENTERED spam / no EXIT, classifier state starvation, visualizer arcs | R5-5, R4-3, R3-5/6/7, R6b-2, R5-12 | A | 1 | A | B5, B6, B7 |
+| RC-5 | Stale/wrong camera labels: fusion never publishes empty arrays, classifier keeps `latest_fused_` forever, bearing-only 15° join without range/identity | R5-1, R4-2, R3-8, R6b-3 | A | 1 | A | B4, B5 |
+| RC-6 | Two clock families: drivers CLOCK_MONOTONIC vs tracker RCL_STEADY_TIME (MONOTONIC_RAW); 150 ms fusion gate dies at ~75 min uptime; reaper mixes clocks; classifier dwell on wall clock | F-9 (probe), R5-6/7, R4-4, R3-9/13, R10-2 | A (measured) | 1 | B | B2, B5 |
+| RC-7 | IMM mode-probability update uses posterior μ not mixed prior c̄ → μ_CT underflows to 1e-323 in straight flight | R3-4 (scratch-proven), A1 agent note | A | 1 | B | B3 |
+| RC-34 | IMM `setMixedState` keeps stale cross-covariance to CA/CT private states → blended P indefinite within 3.5–5 s (60/60 runs), a mode weight hits exactly 0, spurious `is_maneuvering`, non-finite state in 13/60; introduced by the A1.2 fix (7430a57) | R6a-2 (scratch-proven) | A (reproduced by finder) | 1 | A | B3 |
+| RC-35 | Parser passes unclustered singletons only when a frame has NO cluster → a distant single-return target exists only when nothing else does | R6a-5 | A (code read) | 3 | B | B1 (policy: always pass singletons; D-12) |
+| RC-36 | Sim radar Doppler sign inverted (`−(v·p)/|p|` → +1 for an approaching target) vs the parser/TI/measurement-model convention (positive = receding); parser comment :87 wrong | R6a-8 | A | 3 (latent) | C | B1 |
+| RC-37 | Confirm counter is cumulative not consecutive; sim timer dt truncation; empty-cloud iterator construction out of contract | R6a-9, R6a-11, R6a-12 | A | 4/6 | C | B1, B2 |
+| RC-8 | Malformed inputs crash nodes: Image without data (adapter), PointCloud2 without z (tracker) | R5-3, R5-4, R3-18, R6a-7 | A (R5 verified) | 2 | A | B2, B4 |
+| RC-9 | No `isfinite` from TLV bytes to `/tracks`; NaN point → NaN track; float→uint UB in clutter map | R5-9a, R3-14, R6b-10, R5-13 | A | 2/3 | B | B1, B2, B7 |
+| RC-10 | Raw radar points capped at 32 BEFORE range/velocity filter (borrowed `TRACK_MAX_TRACKS`); bag shows the cap hit on hardware | R5-9b, R3-20, HANDOFF §6.1c, bag probe | A | 3 | B | B1 |
+| RC-11 | Parser blocking `read()` defeats shutdown; parse errors `break` to a zombie node | R3-10, HANDOFF §6.1a/b | A | 2 | B (H to verify) | B1 |
+| RC-12 | Producers publish nothing on empty scenes → health reports radar/predictor DEAD; `expected_hz` never used; stale hz in FAILED message | R3-11, R10-6, §1.5 | A (observed) | 4 | C | B1, B7 |
+| RC-13 | Geofence YAML weakened silently: unknown type → r=0 circle, bad vertex skipped, <3 verts, r≤0/NaN | R5-10, R3-12 | A | 1 | A | B6 |
+| RC-14 | Parameter ranges: intent rate → 0 ms timer spin; classifier dwell/timeout; clutter threshold 0; min_threat_level; AE period | R5-11, R3-16, R6b-11 | A | 2 | C | B5, B7 |
+| RC-15 | ROS_LOCALHOST_ONLY unset, domain 0: any LAN host can inject /threat/reports or /tracks | R5-8 | J | 1 | — | Needs John (remote RViz/UI plans) |
+| RC-16 | Geofence reports first containing zone only → shipped no-fly polygon masked by the r=5 perimeter circle | R6b-4 | A (event array already sized 2/track = design intent) | 1 | B | B6 |
+| RC-17 | THREAT = any non-person COCO class > 0.5 (chair/tv/backpack box → THREAT) | R6b-5, R5-2a | J (policy) | 1 | — | Needs John |
+| RC-18 | No de-escalation edge: THREATENING/ENGAGED only exit via 5 s prune | R10-1, R5-2 | J (hysteresis values) | 1 | — | Needs John |
+| RC-19 | TRT pre-NMS candidates cut at 128 in anchor order → nearest large target loses its box | R6b-6 | A (code read) | 3 | B | B4 |
+| RC-20 | Fusion extrapolation holds z though `vz` exists → 169 px error on a 3 m/s climb | R6b-8 | A | 3 | C | B4 |
+| RC-21 | Two bearing conventions (atan2(y,x) vs atan2(x,y)) between PredictedTrack/RViz and fusion/overlay/CoT | R6b-9 | A | 4 | C | B6 |
+| RC-22 | Inference exits 0 when the engine file is missing → "finished cleanly", health NOMINAL, no labels ever | R10-3 | A | 2 | C | B7 |
+| RC-23 | `replay.launch.py` double-publishes /tracks and /threat/reports (bag + live), no inference input; April bags fail to deserialize against current cuas_msgs | R10-5, C-33 (deserialize test) | A | 3 | C | B7 + A6 (record a new sim bag) |
+| RC-24 | Serial fallbacks pick the lower ttyUSB as data; udev rule (and this box) say iface 01 = data; launch `OnProcessExit` not gated on return code | R4-6, R10-4 | A (rule + live box) | 2 | C (H) | B7 |
+| RC-25 | Four launched nodes' outputs reach nothing (geofence, reachability, intent, health, clutter) | R10-8 | A | 4 | C | B7 (overlay health/geofence strip) |
+| RC-26 | Camera runs 53.6 Hz; depth-5 image consumers lag 4-5 periods; health/AE pull 333 MB/s each | R10-7, R6b-7, §1.5 | A (measured) | 5 | C (subscriber side); camera_node decimation = camera protocol → J | B7 |
+| RC-27 | Clutter map one-shot histogram: a hovering target in the first 10 s owns its cell for the process lifetime | R3-15 | J (relearn policy) | 1 | — | Needs John |
+| RC-28 | `prediction_horizon_sec` advertised 3–10 s but waypoints always 5 s | R3-17, C-30 | A | 3 | C | B6 |
+| RC-29 | `FusedDetection.range_m` = forward coordinate, not range | R3-19 | A | 3 | D | B4 |
+| RC-30 | Docs contradict measurements (16 Hz, A55, 35 Hz, 108 tests, IoU, FSM names, …) | R12 (51 rows), R10-9, R4-10 | A | 6 | D | B8 (A7) |
+| RC-31 | Extrinsics `t` sign appears inverted vs the mount description (~59 px at 5 m) | R4-5 | H | 3 | B | Needs hardware check (calibrate_extrinsics.py with reflector) |
+| RC-32 | AE node on by default in full launch (NEEDS-HARDWARE); overlay prints tracker's "unknown" label; visualizer relative topic name; hard-coded /home/zork paths in scripts | R6b-12, R4-7/8, R10-11 | A | 6 | C | B7 |
+| RC-33 | Occlusion predictor / mux occlusion arm never exercised (tracker never emits OCCLUDED); enum values dead | R6b-13, R4-11 | A | 6 | D (document) | B8 |
+| D-0 | Pre-kickoff commits 62ae459 (predictor vx/vy) and 7ef0bde (20 Hz) | role 6b reviewed 62ae459: correct | — | — | — | Needs John: keep (default) / revert |
+
+### 4.1 Batches (A5) — dependency order; each = edit → gates → checkpoint commit → log line
+
+| Batch | Root causes | Files | Tests added/changed |
+|---|---|---|---|
+| B1 parser | RC-9 (isfinite at TLV), RC-10 (filter-then-cap, `RADAR_MAX_POINTS_PER_FRAME` 256), RC-11 (poll() before read, reopen-with-backoff), RC-12 (publish `width=0` cloud each frame; sim too), RC-35 (singletons always pass), RC-36 (sim Doppler sign; parser comment), RC-37 (sim dt from period) | `src/drivers/radar_parser_node.cpp`, `src/drivers/sim_radar_node.cpp`, `common/constants.hpp` | none (node file; behaviour observed in A6 and John's hardware smoke) |
+| B2 tracker | RC-1 (fill `doppler_mps` = (p·v)/|p|, negative = closing), RC-2 (velocity gate scaled by velocity covariance), RC-3 (association against predicted position, gate = 0.8 m + 3σ_pos), RC-6 (stamp + reaper on `cuas::now_ns()`), RC-8 (PointCloud2 field guard), RC-9 (isfinite gate) | `src/tracking/imm_tracker.cpp/.hpp`, `src/tracking/imm_tracker_node.cpp` | new `test_imm_tracker.cpp`: 1/5/10/15 m/s straight targets → single id, |v| within 10 % after 40 updates; NaN rejected; doppler sign |
+| B3 estimation | RC-34 (mixing injects a block-diagonal P: shared 6×6 mixed block, private block kept, cross terms zeroed — PSD by construction), RC-7 (μ ← c̄·L / Σ, floor 1e-6), LLT with `info()` check in CV/CA/CT update + likelihood (S indefinite → skip update / floor likelihood) | `src/estimation/imm_filter.cpp/.hpp`, `kalman_cv/ca/ct.cpp/.hpp` | `test_imm_filter.cpp`: 2000-step straight line with R-consistent noise → P symmetric, min-eig ≥ −1e-9, all μ ≥ 1e-6, finite; 1000 straight scans then a turn → μ_CT recovers > 0.5; existing turn test stays green |
+| B4 fusion + inference | RC-5a (publish empty arrays), RC-20 (z extrapolation), RC-35/R10-10 (early return on empty tracks), RC-29 (hypot range), RC-19 (top-K by score), RC-8a (Image size guard) | `src/fusion/fusion_node.cpp`, `src/fusion/fusion_engine.cpp`, `src/inference/trt_detector.cpp/.hpp`, `common/ros_image_adapter.hpp` | `test_fusion_engine`: range = hypot; new `test_ros_image_adapter.cpp`: short/empty data rejected; `test_trt_topk.cpp` on the extracted helper |
+| B5 classifiers | RC-5b (age-gate `latest_fused_` ≤ 250 ms steady, match by position ≤ 1 m + bearing), RC-6 (steady clock for dwell/prune), RC-4 (prune states on /tracks id set), RC-14 (param clamps: dwell ≥ 0, timeout > 0, intent → `clamp_rate_hz`) | `src/classification/threat_classifier_node.cpp`, `threat_classifier.cpp/.hpp`, `src/intent_classifier_node.cpp` | `test_threat_classifier`: prune on id set; node logic stays node-level (A6) |
+| B6 geofence / reachability / prediction | RC-4 (prune maps), RC-13 (fail-loud YAML), RC-16 (report all containing zones; membership bitmask), RC-28 (n_steps per track from horizon), RC-21 (one bearing helper, boresight-zero) | `src/geofence_node.cpp`, `src/geofence_engine.cpp/.hpp`, `src/reachability_node.cpp`, `src/prediction/kinematic_predictor_node.cpp`, `kinematic_predictor.cpp`, `common/types.hpp` (bearing helper) | `test_geofence_engine`: overlapping zones both reported; `test_kinematic_predictor`: horizon → steps |
+| B7 health / viz / network / tooling | RC-12 (health: predictor OK when 0 tracks; zero hz on DEAD), RC-4 (visualizer prune), RC-26 (depth-1 image subs + stamp frame-skip in visualizer/overlay/health/AE), RC-22 (inference exit 1), RC-32 (AE default false; overlay label; leading slash; script paths), RC-23 (replay: radar-only from bag + overlay), RC-24 (iface-01 fallback in parser + script; on_exit gated), RC-25 (overlay health/geofence strip), sim scenarios for A6 (`crossing`, `clutter`, `max_range`, `hover`) | `src/health_monitor*.cpp`, `src/visualization/*.cpp`, `src/drivers/auto_exposure_node.cpp`, `src/inference/inference_node.cpp`, `launch/full.launch.py`, `launch/replay.launch.py`, `scripts/*.sh`, `src/drivers/sim_radar_node.cpp` | `test_health_monitor`: predictor-OK-when-empty |
+| R6 pass | ONE role-6 on `git diff pre-review-20260902T0144Z..HEAD -- src/ msgs/` after B7; fix → gates → role 6 on fixes only | | |
+| B8 docs (A7) | RC-30, RC-33, RC-31 note, C-33 wording; README; CHANGELOG; resume-facts; HANDOFF; retro | all docs | — |
+
+Gates per batch: `colcon build --packages-select cuas_fusion` 0 warnings under -Werror → `colcon test` 0 failures (count recorded) → checkpoint commit `audit: B<n> <subsystem> — <one line>` → audit-log line with `date -u`.
+
+### 4.2 Decisions that are John's (Needs John's decision — NOT built)
+
+| D | Decision | Options / numbers | Default applied meanwhile |
+|---|---|---|---|
+| D-0 | Keep or revert `62ae459` (predictor vx/vy) and `7ef0bde` (20 Hz) | keep (role 6b: correct, minimal) · revert · reset | kept; both under role-6 pass |
+| D-1 | RC-15 network exposure: `ROS_LOCALHOST_ONLY=1` + fixed `ROS_DOMAIN_ID` | blocks remote RViz/web UI unless SROS2 | not applied; documented in README run procedure |
+| D-2 | RC-17 threat class policy | allow-list (bird 14, kite 33, airplane 4, …) vs any-non-person | unchanged; documented as demo policy |
+| D-3 | RC-18 de-escalation hysteresis | e.g. THREATENING→IDENTIFIED when range > 6 m or closing < 0 for 3 s; ENGAGED→THREATENING when range > 3 m for 3 s | unchanged; documented as monotonic FSM |
+| D-4 | RC-27 clutter map relearn/decay | exponential decay τ, periodic relearn, hover exclusion | unchanged |
+| D-5 | RC-31 extrinsics translation sign | negate `t` in `extrinsics.yaml` or change the equation; verify with `calibrate_extrinsics.py` on a reflector | unchanged (nominal) |
+| D-6 | RC-26 camera decimation in `camera_node` (camera-file protocol, NEEDS-HARDWARE) | publish every k-th frame to hold 30 Hz | subscriber-side mitigations only |
+| D-7 | Doppler sign convention on the real IWR6843 stream (parser comment says + = approaching; sim, track.hpp and classifier say − = closing) | verify on hardware with a walking target | code uses − = closing (matches TI demo and the sim); comment corrected |
+| D-8 | CHANGELOG/README wording for the MISRA/JSF claim | "guided by" (KICKOFF default) vs "audited against" | "guided by; manual audit, 60 findings, no tool count" |
+| D-9 | B2 gate constants: velocity gate = max(3 m/s²·dt, 3σ_v); association gate = 0.8 m + 3σ_pos (+|v|·dt) | numbers are engineering defaults, adjustable via constants.hpp | applied (tests pin behaviour, not the numbers) |
+| D-10 | B5 label-join gates: fused age ≤ 250 ms, position ≤ 1 m | | applied |
+| D-11 | Bags `demo_take1..3` incompatible with 0.7.0+ messages | keep as radar-only bags; record new sim bags | radar-only in replay launch |
+| D-12 | RC-35 singleton policy: unclustered radar returns always pass to the tracker (as their own detection) vs only when no cluster exists | always-pass raises false-track exposure from CFAR noise; never-pass loses single-return targets | always-pass applied (the previous behaviour made track existence depend on unrelated targets) |
+
+## 5. Empirical proof plan (A6) — shape → how driven → expected numbers
+
+Harness: `launch/_harness_audit.launch.py` (gitignored) = `sim.launch.py` minus rviz2 plus
+`scripts/_readout.py` (rates, distinct track ids, max tracks/msg, escalation states, health,
+clutter) and `scripts/_probe_stamps2.py` (stamp ages). Sim scenarios available today:
+approach, lateral, circle, two_targets (`sim_radar_node.cpp`). Bags: `~/demo_take1..3`
+(hardware, 2026-04-08; contents to be inventoried with `ros2 bag info`).
+
+| S | Shape (playbook §4 role 7) | Driven by | Expected (readout) |
+|---|---|---|---|
+| S-1 | single target approaching | sim `approach` | 1 distinct track id; track confirmed within 5 hits (0.25 s @ 20 Hz); threat reaches THREATENING inside 4 m with closing > 0.3 m/s; geofence circle r=5 ENTERED once |
+| S-2 | two targets crossing (id swap?) | sim `two_targets` (parallel, −0.8 m/s) — NOT a crossing; crossing needs a scene → Needs John's decision / tooling batch | ≤ 2 distinct ids for the run; 0 id churn |
+| S-3 | clutter only (false tracks/min) | no sim scene; clutter map learns 200 frames of the static part — partial via `lateral` + static point? Needs tooling batch | 0 tracks after learning window |
+| S-4 | target lost and reacquired | sim `approach` naturally exits range at ≈ 23 s → track deleted after 5 s reaper; no re-entry scene | id continuity: not drivable today; record |
+| S-5 | geofence entry / exit | sim `approach` through the r = 5 m circle at origin; `lateral` across the polygon x∈[−4,−1], y∈[0,6] | ENTERED then EXITED events with the right zone_id |
+| S-6 | target at max range | sim `approach` starts at 8 m < 15 m clip; needs a 14.9 m start → tooling batch | first detection at ≥ 14 m |
+| S-7 | camera detection with no radar track / reverse | camera real + sim radar: a person in front of the camera with no radar target (John present) / radar target with lens capped | fusion emits label-only? (design: no) / radar-only track keeps state |
+| S-8 | malformed frame mid-stream | unit-level only: parser logic lives in the node file; a crafted-TLV test needs the parser extracted (A5 candidate) | frame dropped, next frame parses, no desync |
+| S-9 | sensor disconnect | hardware (John) — radar unplug: parser EOF path; camera: DQBUF poll timeout | node stays alive, health DEAD within 2 s, recovers on replug |
+| S-10 | timestamps jump / repeat | sim radar with `use_sim_time` + bag replay `--clock` (demo_take3) | tracker dt floor 0.05 s holds; no NaN; F-9 offset visible in stamp probe |
+| S-11 | long soak (30+ min) | sim `circle` (never leaves range) + readout every 5 min; tegrastats RAM | RAM flat; track-table size ≤ 1; overlay FPS stable |
+| S-12 | production-defaults pass | `full.launch.py` with radar attached — hardware, John present (radar config script is sent by the launch) | rates per ICD; NOT run unattended |
+
+Shapes S-2, S-3, S-6 need one more sim scene each (tier C tooling); S-7, S-9, S-12 are John's
+hardware smoke; S-8 needs the parser's pure part extracted. The rest run on the final tree.
 
 ## Friction log
 
