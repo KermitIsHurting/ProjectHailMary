@@ -92,7 +92,7 @@ ros2 launch cuas_fusion full.launch.py
 
 > Owner authorized camera-file edits (RESUME_PLAN R12); this
 > diff-must-be-empty check is intentionally obsolete for those files.
-> Replacement check: (1) `ROLLBACK.md` exists at repo root with a
+> Replacement check: (1) `docs/ROLLBACK.md` exists with a
 > per-commit log and restore commands, and (2) the camera-file diff
 > against main has been reviewed by the owner. Register/format values
 > (device path, 1920x1080@30, BA10, black level 2752, WB gains,

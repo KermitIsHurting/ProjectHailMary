@@ -74,4 +74,4 @@ ATAK client, no hardware soak, and the owner decisions listed in `docs/claims-ev
 ## Reading order for a reviewer
 
 `docs/claims-evidence.md` (claims → evidence) → `docs/audit-plan.md` (the 2026-09 whole-project
-audit: 37 root causes, 7 fix batches, every gate result) → `docs/ICD.md` → `HANDOFF.md`.
+audit: 37 root causes, 7 fix batches, every gate result) → `docs/ICD.md` → `docs/HANDOFF.md`.
