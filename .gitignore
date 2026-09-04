@@ -15,3 +15,11 @@ graphify-out/cost.json
 # playbook §8 rule 12: throwaway harness/readout paths
 launch/_harness_*
 scripts/_*
+
+# untracked local artefacts (2026-09-04 cleanup)
+.idea/
+logs/
+camera_backups/
+calibration_frames/
+graphify-out/
+models/

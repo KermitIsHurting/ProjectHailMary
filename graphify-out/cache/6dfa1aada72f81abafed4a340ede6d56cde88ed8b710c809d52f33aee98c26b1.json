@@ -1,1 +1,0 @@
-{"nodes": [{"id": "trt_detector_trtdetector", "label": "TrtDetector", "file_type": "code", "source_file": "src/cuas_fusion/include/cuas_fusion/inference/trt_detector.hpp", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}
