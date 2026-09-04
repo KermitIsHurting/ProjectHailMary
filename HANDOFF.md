@@ -8,7 +8,7 @@ whole change). Backups: `~/backups/` (tree tgz + bundle + rosbags, sha256 in `do
 agents (80 code findings + 51 doc rows → 37 root causes, +RC-38 found in B6) → A4 triage → A5 seven fix batches, one checkpoint commit
 each, gates per batch → role-6 pass on the cumulative diff → A6 shape runs → this record.
 The running record is `docs/audit-log.md` (append-only, UTC). The plan with every table is
-`docs/audit-plan.md`. Facts sheet: `docs/resume-facts.md`. Retro: `docs/polish-retro.md`.
+`docs/audit-plan.md`. Facts sheet: `docs/claims-evidence.md`. Retro: `docs/polish-retro.md`.
 
 **State of the tree (`12c19fb` + the A7 docs commit):** build 0 warnings (-Werror), 160 GoogleTest cases green (colcon test-result 182 incl. suite rows),
 cppcheck 6 (baseline), sim smoke exit 0 with health NOMINAL. Checkpoints: B1 `94508df` · B2 `0359168` ·

@@ -363,7 +363,7 @@ Add this repo's own rules below, each with the failure it prevents.
 - Decision: `| D-n | <what and why, with the numbers> | Fixed (who) · Needs <owner>'s decision · Open — <who decides> |` — a decision that moves a threat / geofence decision, changes the contract, or goes on a résumé is never "Fixed" until the owner answers.
 - Review outcome: `| R-n | <root cause> | <roles that found it> | Accept / Needs probe / Needs hardware check / Discard (+ losing argument) | <where it landed> |`
 - Harness result: `| S-n | <how driven: scene / bag> | <observed, from the readout> | <expected> | ✓/✗ |`
-- **Facts-sheet row** (`docs/resume-facts.md`): `| claim | evidence (file:line · command + output · commit) | confidence: measured / implemented-unmeasured / planned | the decision behind it and its trade-off, one line |`
+- **Facts-sheet row** (`docs/claims-evidence.md`): `| claim | evidence (file:line · command + output · commit) | confidence: measured / implemented-unmeasured / planned | the decision behind it and its trade-off, one line |`
 
 ### 9.3 Run procedure + rollback
 
@@ -399,7 +399,7 @@ You are a review lens for the repo at <absolute repo path>
 (<one line: ROS 2 <distro>, C++<std>, target <board>; sensors attached right now: <yes/no, which>>).
 Read first: docs/<feature>-plan.md. In scope: <PLANNED new paths — "do not exist yet, review the
 plan's spec"> + <touched existing files, read in full> <role 11: the views/screenshots to check>
-<role 12: the handoff entry, the run procedure + decision log, README, CHANGELOG, resume-facts>.
+<role 12: the handoff entry, the run procedure + decision log, README, CHANGELOG, claims-evidence>.
 Role: <number + name>. Mission: <paste the Mission line verbatim from §4>.
 <Role 5 only: paste the applicable S-rows.>
 Evidence contract: every finding needs exact file:line AND a concrete failure scenario (frame /
@@ -467,7 +467,7 @@ fixes the test.
 - [ ] A readout node/script that prints the numbers the README claims.
 - [ ] Single-producer modules for every behaviour-deciding constant, each with a source-scan test.
 - [ ] Gate commands scripted (a `Makefile` or `scripts/gates.sh`); the baseline warning and violation counts written down.
-- [ ] `docs/resume-facts.md` opened on day one: every claim, its evidence, its confidence.
+- [ ] `docs/claims-evidence.md` opened on day one: every claim, its evidence, its confidence.
 - [ ] A first friction log opened in the first plan.
 
 ---
@@ -602,7 +602,7 @@ into the audit plan §9 as one table.
 
 **A7 — The record, once.** In this order: `docs/audit-plan.md` completed (findings table with
 outcomes, decision log, harness results, timings from the log); README and CHANGELOG corrections
-(every claim now verified, reworded, or removed); `docs/resume-facts.md`; `HANDOFF.md` PICK UP
+(every claim now verified, reworded, or removed); `docs/claims-evidence.md`; `HANDOFF.md` PICK UP
 HERE; ledger rows (§14) for any new mistake; the retro section; then **role 12 reads the whole
 record once**; then the commit lines and the literal git commands for the owner. The audit log's
 last line is `A7 record complete`.

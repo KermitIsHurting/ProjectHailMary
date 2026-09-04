@@ -1,4 +1,4 @@
-# ProjectHailMary — facts sheet (claim → evidence → confidence)
+# ProjectHailMary — claims and evidence
 
 Every claim you might put on a résumé or say in an interview, with the artefact that backs it.
 Confidence: **measured** (a command and its output on the Jetson, dated) · **implemented** (code +

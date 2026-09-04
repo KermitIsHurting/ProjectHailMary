@@ -35,7 +35,7 @@ record), and a second role-6 pass on the fixes only.
 "144 MISRA/JSF violations resolved" (no checker exists), "35 Hz YOLOv8s" (22–25 Hz measured
 in-pipeline), "16 Hz radar" (20 Hz), "108 tests" (160 GoogleTest cases; colcon counts 182 with suite rows), "Hungarian tracker" (not launched),
 "calibrated extrinsics" (nominal), "IoU association" (padded-box containment). See
-`docs/resume-facts.md` and CHANGELOG.
+`docs/claims-evidence.md` and CHANGELOG.
 
 ## What is still the owner's
 D-1 network exposure · D-2 threat class policy · D-3 de-escalation · D-4 clutter relearn ·

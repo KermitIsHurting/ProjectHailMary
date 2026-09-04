@@ -5,7 +5,7 @@ Playbook §15 audit: 7 review agents, 80 code findings + 51 doc rows → 37 root
 during the fixes); 30 fixed in code, 1 partial, 2 doc-only, 5 left as owner decisions; seven gated
 batches (build −Werror 0 warnings → 160 GoogleTest cases → cppcheck baseline → sim smoke), three
 bug-finder passes (cumulative diff, fixes, fixes again), shape runs on the final tree. Record: `docs/audit-plan.md`,
-`docs/audit-log.md`, `docs/resume-facts.md`, `docs/polish-retro.md`.
+`docs/audit-log.md`, `docs/claims-evidence.md`, `docs/polish-retro.md`.
 - Tracker: `doppler_mps` from the estimate (THREATENING was unreachable); covariance-scaled
   velocity and association gates (fast targets were pinned near 0 m/s); one clock family
   (CLOCK_MONOTONIC) end to end; layout/empty/NaN guards; duplicate-return guard
@@ -24,7 +24,7 @@ bug-finder passes (cumulative diff, fixes, fixes again), shape runs on the final
 - Docs: README, facts sheet, claims reworded (no MISRA checker; 22–25 Hz inference; 20 Hz radar;
   160 GoogleTest cases; Hungarian tracker not launched; nominal extrinsics)
 - Owner decisions left open: network exposure, threat class policy, de-escalation, clutter
-  relearn, extrinsics sign (see `docs/resume-facts.md`)
+  relearn, extrinsics sign (see `docs/claims-evidence.md`)
 
 ## [0.9.0-alpha]
 - OVERHAUL P3.1 interface growth: `Track` gains vz / acceleration / 6×6-covariance-triangle / source_mask; `FusedDetection` gains source_mask (all additive — earlier bags replay with zeros)

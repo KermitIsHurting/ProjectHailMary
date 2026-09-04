@@ -124,7 +124,7 @@ checked before any radar run. Per KICKOFF §6, `send_radar_config.sh` and
 ### 0.6 Tier call and trim (KICKOFF(1) record cadence — John's decision 2026-09-01)
 
 **Mode:** playbook §15 audit mode. The full record (this plan, HANDOFF, README/CHANGELOG
-corrections, resume-facts, retro) is written ONCE at A7. During the audit the only running
+corrections, claims-evidence, retro) is written ONCE at A7. During the audit the only running
 record is `docs/audit-log.md` (append-only, `date -u` in the writing command) plus a checkpoint
 commit per batch on `polish`. Reason (owner): per-change records waste tokens and time.
 
@@ -371,7 +371,7 @@ Acceptance: A = ≥2 independent finders or orchestrator-reproduced; P = needs p
 | B6 geofence / reachability / prediction | RC-4 (prune maps), RC-13 (fail-loud YAML), RC-16 (report all containing zones; membership bitmask), RC-28 (n_steps per track from horizon), RC-21 (one bearing helper, boresight-zero) | `src/geofence_node.cpp`, `src/geofence_engine.cpp/.hpp`, `src/reachability_node.cpp`, `src/prediction/kinematic_predictor_node.cpp`, `kinematic_predictor.cpp`, `common/types.hpp` (bearing helper) | `test_geofence_engine`: overlapping zones both reported; `test_kinematic_predictor`: horizon → steps |
 | B7 health / viz / network / tooling | RC-12 (health: predictor OK when 0 tracks; zero hz on DEAD), RC-4 (visualizer prune), RC-26 (depth-1 image subs + stamp frame-skip in visualizer/overlay/health/AE), RC-22 (inference exit 1), RC-32 (AE default false; overlay label; leading slash; script paths), RC-23 (replay: radar-only from bag + overlay), RC-24 (iface-01 fallback in parser + script; on_exit gated), RC-25 (overlay health/geofence strip), sim scenarios for A6 (`crossing`, `clutter`, `max_range`, `hover`) | `src/health_monitor*.cpp`, `src/visualization/*.cpp`, `src/drivers/auto_exposure_node.cpp`, `src/inference/inference_node.cpp`, `launch/full.launch.py`, `launch/replay.launch.py`, `scripts/*.sh`, `src/drivers/sim_radar_node.cpp` | `test_health_monitor`: predictor-OK-when-empty |
 | R6 pass | ONE role-6 on `git diff pre-review-20260902T0144Z..HEAD -- src/ msgs/` after B7; fix → gates → role 6 on fixes only | | |
-| B8 docs (A7) | RC-30, RC-33, RC-31 note, C-33 wording; README; CHANGELOG; resume-facts; HANDOFF; retro | all docs | — |
+| B8 docs (A7) | RC-30, RC-33, RC-31 note, C-33 wording; README; CHANGELOG; claims-evidence; HANDOFF; retro | all docs | — |
 
 Gates per batch: `colcon build --packages-select cuas_fusion` 0 warnings under -Werror → `colcon test` 0 failures (count recorded) → checkpoint commit `audit: B<n> <subsystem> — <one line>` → audit-log line with `date -u`.
 
@@ -430,7 +430,7 @@ Checkpoints on `polish`: B1 `94508df` · B2 `0359168` · B3 `20ea851` · B4 `368
 | RC-27 | Needs John (D-4) — `hover` scene shows it | — | — |
 | RC-28 | Fixed: per-track horizon step plan | B6 | `test_kinematic_predictor` StepPlan… |
 | RC-29 | Fixed: Euclidean range | B4 | `test_fusion_engine` RangeIsEuclidean… |
-| RC-30 | Docs corrected at A7 (README, CHANGELOG, resume-facts) | B8 | role 12 |
+| RC-30 | Docs corrected at A7 (README, CHANGELOG, claims-evidence) | B8 | role 12 |
 | RC-31 | Needs hardware check (D-5) | — | — |
 | RC-32 | Fixed: AE default off, overlay label from the report, leading slash, script paths | B7 | — |
 | RC-33 | Documented (occlusion arm unexercised) | B8 | — |
@@ -608,4 +608,4 @@ track through ~38 % leakage. D-2 stands: nothing escalates past TRACKED without 
 | A6/R6 fixes: build, tests, cppcheck | 04:06 | 04:09 | one compile error (BoundedVector), fixed |
 | A6 pass 2 (8 scenes, 60-s circle) + role 6 on fixes (agent, 92k tok, 6.1 min) | 04:09 | 04:18 | concurrent |
 | R6b fixes: build, tests, cppcheck, smoke, role 6 third pass, commit 12c19fb | 04:18 | 04:30 | |
-| A7 record | 04:30 | see audit-log | README, CHANGELOG, resume-facts, retro, HANDOFF, this plan |
+| A7 record | 04:30 | see audit-log | README, CHANGELOG, claims-evidence, retro, HANDOFF, this plan |

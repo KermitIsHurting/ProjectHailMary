@@ -175,7 +175,7 @@ reachability → operator + CoT output. A wrong decision is this project's "wron
   author: labels, units, colours and threat levels unambiguous; a friendly never looks like a threat;
   nothing readable only by the person who wrote it.
 - **Role 12 — Cold reader of the record.** Read README, CHANGELOG, `docs/latency_budget.md`,
-  `docs/resume-facts.md` and the plan as a hiring panel would, and check every claim against a
+  `docs/claims-evidence.md` and the plan as a hiring panel would, and check every claim against a
   command: build output, test count, checker violation count, measured rates with their conditions.
   Corrected-lines list; an unprovable claim is reworded, never left.
 - **Built-in passes.** The coding-standard checker (the one that produced "144 violations", once
@@ -223,7 +223,7 @@ the READ-ONLY rule around each mission line above.
    measured numbers WITH conditions and date, how to run in **simulation** in five commands, how to
    run on hardware, test count, coding standard status (proven wording only), what is alpha / not
    done, and a 30–60 s demo GIF or video link from the sim path.
-2. **`docs/resume-facts.md`** — one row per claim John might put on a résumé or say in an interview:
+2. **`docs/claims-evidence.md`** — one row per claim John might put on a résumé or say in an interview:
    claim → evidence (file:line, command + output, commit id) → confidence (measured / implemented,
    unmeasured / planned). Anduril's presentation round attacks unowned or hand-waved claims; this
    sheet is what John rehearses from. Include the decisions HE made and why (IMM over a single KF;
@@ -249,7 +249,7 @@ Written once, in this order, from the audit log and the checkpoint commits: `doc
 completed (§0 tier call + trim, §1 facts, the findings table with outcomes, the decision log with
 "Needs John's decision" for every wording that could not be proven and every behaviour change in
 the math, harness results, timings); README and CHANGELOG corrected so every claim is verified,
-reworded or removed; `docs/resume-facts.md`; `HANDOFF.md` PICK UP HERE; ledger rows for any new
+reworded or removed; `docs/claims-evidence.md`; `HANDOFF.md` PICK UP HERE; ledger rows for any new
 mistake; the retro section. Then role 12 reads the whole record once. Then: the path list from
 `git status --short -uall`, the checkpoint commits already on `polish` listed by hash, any final
 commit lines, and the literal `git` commands. John merges to `main` himself after reading the facts

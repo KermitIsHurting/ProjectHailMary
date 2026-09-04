@@ -59,7 +59,7 @@ reopens the port but the sensor comes back idle: re-send the profile with
 | Unit tests | 160 GoogleTest cases in 22 binaries, 0 failures (`colcon test-result` prints 182: it adds one row per binary) |
 | Static analysis | cppcheck 2.7: 6 findings (1 warning, 3 style, 2 performance); clang-tidy 14: 710 warnings / 0 errors (A1 baseline, not re-run); `-Werror` clean |
 
-Every number above has its artefact and conditions in `docs/resume-facts.md`; the shape-by-shape
+Every number above has its artefact and conditions in `docs/claims-evidence.md`; the shape-by-shape
 proof runs are in `docs/audit-plan.md` §9.
 
 ## Status
@@ -68,10 +68,10 @@ Alpha. Done: the pipeline above end to end in simulation with the real camera an
 in the loop; the radar-hardware path was last exercised in the April 2026 bags on an older tree.
 Not done / unverified:
 extrinsics are nominal (translation sign unverified), the CoT feed has never been received by an
-ATAK client, no hardware soak, and the owner decisions listed in `docs/resume-facts.md`
+ATAK client, no hardware soak, and the owner decisions listed in `docs/claims-evidence.md`
 (network exposure, threat class policy, de-escalation, clutter relearn, geofence hysteresis).
 
 ## Reading order for a reviewer
 
-`docs/resume-facts.md` (claims → evidence) → `docs/audit-plan.md` (the 2026-09 whole-project
+`docs/claims-evidence.md` (claims → evidence) → `docs/audit-plan.md` (the 2026-09 whole-project
 audit: 37 root causes, 7 fix batches, every gate result) → `docs/ICD.md` → `HANDOFF.md`.
