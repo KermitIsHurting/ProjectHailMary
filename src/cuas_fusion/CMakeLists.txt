@@ -28,29 +28,42 @@ find_package(yaml-cpp REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GST REQUIRED gstreamer-1.0 gstreamer-app-1.0)
 
-set(OpenCV_DIR /usr/lib/aarch64-linux-gnu/cmake/opencv4)
+# Jetson (JetPack) ships OpenCV outside CMake's default search prefix. Only
+# pin the hint where that directory exists so x86_64 hosts fall back to the
+# distro's config file.
+if(EXISTS /usr/lib/aarch64-linux-gnu/cmake/opencv4)
+  set(OpenCV_DIR /usr/lib/aarch64-linux-gnu/cmake/opencv4)
+endif()
 find_package(OpenCV REQUIRED)
 message(STATUS "OpenCV_LIBS: ${OpenCV_LIBS}")
 message(STATUS "OpenCV_LIBRARIES: ${OpenCV_LIBRARIES}")
 
-# Runtime-only Jetson image (no nvcc), so FindCUDAToolkit cannot resolve a
-# toolkit; locate headers/runtime through the versionless /usr/local/cuda
-# symlink instead of hardcoding cuda-12.6 paths. Both lookups are guarded:
-# an unguarded NOTFOUND only fails at link time with a cryptic message.
-find_path(CUDA_INCLUDE_DIR cuda_runtime_api.h
-  PATHS /usr/local/cuda/include /usr/local/cuda/targets/aarch64-linux/include)
-if(NOT CUDA_INCLUDE_DIR)
-  message(FATAL_ERROR "cuda_runtime_api.h not found — install the CUDA runtime")
-endif()
-find_library(CUDART_LIB cudart
-  PATHS /usr/local/cuda/lib64 /usr/local/cuda/targets/aarch64-linux/lib)
-if(NOT CUDART_LIB)
-  message(FATAL_ERROR "libcudart not found — install the CUDA runtime")
-endif()
+# CUDA / TensorRT are only needed by the detector. -DCUAS_BUILD_GPU=OFF builds
+# every CPU-side node and every GoogleTest case on a host without a GPU
+# toolchain (CI, x86_64 dev box); the Jetson default is ON.
+option(CUAS_BUILD_GPU "Build the TensorRT detector library and inference_node" ON)
+if(CUAS_BUILD_GPU)
+  # Runtime-only Jetson image (no nvcc), so FindCUDAToolkit cannot resolve a
+  # toolkit; locate headers/runtime through the versionless /usr/local/cuda
+  # symlink instead of hardcoding cuda-12.6 paths. Both lookups are guarded:
+  # an unguarded NOTFOUND only fails at link time with a cryptic message.
+  find_path(CUDA_INCLUDE_DIR cuda_runtime_api.h
+    PATHS /usr/local/cuda/include /usr/local/cuda/targets/aarch64-linux/include)
+  if(NOT CUDA_INCLUDE_DIR)
+    message(FATAL_ERROR "cuda_runtime_api.h not found — install the CUDA runtime")
+  endif()
+  find_library(CUDART_LIB cudart
+    PATHS /usr/local/cuda/lib64 /usr/local/cuda/targets/aarch64-linux/lib)
+  if(NOT CUDART_LIB)
+    message(FATAL_ERROR "libcudart not found — install the CUDA runtime")
+  endif()
 
-find_library(NVINFER_LIB nvinfer PATHS /usr/lib/aarch64-linux-gnu)
-if(NOT NVINFER_LIB)
-  message(FATAL_ERROR "libnvinfer not found — install TensorRT")
+  find_library(NVINFER_LIB nvinfer PATHS /usr/lib/aarch64-linux-gnu)
+  if(NOT NVINFER_LIB)
+    message(FATAL_ERROR "libnvinfer not found — install TensorRT")
+  endif()
+else()
+  message(STATUS "CUAS_BUILD_GPU=OFF: skipping trt_detector and inference_node")
 endif()
 
 include_directories(include)
@@ -144,34 +157,36 @@ target_include_directories(auto_exposure_node SYSTEM PRIVATE ${OpenCV_INCLUDE_DI
 target_link_libraries(auto_exposure_node ${OpenCV_LIBS})
 target_compile_options(auto_exposure_node PRIVATE ${CUAS_SAFETY_FLAGS})
 
-# TRT detector library (no ROS dependency — use stricter flags)
-add_library(trt_detector STATIC
-  src/inference/trt_detector.cpp
-)
-target_include_directories(trt_detector PUBLIC include)
-target_include_directories(trt_detector SYSTEM PUBLIC
-  ${OpenCV_INCLUDE_DIRS}
-  ${CUDA_INCLUDE_DIR}
-)
-target_link_libraries(trt_detector
-  ${OpenCV_LIBS}
-  ${NVINFER_LIB}
-  ${CUDART_LIB}
-)
-target_compile_options(trt_detector PRIVATE ${CUAS_STRICT_FLAGS})
+if(CUAS_BUILD_GPU)
+  # TRT detector library (no ROS dependency — use stricter flags)
+  add_library(trt_detector STATIC
+    src/inference/trt_detector.cpp
+  )
+  target_include_directories(trt_detector PUBLIC include)
+  target_include_directories(trt_detector SYSTEM PUBLIC
+    ${OpenCV_INCLUDE_DIRS}
+    ${CUDA_INCLUDE_DIR}
+  )
+  target_link_libraries(trt_detector
+    ${OpenCV_LIBS}
+    ${NVINFER_LIB}
+    ${CUDART_LIB}
+  )
+  target_compile_options(trt_detector PRIVATE ${CUAS_STRICT_FLAGS})
 
-# inference node
-add_executable(inference_node
-  src/inference/inference_node.cpp
-)
-ament_target_dependencies(inference_node
-  rclcpp
-  sensor_msgs
-  vision_msgs
-  cv_bridge
-)
-target_link_libraries(inference_node trt_detector)
-target_compile_options(inference_node PRIVATE ${CUAS_SAFETY_FLAGS})
+  # inference node
+  add_executable(inference_node
+    src/inference/inference_node.cpp
+  )
+  ament_target_dependencies(inference_node
+    rclcpp
+    sensor_msgs
+    vision_msgs
+    cv_bridge
+  )
+  target_link_libraries(inference_node trt_detector)
+  target_compile_options(inference_node PRIVATE ${CUAS_SAFETY_FLAGS})
+endif()
 
 # fusion engine library (no ROS dependency)
 add_library(fusion_engine STATIC
@@ -474,10 +489,13 @@ ament_target_dependencies(cuas_color_correct_node
 target_link_libraries(cuas_color_correct_node color_correct_engine)
 target_compile_options(cuas_color_correct_node PRIVATE ${CUAS_SAFETY_FLAGS})
 
+if(CUAS_BUILD_GPU)
+  install(TARGETS inference_node DESTINATION lib/${PROJECT_NAME})
+endif()
+
 install(TARGETS
   radar_parser_node
   camera_node
-  inference_node
   fusion_node
   tracker_node
   classifier_node
