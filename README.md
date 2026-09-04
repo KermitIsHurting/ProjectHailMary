@@ -1,8 +1,13 @@
 # ProjectHailMary — counter-UAS radar + camera fusion on a Jetson
 
+## Demo
+
+![tracking demo](docs/media/tracking.gif)
+_(recording in progress)_
+
 A 22-node (19 launched) ROS 2 Humble / C++17 pipeline that turns a TI IWR6843ISK 60 GHz mmWave radar and an
 AR0234 camera into tracked, classified, geofenced targets with a live operator view and a
-CoT/ATAK network feed. Runs on a Jetson Orin Nano 8 GB. Written to MISRA C++:2023 / JPL
+CoT/ATAK network feed. The camera and TensorRT engine run live on a Jetson Orin Nano 8 GB, and the radar path is validated on recorded bags. Written to MISRA C++:2023 / JPL
 Power-of-10 discipline: fixed-width types, no heap on hot paths, bounded loops, fixed-capacity
 containers, one exception boundary per process.
 
@@ -57,10 +62,15 @@ reopens the port but the sensor comes back idle: re-send the profile with
 | YOLOv8s INT8 in the full pipeline | 22–27 Hz across 27 runs (≈24 typical); GPU load 10–90 % over a run, so "GPU-bound" is inferred, not isolated |
 | `/tracks` stamp age at the subscriber | 2.7 ms p50 |
 | Unit tests | 160 GoogleTest cases in 22 binaries, 0 failures (`colcon test-result` prints 182: it adds one row per binary) |
-| Static analysis | cppcheck 2.7: 6 findings (1 warning, 3 style, 2 performance); clang-tidy 14: 710 warnings / 0 errors (A1 baseline, not re-run); `-Werror` clean |
+| Static analysis | cppcheck 2.7: 6 findings (1 warning, 3 style, 2 performance); `-Werror` clean |
 
 Every number above has its artefact and conditions in `docs/claims-evidence.md`; the shape-by-shape
 proof runs are in `docs/audit-plan.md` §9.
+
+## Reading order for a reviewer
+
+`docs/claims-evidence.md` (claims → evidence) → `docs/audit-plan.md` (the 2026-09 whole-project
+audit: 37 root causes, 7 fix batches, every gate result) → `docs/ICD.md` → `docs/HANDOFF.md`.
 
 ## Status
 
@@ -70,8 +80,3 @@ Not done / unverified:
 extrinsics are nominal (translation sign unverified), the CoT feed has never been received by an
 ATAK client, no hardware soak, and the open decisions listed in `docs/claims-evidence.md`
 (network exposure, threat class policy, de-escalation, clutter relearn, geofence hysteresis).
-
-## Reading order for a reviewer
-
-`docs/claims-evidence.md` (claims → evidence) → `docs/audit-plan.md` (the 2026-09 whole-project
-audit: 37 root causes, 7 fix batches, every gate result) → `docs/ICD.md` → `docs/HANDOFF.md`.
