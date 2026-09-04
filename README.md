@@ -68,7 +68,7 @@ Alpha. Done: the pipeline above end to end in simulation with the real camera an
 in the loop; the radar-hardware path was last exercised in the April 2026 bags on an older tree.
 Not done / unverified:
 extrinsics are nominal (translation sign unverified), the CoT feed has never been received by an
-ATAK client, no hardware soak, and the owner decisions listed in `docs/claims-evidence.md`
+ATAK client, no hardware soak, and the open decisions listed in `docs/claims-evidence.md`
 (network exposure, threat class policy, de-escalation, clutter relearn, geofence hysteresis).
 
 ## Reading order for a reviewer

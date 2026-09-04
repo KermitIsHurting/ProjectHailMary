@@ -1,8 +1,8 @@
 # ProjectHailMary Changelog
 
 ## [0.10.0-alpha] — 2026-09-02 whole-project audit (branch `polish`)
-Playbook §15 audit: 7 review agents, 80 code findings + 51 doc rows → 37 root causes (+1 found
-during the fixes); 30 fixed in code, 1 partial, 2 doc-only, 5 left as owner decisions; seven gated
+Whole-project audit: 7 review agents, 80 code findings + 51 doc rows → 37 root causes (+1 found
+during the fixes); 30 fixed in code, 1 partial, 2 doc-only, 5 left as open decisions; seven gated
 batches (build −Werror 0 warnings → 160 GoogleTest cases → cppcheck baseline → sim smoke), three
 bug-finder passes (cumulative diff, fixes, fixes again), shape runs on the final tree. Record: `docs/audit-plan.md`,
 `docs/audit-log.md`, `docs/claims-evidence.md`, `docs/polish-retro.md`.

@@ -76,7 +76,7 @@ threat + intent classifiers → geofence / reachability → RViz2 + camera overl
 | "Calibrated SE(3) extrinsics" | "nominal mount extrinsics; the translation sign is unverified (Needs a reflector calibration)" |
 | "Pinhole + IoU association" | "pinhole projection into 25 %-padded boxes" |
 
-## Decisions still yours (Needs John)
+## Open decisions
 
 | D | Question | Default in the tree |
 |---|---|---|

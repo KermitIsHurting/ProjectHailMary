@@ -1,4 +1,4 @@
-# Polish retro — 2026-09-01/02 whole-project audit (playbook §15)
+# Polish retro — 2026-09-01/02 whole-project audit
 
 ## What was broken (the ones that changed a decision)
 
@@ -37,11 +37,11 @@ in-pipeline), "16 Hz radar" (20 Hz), "108 tests" (160 GoogleTest cases; colcon c
 "calibrated extrinsics" (nominal), "IoU association" (padded-box containment). See
 `docs/claims-evidence.md` and CHANGELOG.
 
-## What is still the owner's
+## Open decisions
 D-1 network exposure · D-2 threat class policy · D-3 de-escalation · D-4 clutter relearn ·
 D-5 extrinsics sign · D-0 keep the two pre-kickoff commits · the hardware smoke (S-7, S-9, S-12).
 
 ## Lessons for the playbook (friction log 7–11)
 Scratch on tmpfs dies with the box; process patterns never go on the caller's command line;
-shared headers cost a 5-minute rebuild per touch; role 4 must check every producer's frame
+shared headers cost a 5-minute rebuild per touch; the review pass must check every producer's frame
 against the ICD; name the build worker count in the gates.

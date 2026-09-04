@@ -4,9 +4,9 @@
 `pre-review-20260902T0144Z` (the audit baseline; `git diff pre-review-20260902T0144Z..HEAD` is the
 whole change). Backups: `~/backups/` (tree tgz + bundle + rosbags, sha256 in `docs/audit-plan.md` §0).
 
-**What happened:** playbook §15 audit. A0 backup → A1 ground truth → A2 map → A3 seven review
+**What happened:** Whole-project audit. A0 backup → A1 ground truth → A2 map → A3 seven review
 agents (80 code findings + 51 doc rows → 37 root causes, +RC-38 found in B6) → A4 triage → A5 seven fix batches, one checkpoint commit
-each, gates per batch → role-6 pass on the cumulative diff → A6 shape runs → this record.
+each, gates per batch → review pass on the cumulative diff → A6 shape runs → this record.
 The running record is `docs/audit-log.md` (append-only, UTC). The plan with every table is
 `docs/audit-plan.md`. Facts sheet: `docs/claims-evidence.md`. Retro: `docs/polish-retro.md`.
 
