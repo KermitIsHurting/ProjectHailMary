@@ -1,5 +1,7 @@
 # ProjectHailMary — counter-UAS radar + camera fusion on a Jetson
 
+[![build](https://github.com/johnlopezNULL/ProjectHailMary/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/johnlopezNULL/ProjectHailMary/actions/workflows/build.yml)
+
 ## Demo
 
 ![tracking demo](docs/media/tracking.gif)
