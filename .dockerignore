@@ -1,0 +1,12 @@
+.git
+.idea
+build
+install
+log
+logs
+camera_backups
+calibration_frames
+graphify-out
+models
+docs
+*.md
