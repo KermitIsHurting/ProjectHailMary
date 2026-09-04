@@ -1,0 +1,27 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  colcon:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      # The Dockerfile runs `colcon build --packages-select cuas_msgs cuas_fusion
+      # --cmake-args -DCUAS_WERROR=ON -DCUAS_BUILD_GPU=OFF` in its final layer.
+      - name: colcon build (Dockerfile)
+        run: docker build -t projecthailmary-ci .
+
+      - name: colcon test
+        run: >
+          docker run --rm projecthailmary-ci bash -c
+          "source /opt/ros/humble/setup.bash &&
+           source /ws/install/setup.bash &&
+           colcon test --packages-select cuas_fusion --event-handlers console_direct+ &&
+           colcon test-result --verbose"
